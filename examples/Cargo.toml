@@ -1,0 +1,23 @@
+[package]
+name = "df-streams-examples"
+version = { workspace = true }
+edition = { workspace = true }
+publish = false
+
+[dependencies]
+datafusion = { workspace = true }
+datafusion-common = { workspace = true }
+datafusion-expr = { workspace = true }
+datafusion-franz = { workspace = true }
+datafusion-functions = { workspace = true }
+datafusion-functions-aggregate = { workspace = true }
+datafusion-physical-expr = { workspace = true }
+
+arrow = { workspace = true }
+arrow-schema = { workspace = true }
+tracing = { workspace = true }
+futures = { workspace = true }
+tracing-log = { workspace = true }
+tracing-subscriber = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"] }
+serde_json = "1"
