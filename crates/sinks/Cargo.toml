@@ -1,15 +1,13 @@
 [package]
-name = "df-streams-core"
+name = "df-streams-sinks"
 version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
 datafusion = { workspace = true }
-datafusion-expr = { workspace = true }
 datafusion-common = { workspace = true }
-datafusion-execution = { workspace = true }
-
-futures = { workspace = true }
-df-streams-sinks = { workspace = true }
 async-trait = { workspace = true }
+arrow = { workspace = true }
+rdkafka = { workspace = true }
 log = { workspace = true }
+tokio = { workspace = true }

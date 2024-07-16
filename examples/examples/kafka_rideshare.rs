@@ -17,6 +17,9 @@ use datafusion_common::franz_arrow::infer_arrow_schema_from_json_value;
 use datafusion_expr::{col, max, min, LogicalPlanBuilder};
 use datafusion_functions::core::expr_ext::FieldAccessor;
 use datafusion_functions_aggregate::count::count;
+
+use df_streams_core::sinkable::Sinkable;
+
 use std::{sync::Arc, time::Duration};
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
 
@@ -28,8 +31,7 @@ async fn main() {
         .with_max_level(tracing::Level::INFO)
         .with_span_events(FmtSpan::CLOSE | FmtSpan::ENTER)
         .finish();
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     let sample_event = r#"
         {
@@ -82,8 +84,7 @@ async fn main() {
         )),
     );
 
-    let bootstrap_servers =
-        String::from("localhost:19092,localhost:29092,localhost:39092");
+    let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
     let canonical_schema = Arc::new(Schema::new(fields));
     let _config = KafkaStreamConfig {
         bootstrap_servers: bootstrap_servers.clone(),
@@ -129,16 +130,16 @@ async fn main() {
                 min(col("imu_measurement").field("gps").field("altitude")),
                 count(col("imu_measurement")).alias("count"),
             ],
-            Duration::from_millis(5_000), // 5 second window
+            Duration::from_millis(5_000),       // 5 second window
             Some(Duration::from_millis(1_000)), // 1 second slide
         )
         .unwrap();
 
-    use datafusion::franz_sinks::{
+    use df_streams_sinks::{
         FileSink, FranzSink, KafkaSink, KafkaSinkSettings, PrettyPrinter, StdoutSink,
     };
 
-    use datafusion_franz::{RocksDBBackend, StreamMonitor, StreamMonitorConfig};
+    // use datafusion_franz::{RocksDBBackend, StreamMonitor, StreamMonitorConfig};
 
     // let fname = "/tmp/out.jsonl";
     // println!("Writing results to file {}", fname);
@@ -162,7 +163,8 @@ async fn main() {
     };
     let writer = KafkaSink::new(&config).unwrap();
     let sink = Box::new(writer) as Box<dyn FranzSink>;
-    let _ = windowed_df.sink(sink).await;
+    let _ = Sinkable::sink(windowed_df, sink).await;
+    // let _ = windowed_df.sink(sink).await;
 
     // let kafka_sink_config = KafkaSinkSettings {
     //     topic: "out_topic_monitored".to_string(),
