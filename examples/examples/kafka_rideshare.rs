@@ -165,23 +165,4 @@ async fn main() {
     let sink = Box::new(writer) as Box<dyn FranzSink>;
     let _ = Sinkable::sink(windowed_df, sink).await;
     // let _ = windowed_df.sink(sink).await;
-
-    // let kafka_sink_config = KafkaSinkSettings {
-    //     topic: "out_topic_monitored".to_string(),
-    //     bootstrap_servers: bootstrap_servers.clone(),
-    // };
-    // let kafka_writer = KafkaSink::new(&kafka_sink_config).unwrap();
-    // let rocksdb_backend = RocksDBBackend::new("./state_store.rocksdb").unwrap();
-    //
-    // let stream_monitor_config = StreamMonitorConfig::new();
-    // let stream_monitor = StreamMonitor::new(
-    //     &stream_monitor_config,
-    //     Arc::new(tokio::sync::Mutex::new(kafka_writer)),
-    //     Arc::new(tokio::sync::Mutex::new(rocksdb_backend)),
-    // )
-    // .await
-    // .unwrap();
-    // stream_monitor.start_server().await;
-    // let sink = Box::new(stream_monitor) as Box<dyn FranzSink>;
-    // let _ = windowed_df.sink(sink).await;
 }

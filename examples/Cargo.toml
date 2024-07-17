@@ -8,7 +8,6 @@ publish = false
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }
 datafusion-expr = { workspace = true }
-datafusion-franz = { workspace = true }
 datafusion-functions = { workspace = true }
 datafusion-functions-aggregate = { workspace = true }
 datafusion-physical-expr = { workspace = true }
