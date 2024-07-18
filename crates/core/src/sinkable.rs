@@ -4,15 +4,14 @@ use async_trait::async_trait;
 use std::time::Duration;
 
 pub use datafusion::dataframe::DataFrame;
-use datafusion_expr::logical_plan::LogicalPlanBuilder;
-use datafusion_expr::Expr;
 use datafusion_common::{DataFusionError, Result};
 use datafusion_execution::SendableRecordBatchStream;
+use datafusion_expr::logical_plan::LogicalPlanBuilder;
+use datafusion_expr::Expr;
 
 use futures::StreamExt;
 
 use df_streams_sinks::FranzSink;
-
 
 #[async_trait]
 pub trait Sinkable {

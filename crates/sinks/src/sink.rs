@@ -17,8 +17,8 @@
 
 use async_trait::async_trait;
 
-use datafusion_common::{DataFusionError, Result};
 use arrow::record_batch::RecordBatch;
+use datafusion_common::{DataFusionError, Result};
 
 #[async_trait]
 pub trait FranzSink: Send + Sync {

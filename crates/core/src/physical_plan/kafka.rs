@@ -5,23 +5,19 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use arrow::datatypes::TimestampMillisecondType;
-use arrow_array::{
-    Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, StructArray,
-};
+use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, StructArray};
 use arrow_schema::{DataType, Field, SchemaRef, TimeUnit};
 use datafusion_common::franz_arrow::json_records_to_arrow_record_batch;
 use tracing::{debug, error, info, instrument};
-//use datafusion::datasource::TableProvider;
-//use datafusion_execution::context::SessionState;
 use futures::StreamExt;
 use serde_json::Value;
 
-use datafusion_physical_plan::stream::RecordBatchReceiverStreamBuilder;
-use datafusion_physical_plan::streaming::PartitionStream;
 use arrow::compute::{max, min};
 use datafusion_common::{plan_err, DataFusionError};
 use datafusion_execution::{SendableRecordBatchStream, TaskContext};
 use datafusion_expr::Expr;
+use datafusion_physical_plan::stream::RecordBatchReceiverStreamBuilder;
+use datafusion_physical_plan::streaming::PartitionStream;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::{ClientConfig, Message, Timestamp, TopicPartitionList};
 
@@ -108,8 +104,7 @@ impl PartitionStream for KafkaStreamRead {
             .set("auto.offset.reset", self.config.offset_reset.to_string())
             .set("group.id", self.config.consumer_group_id.to_string());
 
-        let consumer: StreamConsumer =
-            client_config.create().expect("Consumer creation failed");
+        let consumer: StreamConsumer = client_config.create().expect("Consumer creation failed");
 
         consumer
             .assign(&assigned_partitions)
@@ -117,8 +112,7 @@ impl PartitionStream for KafkaStreamRead {
 
         //let schema = self.config.schema.clone();
 
-        let mut builder =
-            RecordBatchReceiverStreamBuilder::new(self.config.schema.clone(), 1);
+        let mut builder = RecordBatchReceiverStreamBuilder::new(self.config.schema.clone(), 1);
         let tx = builder.tx();
         let canonical_schema = self.config.schema.clone();
         let json_schema = self.config.original_schema.clone();
@@ -142,23 +136,18 @@ impl PartitionStream for KafkaStreamRead {
                             let payload = m.payload().expect("Message payload is empty");
                             let mut deserialized_record: HashMap<String, Value> =
                                 serde_json::from_slice(payload).unwrap();
-                            deserialized_record.insert(
-                                "kafka_timestamp".to_string(),
-                                Value::from(timestamp),
-                            );
+                            deserialized_record
+                                .insert("kafka_timestamp".to_string(), Value::from(timestamp));
                             if let Some(key) = key {
                                 deserialized_record.insert(
                                     "kafka_key".to_string(),
                                     Value::from(String::from_utf8_lossy(key)),
                                 );
                             } else {
-                                deserialized_record.insert(
-                                    "kafka_key".to_string(),
-                                    Value::from(String::from("")),
-                                );
+                                deserialized_record
+                                    .insert("kafka_key".to_string(), Value::from(String::from("")));
                             }
-                            let new_payload =
-                                serde_json::to_value(deserialized_record).unwrap();
+                            let new_payload = serde_json::to_value(deserialized_record).unwrap();
                             new_payload
                         }
                         Err(err) => {

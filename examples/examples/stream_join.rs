@@ -49,11 +49,9 @@ async fn main() {
         .with_max_level(tracing::Level::INFO)
         .with_span_events(FmtSpan::CLOSE | FmtSpan::ENTER)
         .finish();
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let bootstrap_servers =
-        String::from("localhost:19092,localhost:29092,localhost:39092");
+    let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
 
     // Configure Kafka source for IMU data
     let imu_stream = create_kafka_source(

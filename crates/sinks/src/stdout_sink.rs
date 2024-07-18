@@ -17,9 +17,9 @@
 
 use async_trait::async_trait;
 
-use datafusion_common::{DataFusionError, Result};
 use arrow::json::LineDelimitedWriter;
 use arrow::record_batch::RecordBatch;
+use datafusion_common::{DataFusionError, Result};
 
 use super::sink::FranzSink;
 
@@ -36,9 +36,9 @@ impl FranzSink for StdoutSink {
     async fn write_records(&mut self, batch: RecordBatch) -> Result<(), DataFusionError> {
         // Write out JSON
         let mut writer = LineDelimitedWriter::new(std::io::stdout().lock());
-        let _ = writer.write(&batch).map_err(|e| {
-            DataFusionError::Execution(format!("Error writing batch: {}", e))
-        })?;
+        let _ = writer
+            .write(&batch)
+            .map_err(|e| DataFusionError::Execution(format!("Error writing batch: {}", e)))?;
 
         Ok(())
     }

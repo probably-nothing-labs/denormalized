@@ -18,9 +18,9 @@
 use async_trait::async_trait;
 use std::time::Duration;
 
-use datafusion_common::{DataFusionError, Result};
 use arrow::json::LineDelimitedWriter;
 use arrow::record_batch::RecordBatch;
+use datafusion_common::{DataFusionError, Result};
 
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureProducer;
@@ -64,8 +64,7 @@ impl KafkaSink {
             .set("bootstrap.servers", config.bootstrap_servers.as_str())
             .set("message.timeout.ms", "5000");
 
-        let producer: FutureProducer =
-            client_config.create().expect("Producer creation error");
+        let producer: FutureProducer = client_config.create().expect("Producer creation error");
 
         log::info!(
             "kafka connection established bootstrap_servers: {}, topic: {}",

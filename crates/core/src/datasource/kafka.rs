@@ -1,17 +1,14 @@
 use async_trait::async_trait;
 use std::{any::Any, sync::Arc};
 
+use arrow_schema::{Schema, SchemaRef, SortOptions};
 use datafusion::datasource::TableProvider;
 use datafusion::execution::context::SessionState;
-use arrow_schema::{Schema, SchemaRef, SortOptions};
 use datafusion_common::{plan_err, Result};
 use datafusion_expr::{Expr, TableType};
 use datafusion_physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
 
-use datafusion_physical_plan::{
-    streaming::StreamingTableExec,
-    ExecutionPlan,
-};
+use datafusion_physical_plan::{streaming::StreamingTableExec, ExecutionPlan};
 
 use crate::physical_plan::kafka::{KafkaStreamConfig, KafkaStreamRead};
 
@@ -81,10 +78,7 @@ impl TableProvider for KafkaSource {
     }
 }
 
-fn create_ordering(
-    schema: &Schema,
-    sort_order: &[Vec<Expr>],
-) -> Result<Vec<LexOrdering>> {
+fn create_ordering(schema: &Schema, sort_order: &[Vec<Expr>]) -> Result<Vec<LexOrdering>> {
     let mut all_sort_orders = vec![];
 
     for exprs in sort_order {
