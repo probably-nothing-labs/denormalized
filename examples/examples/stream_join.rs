@@ -18,7 +18,6 @@ use datafusion::{
         context::{SessionContext, SessionState},
         RecordBatchStream,
     },
-    franz_sinks::{FileSink, FranzSink, PrettyPrinter},
     physical_plan::{
         display::DisplayableExecutionPlan,
         kafka_source::{KafkaStreamConfig, KafkaStreamRead, StreamEncoding},

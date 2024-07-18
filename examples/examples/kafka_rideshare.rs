@@ -163,6 +163,5 @@ async fn main() {
     };
     let writer = KafkaSink::new(&config).unwrap();
     let sink = Box::new(writer) as Box<dyn FranzSink>;
-    let _ = Sinkable::sink(windowed_df, sink).await;
-    // let _ = windowed_df.sink(sink).await;
+    let _ = windowed_df.sink(sink).await;
 }

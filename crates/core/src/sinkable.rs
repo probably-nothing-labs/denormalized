@@ -31,17 +31,11 @@ pub trait Sinkable {
     async fn sink(self, sink: Box<dyn FranzSink>) -> Result<(), Self::Error>
     where
         Self: Sized;
-
-    fn foo(self) -> ();
 }
 
 #[async_trait]
 impl Sinkable for DataFrame {
     type Error = DataFusionError;
-
-    fn foo(self) -> () {
-
-    }
 
     fn streaming_window(
         self,
