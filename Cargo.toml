@@ -35,11 +35,19 @@ datafusion-functions = { path = "../arrow-datafusion/datafusion/functions/" }
 datafusion-functions-aggregate = { path = "../arrow-datafusion/datafusion/functions-aggregate/" }
 datafusion-optimizer = { path = "../arrow-datafusion/datafusion/optimizer/" }
 datafusion-physical-expr = { path = "../arrow-datafusion/datafusion/physical-expr/" }
+datafusion-physical-plan = { path = "../arrow-datafusion/datafusion/physical-plan/" }
 datafusion-sql = { path = "../arrow-datafusion/datafusion/sql/" }
 datafusion-execution = { path = "../arrow-datafusion/datafusion/execution/" }
 
 arrow = { version = "52.0.0", features = ["prettyprint"] }
+arrow-array = { version = "52.0.0", default-features = false, features = [
+  "chrono-tz",
+] }
 arrow-schema = { version = "52.0.0", default-features = false }
+arrow-ipc = { version = "52.0.0", default-features = false, features = ["lz4"] }
+arrow-json = { version = "52.0.0" }
+arrow-string = { version = "52.0.0", default-features = false }
+
 futures = "0.3"
 tracing = "0.1.40"
 tracing-log = "0.2.0"
@@ -49,3 +57,4 @@ serde = { version = "1", features = ["derive"] }
 async-trait = "0.1.81"
 rdkafka = "0.36.2"
 log = "^0.4"
+serde_json = "1"

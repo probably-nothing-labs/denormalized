@@ -8,8 +8,18 @@ datafusion = { workspace = true }
 datafusion-expr = { workspace = true }
 datafusion-common = { workspace = true }
 datafusion-execution = { workspace = true }
+datafusion-physical-expr = { workspace = true }
+datafusion-physical-plan = { workspace = true }
 
+arrow = { workspace = true }
+arrow-schema = { workspace = true }
+arrow-array = { workspace = true }
+
+rdkafka = { workspace = true }
 futures = { workspace = true }
 df-streams-sinks = { workspace = true }
 async-trait = { workspace = true }
+tracing = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
 log = { workspace = true }

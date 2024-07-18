@@ -4,20 +4,16 @@
 
 use arrow_schema::{DataType, Field, Fields, Schema, TimeUnit};
 use datafusion::{
-    config::ConfigOptions,
-    dataframe::DataFrame,
-    datasource::{continuous::KafkaSource, provider_as_source},
-    execution::context::SessionContext,
-    physical_plan::{
-        kafka_source::{KafkaStreamConfig, StreamEncoding},
-        time::TimestampUnit,
-    },
+    config::ConfigOptions, dataframe::DataFrame, datasource::provider_as_source,
+    execution::context::SessionContext, physical_plan::time::TimestampUnit,
 };
 use datafusion_common::franz_arrow::infer_arrow_schema_from_json_value;
 use datafusion_expr::{col, max, min, LogicalPlanBuilder};
 use datafusion_functions::core::expr_ext::FieldAccessor;
 use datafusion_functions_aggregate::count::count;
 
+use df_streams_core::datasource::KafkaSource;
+use df_streams_core::physical_plan::kafka::{KafkaStreamConfig, StreamEncoding};
 use df_streams_core::sinkable::Sinkable;
 
 use std::{sync::Arc, time::Duration};

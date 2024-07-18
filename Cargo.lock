@@ -990,14 +990,23 @@ dependencies = [
 name = "df-streams-core"
 version = "0.1.0"
 dependencies = [
+ "arrow",
+ "arrow-array",
+ "arrow-schema",
  "async-trait",
  "datafusion",
  "datafusion-common",
  "datafusion-execution",
  "datafusion-expr",
+ "datafusion-physical-expr",
+ "datafusion-physical-plan",
  "df-streams-sinks",
  "futures",
  "log",
+ "rdkafka",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
