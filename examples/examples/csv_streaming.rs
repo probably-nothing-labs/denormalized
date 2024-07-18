@@ -29,7 +29,50 @@ async fn main() -> Result<()> {
 
     let table_provider = ctx.table_provider("ordered_table").await?;
 
-    let plan = LogicalPlanBuilder::scan("ordered_table", provider_as_source(table_provider), None)?
+    //
+    // Example of using the raw LogicalPlanBuilder interface
+    //
+    let plan = LogicalPlanBuilder::scan(
+        "ordered_table",
+        provider_as_source(table_provider.clone()),
+        None,
+    )?
+    .aggregate(
+        vec![col("ts")],
+        vec![
+            min(col("inc_col")).alias("min"),
+            max(col("inc_col")).alias("max"),
+        ],
+    )?
+    .sort(vec![Expr::Sort(datafusion::logical_expr::SortExpr::new(
+        Box::new(col("ts")),
+        true,
+        true,
+    ))])?
+    .build()?;
+    println!("LogicalPlan result");
+    DataFrame::new(ctx.state(), plan).show().await?;
+
+    //
+    // Example of using the SQL interface
+    //
+    let df = ctx
+        .clone()
+        .sql(
+            "SELECT ts, MIN(inc_col) as min, MAX(inc_col) as max \
+        FROM ordered_table \
+        GROUP BY ts ORDER BY ts",
+        )
+        .await?;
+    println!("SQL result");
+    df.show().await?;
+
+    //
+    // Example of using the DataFrame interface
+    //
+    let df = ctx
+        .clone()
+        .read_table(table_provider.clone())?
         .aggregate(
             vec![col("ts")],
             vec![
@@ -41,19 +84,8 @@ async fn main() -> Result<()> {
             Box::new(col("ts")),
             true,
             true,
-        ))])?
-        .build()?;
-
-    DataFrame::new(ctx.state(), plan).show().await?;
-
-    let df = ctx
-        .sql(
-            "SELECT ts, MIN(inc_col) as min, MAX(inc_col) as max \
-        FROM ordered_table \
-        GROUP BY ts ORDER BY ts",
-        )
-        .await?;
-
+        ))])?;
+    println!("DataFrame result");
     df.show().await?;
 
     Ok(())
