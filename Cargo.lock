@@ -1025,6 +1025,7 @@ dependencies = [
  "df-streams-sinks",
  "futures",
  "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-log",

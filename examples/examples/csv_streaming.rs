@@ -1,8 +1,11 @@
 use datafusion::common::test_util::datafusion_test_data;
-use datafusion::datasource::provider_as_source;
+// use datafusion::datasource::provider_as_source;
+use datafusion::dataframe::DataFrame;
+use datafusion::dataframe::DataFrameWriteOptions;
+use datafusion::datasource::MemTable;
 use datafusion::error::Result;
 use datafusion::prelude::*;
-use datafusion_expr::{col, max, min, LogicalPlanBuilder};
+use datafusion_expr::{col, max, min};
 
 /// This example demonstrates executing a simple query against an Arrow data source (CSV) and
 /// fetching results with streaming aggregation and streaming window
@@ -11,68 +14,20 @@ async fn main() -> Result<()> {
     // create local execution context
     let ctx = SessionContext::new();
 
+    // Register a csv table
     let testdata = datafusion_test_data();
-
-    // Register a table source and tell DataFusion the file is ordered by `ts ASC`.
-    // Note it is the responsibility of the user to make sure
-    // that file indeed satisfies this condition or else incorrect answers may be produced.
-    let asc = true;
-    let nulls_first = true;
-    let sort_expr = vec![col("ts").sort(asc, nulls_first)];
-    // register csv file with the execution context
     ctx.register_csv(
         "ordered_table",
         &format!("{testdata}/window_1.csv"),
-        CsvReadOptions::new().file_sort_order(vec![sort_expr]),
+        CsvReadOptions::new().file_sort_order(vec![vec![col("ts").sort(true, true)]]),
     )
     .await?;
 
-    let table_provider = ctx.table_provider("ordered_table").await?;
-
-    //
-    // Example of using the raw LogicalPlanBuilder interface
-    //
-    let plan = LogicalPlanBuilder::scan(
-        "ordered_table",
-        provider_as_source(table_provider.clone()),
-        None,
-    )?
-    .aggregate(
-        vec![col("ts")],
-        vec![
-            min(col("inc_col")).alias("min"),
-            max(col("inc_col")).alias("max"),
-        ],
-    )?
-    .sort(vec![Expr::Sort(datafusion::logical_expr::SortExpr::new(
-        Box::new(col("ts")),
-        true,
-        true,
-    ))])?
-    .build()?;
-    println!("LogicalPlan result");
-    DataFrame::new(ctx.state(), plan).show().await?;
-
-    //
-    // Example of using the SQL interface
-    //
+    // Aggregate teh csv data
     let df = ctx
         .clone()
-        .sql(
-            "SELECT ts, MIN(inc_col) as min, MAX(inc_col) as max \
-        FROM ordered_table \
-        GROUP BY ts ORDER BY ts",
-        )
-        .await?;
-    println!("SQL result");
-    df.show().await?;
-
-    //
-    // Example of using the DataFrame interface
-    //
-    let df = ctx
-        .clone()
-        .read_table(table_provider.clone())?
+        .table("ordered_table")
+        .await?
         .aggregate(
             vec![col("ts")],
             vec![
@@ -80,13 +35,30 @@ async fn main() -> Result<()> {
                 max(col("inc_col")).alias("max"),
             ],
         )?
-        .sort(vec![Expr::Sort(datafusion::logical_expr::SortExpr::new(
-            Box::new(col("ts")),
-            true,
-            true,
-        ))])?;
-    println!("DataFrame result");
-    df.show().await?;
+        .sort(vec![col("ts").sort(true, true)])?;
+
+    // create and register a new memtable with the same schema as the aggregated results
+    let csv_schema = datafusion::common::arrow::datatypes::Schema::from(df.schema());
+
+    let mem_table = MemTable::try_new(std::sync::Arc::new(csv_schema.clone()), vec![vec![]])?;
+    ctx.register_table("out_table", std::sync::Arc::new(mem_table))?;
+
+    // read, aggregrate, then write the csv file into a memtable
+    let out = df
+        .clone()
+        .write_table("out_table", DataFrameWriteOptions::default())
+        .await?;
+
+    println!("{:?}", out);
+
+    // Write the results of the memtable to a csv file on disk
+    let res = ctx
+        .table("out_table")
+        .await?
+        .write_csv("out.csv", DataFrameWriteOptions::new(), None)
+        .await?;
+
+    println!("Data written to csv {:?}", res);
 
     Ok(())
 }
