@@ -1,19 +1,30 @@
 use async_trait::async_trait;
+use futures::StreamExt;
+use std::fmt::{self, Debug};
 use std::{any::Any, sync::Arc};
+use tokio::sync::RwLock;
 
 use arrow_schema::{Schema, SchemaRef, SortOptions};
 use datafusion::datasource::TableProvider;
 use datafusion::execution::context::SessionState;
-use datafusion_common::{plan_err, Result};
+use datafusion::physical_plan::{
+    insert::{DataSink, DataSinkExec},
+    DisplayAs, DisplayFormatType, SendableRecordBatchStream,
+};
+use datafusion_common::{not_impl_err, plan_err, Result};
+use datafusion_execution::TaskContext;
 use datafusion_expr::{Expr, TableType};
 use datafusion_physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
+use datafusion_physical_plan::{metrics::MetricsSet, streaming::StreamingTableExec, ExecutionPlan};
 
-use datafusion_physical_plan::{streaming::StreamingTableExec, ExecutionPlan};
+use arrow::record_batch::RecordBatch;
 
 use crate::physical_plan::kafka::{KafkaStreamConfig, KafkaStreamRead};
 
 // Used to createa kafka source
 pub struct KafkaSource(pub Arc<KafkaStreamConfig>);
+
+pub type PartitionData = Arc<RwLock<Vec<RecordBatch>>>;
 
 impl KafkaSource {
     /// Create a new [`StreamTable`] for the given [`StreamConfig`]
@@ -76,6 +87,24 @@ impl TableProvider for KafkaSource {
     ) -> Result<Arc<dyn ExecutionPlan>> {
         return self.create_physical_plan(projection).await;
     }
+
+    async fn insert_into(
+        &self,
+        _state: &SessionState,
+        input: Arc<dyn ExecutionPlan>,
+        overwrite: bool,
+    ) -> Result<Arc<dyn ExecutionPlan>> {
+        if overwrite {
+            return not_impl_err!("Overwrite not implemented for KafkaTopic");
+        }
+        let sink = Arc::new(KafkaSink::new());
+        Ok(Arc::new(DataSinkExec::new(
+            input,
+            sink,
+            self.schema(),
+            None,
+        )))
+    }
 }
 
 fn create_ordering(schema: &Schema, sort_order: &[Vec<Expr>]) -> Result<Vec<LexOrdering>> {
@@ -115,4 +144,61 @@ fn create_ordering(schema: &Schema, sort_order: &[Vec<Expr>]) -> Result<Vec<LexO
         }
     }
     Ok(all_sort_orders)
+}
+
+struct KafkaSink {}
+
+impl Debug for KafkaSink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("KafkaSink")
+            // .field("num_partitions", &self.batches.len())
+            .finish()
+    }
+}
+
+impl DisplayAs for KafkaSink {
+    fn fmt_as(&self, t: DisplayFormatType, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match t {
+            DisplayFormatType::Default | DisplayFormatType::Verbose => {
+                let partition_count = "@todo";
+                write!(f, "MemoryTable (partitions={partition_count})")
+            }
+        }
+    }
+}
+
+impl KafkaSink {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+#[async_trait]
+impl DataSink for KafkaSink {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn metrics(&self) -> Option<MetricsSet> {
+        None
+    }
+
+    async fn write_all(
+        &self,
+        mut data: SendableRecordBatchStream,
+        _context: &Arc<TaskContext>,
+    ) -> Result<u64> {
+        let mut row_count = 0;
+        while let Some(batch) = data.next().await.transpose()? {
+            row_count += batch.num_rows();
+            if batch.num_rows() > 0 {
+                println!(
+                    "{}",
+                    arrow::util::pretty::pretty_format_batches(&[batch]).unwrap()
+                );
+            }
+        }
+
+        Ok(row_count as u64)
+    }
 }

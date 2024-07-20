@@ -1,6 +1,4 @@
 use datafusion::common::test_util::datafusion_test_data;
-// use datafusion::datasource::provider_as_source;
-use datafusion::dataframe::DataFrame;
 use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion::datasource::MemTable;
 use datafusion::error::Result;

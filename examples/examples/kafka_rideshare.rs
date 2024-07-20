@@ -3,10 +3,12 @@
 #![allow(unused_imports)]
 
 use arrow_schema::{DataType, Field, Fields, Schema, TimeUnit};
+use datafusion::error::Result;
 use datafusion::{
     config::ConfigOptions, dataframe::DataFrame, datasource::provider_as_source,
     execution::context::SessionContext, physical_plan::time::TimestampUnit,
 };
+use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion_common::franz_arrow::infer_arrow_schema_from_json_value;
 use datafusion_expr::{col, max, min, LogicalPlanBuilder};
 use datafusion_functions::core::expr_ext::FieldAccessor;
@@ -20,7 +22,7 @@ use std::{sync::Arc, time::Duration};
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
 
 #[tokio::main(flavor = "multi_thread")]
-async fn main() {
+async fn main() -> Result<()> {
     tracing_log::LogTracer::init().expect("Failed to set up log tracer");
 
     let subscriber = FmtSubscriber::builder()
@@ -59,7 +61,7 @@ async fn main() {
 
     // register the window function with DataFusion so we can call it
     let sample_value: serde_json::Value = serde_json::from_str(sample_event).unwrap();
-    let inferred_schema = infer_arrow_schema_from_json_value(&sample_value).unwrap();
+    let inferred_schema = infer_arrow_schema_from_json_value(&sample_value)?;
     let mut fields = inferred_schema.fields().to_vec();
 
     // Add a new column to the dataset that should mirror the occurred_at_ms field
@@ -87,7 +89,7 @@ async fn main() {
         topic: String::from("driver-imu-data"),
         consumer_group_id: String::from("kafka_rideshare"),
         original_schema: Arc::new(inferred_schema),
-        schema: canonical_schema,
+        schema: canonical_schema.clone(),
         batch_size: 10,
         encoding: StreamEncoding::Json,
         order: vec![],
@@ -99,26 +101,19 @@ async fn main() {
 
     // Create a new streaming table
     let kafka_source = KafkaSource(Arc::new(_config));
+
     let mut config = ConfigOptions::default();
     let _ = config.set("datafusion.execution.batch_size", "32");
 
     // Create the context object with a source from kafka
     let ctx = SessionContext::new_with_config(config.into());
+    ctx.register_table("kafka_imu_data", Arc::new(kafka_source))?;
 
-    // create logical plan composed of a single TableScan
-    let logical_plan = LogicalPlanBuilder::scan_with_filters(
-        "kafka_imu_data",
-        provider_as_source(Arc::new(kafka_source)),
-        None,
-        vec![],
-    )
-    .unwrap()
-    .build()
-    .unwrap();
 
-    let df = DataFrame::new(ctx.state(), logical_plan);
-    let windowed_df = df
+    let df = ctx
         .clone()
+        .table("kafka_imu_data")
+        .await?
         .streaming_window(
             vec![],
             vec![
@@ -128,36 +123,57 @@ async fn main() {
             ],
             Duration::from_millis(5_000),       // 5 second window
             Some(Duration::from_millis(1_000)), // 1 second slide
-        )
-        .unwrap();
+        )?;
 
-    use df_streams_sinks::{
-        FileSink, FranzSink, KafkaSink, KafkaSinkSettings, PrettyPrinter, StdoutSink,
+    let processed_schema = Arc::new(datafusion::common::arrow::datatypes::Schema::from(df.schema()));
+    let _config = KafkaStreamConfig {
+        bootstrap_servers: bootstrap_servers.clone(),
+        topic: String::from("out"),
+        consumer_group_id: String::from("kafka_rideshare"),
+        original_schema: processed_schema.clone(),
+        schema: processed_schema.clone(),
+        batch_size: 10,
+        encoding: StreamEncoding::Json,
+        order: vec![],
+        partitions: 64_i32,
+        timestamp_column: String::from("occurred_at_ms"),
+        timestamp_unit: TimestampUnit::Int64Millis,
+        offset_reset: String::from("earliest"),
     };
+    let kafka_sink = KafkaSource(Arc::new(_config));
+    ctx.register_table("out", Arc::new(kafka_sink))?;
+
+    df.write_table("out", DataFrameWriteOptions::default()).await?;
+
+    // use df_streams_sinks::{
+    //     FileSink, FranzSink, KafkaSink, KafkaSinkSettings, PrettyPrinter, StdoutSink,
+    // };
 
     // use datafusion_franz::{RocksDBBackend, StreamMonitor, StreamMonitorConfig};
 
     // let fname = "/tmp/out.jsonl";
     // println!("Writing results to file {}", fname);
-    // let writer = FileSink::new(fname).unwrap();
+    // let writer = FileSink::new(fname)?;
     // let file_writer = Box::new(writer) as Box<dyn FranzSink>;
     // let _ = windowed_df.sink(file_writer).await;
 
-    // let writer = StdoutSink::new().unwrap();
+    // let writer = StdoutSink::new()?;
     // let sink = Box::new(writer) as Box<dyn FranzSink>;
     // let _ = windowed_df.sink(sink).await;
 
-    //// Write pretty output to the terminal
-    // let writer = PrettyPrinter::new().unwrap();
+    // Write pretty output to the terminal
+    // let writer = PrettyPrinter::new()?;
     // let sink = Box::new(writer) as Box<dyn FranzSink>;
-    // let _ = windowed_df.sink(sink).await;
+    // let _ = df.sink(sink).await;
 
     //// Write Messages to Kafka topic
-    let config = KafkaSinkSettings {
-        topic: "out_topic".to_string(),
-        bootstrap_servers: bootstrap_servers.clone(),
-    };
-    let writer = KafkaSink::new(&config).unwrap();
-    let sink = Box::new(writer) as Box<dyn FranzSink>;
-    let _ = windowed_df.sink(sink).await;
+    // let config = KafkaSinkSettings {
+    //     topic: "out_topic".to_string(),
+    //     bootstrap_servers: bootstrap_servers.clone(),
+    // };
+    // let writer = KafkaSink::new(&config)?;
+    // let sink = Box::new(writer) as Box<dyn FranzSink>;
+    // let _ = windowed_df.sink(sink).await;
+
+    Ok(())
 }
