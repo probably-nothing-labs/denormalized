@@ -14,8 +14,7 @@ use datafusion_expr::{col, max, min, LogicalPlanBuilder};
 use datafusion_functions::core::expr_ext::FieldAccessor;
 use datafusion_functions_aggregate::count::count;
 
-use df_streams_core::datasource::KafkaSource;
-use df_streams_core::physical_plan::kafka::{KafkaStreamConfig, StreamEncoding};
+use df_streams_core::datasource::kafka::{KafkaTopic, KafkaTopicConfig, StreamEncoding};
 use df_streams_core::sinkable::Sinkable;
 
 use std::{sync::Arc, time::Duration};
@@ -84,13 +83,12 @@ async fn main() -> Result<()> {
 
     let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
     let canonical_schema = Arc::new(Schema::new(fields));
-    let _config = KafkaStreamConfig {
+    let _config = KafkaTopicConfig {
         bootstrap_servers: bootstrap_servers.clone(),
         topic: String::from("driver-imu-data"),
         consumer_group_id: String::from("kafka_rideshare"),
         original_schema: Arc::new(inferred_schema),
         schema: canonical_schema.clone(),
-        batch_size: 10,
         encoding: StreamEncoding::Json,
         order: vec![],
         partitions: 64_i32,
@@ -100,14 +98,14 @@ async fn main() -> Result<()> {
     };
 
     // Create a new streaming table
-    let kafka_source = KafkaSource(Arc::new(_config));
+    let source_topic = KafkaTopic(Arc::new(_config));
 
     let mut config = ConfigOptions::default();
     let _ = config.set("datafusion.execution.batch_size", "32");
 
     // Create the context object with a source from kafka
     let ctx = SessionContext::new_with_config(config.into());
-    ctx.register_table("kafka_imu_data", Arc::new(kafka_source))?;
+    ctx.register_table("kafka_imu_data", Arc::new(source_topic))?;
 
 
     let df = ctx
@@ -126,13 +124,12 @@ async fn main() -> Result<()> {
         )?;
 
     let processed_schema = Arc::new(datafusion::common::arrow::datatypes::Schema::from(df.schema()));
-    let _config = KafkaStreamConfig {
+    let _config = KafkaTopicConfig {
         bootstrap_servers: bootstrap_servers.clone(),
         topic: String::from("out"),
         consumer_group_id: String::from("kafka_rideshare"),
         original_schema: processed_schema.clone(),
         schema: processed_schema.clone(),
-        batch_size: 10,
         encoding: StreamEncoding::Json,
         order: vec![],
         partitions: 64_i32,
@@ -140,8 +137,8 @@ async fn main() -> Result<()> {
         timestamp_unit: TimestampUnit::Int64Millis,
         offset_reset: String::from("earliest"),
     };
-    let kafka_sink = KafkaSource(Arc::new(_config));
-    ctx.register_table("out", Arc::new(kafka_sink))?;
+    let sink_topic = KafkaTopic(Arc::new(_config));
+    ctx.register_table("out", Arc::new(sink_topic))?;
 
     df.write_table("out", DataFrameWriteOptions::default()).await?;
 

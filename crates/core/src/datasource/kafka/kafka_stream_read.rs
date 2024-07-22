@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -8,74 +7,22 @@ use arrow::datatypes::TimestampMillisecondType;
 use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, StructArray};
 use arrow_schema::{DataType, Field, SchemaRef, TimeUnit};
 use datafusion_common::franz_arrow::json_records_to_arrow_record_batch;
-use tracing::{debug, error, info, instrument};
 use futures::StreamExt;
 use serde_json::Value;
+use tracing::{debug, error, info, instrument};
 
 use arrow::compute::{max, min};
-use datafusion_common::{plan_err, DataFusionError};
 use datafusion_execution::{SendableRecordBatchStream, TaskContext};
-use datafusion_expr::Expr;
 use datafusion_physical_plan::stream::RecordBatchReceiverStreamBuilder;
 use datafusion_physical_plan::streaming::PartitionStream;
+use datafusion_physical_plan::time::array_to_timestamp_array;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::{ClientConfig, Message, Timestamp, TopicPartitionList};
 
-use datafusion_physical_plan::time::{array_to_timestamp_array, TimestampUnit};
-
-/// The data encoding for [`StreamTable`]
-#[derive(Debug, Clone)]
-pub enum StreamEncoding {
-    Avro,
-    Json,
-}
-
-impl FromStr for StreamEncoding {
-    type Err = DataFusionError;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_str() {
-            "avro" => Ok(Self::Avro),
-            "json" => Ok(Self::Json),
-            _ => plan_err!("Unrecognised StreamEncoding {}", s),
-        }
-    }
-}
-
-/// The configuration for a [`StreamTable`]
-#[derive(Debug)]
-pub struct KafkaStreamConfig {
-    pub original_schema: SchemaRef,
-    pub schema: SchemaRef,
-    pub topic: String,
-    pub batch_size: usize,
-    pub encoding: StreamEncoding,
-    pub order: Vec<Vec<Expr>>,
-    pub partitions: i32,
-    pub timestamp_column: String,
-    pub timestamp_unit: TimestampUnit,
-    pub bootstrap_servers: String,
-    pub consumer_group_id: String,
-    pub offset_reset: String,
-    //constraints: Constraints,
-}
-
-impl KafkaStreamConfig {
-    /// Specify the batch size
-    pub fn with_batch_size(mut self, batch_size: usize) -> Self {
-        self.batch_size = batch_size;
-        self
-    }
-
-    /// Specify an encoding for the stream
-    pub fn with_encoding(mut self, encoding: StreamEncoding) -> Self {
-        self.encoding = encoding;
-        self
-    }
-}
+use super::KafkaTopicConfig;
 
 pub struct KafkaStreamRead {
-    pub config: Arc<KafkaStreamConfig>,
+    pub config: Arc<KafkaTopicConfig>,
     pub assigned_partitions: Vec<i32>,
 }
 

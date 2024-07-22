@@ -19,16 +19,14 @@ use datafusion_physical_plan::{metrics::MetricsSet, streaming::StreamingTableExe
 
 use arrow::record_batch::RecordBatch;
 
-use crate::physical_plan::kafka::{KafkaStreamConfig, KafkaStreamRead};
+use super::{KafkaTopicConfig, KafkaStreamRead};
 
 // Used to createa kafka source
-pub struct KafkaSource(pub Arc<KafkaStreamConfig>);
+pub struct KafkaTopic(pub Arc<KafkaTopicConfig>);
 
-pub type PartitionData = Arc<RwLock<Vec<RecordBatch>>>;
-
-impl KafkaSource {
+impl KafkaTopic {
     /// Create a new [`StreamTable`] for the given [`StreamConfig`]
-    pub fn new(config: Arc<KafkaStreamConfig>) -> Self {
+    pub fn new(config: Arc<KafkaTopicConfig>) -> Self {
         Self(config)
     }
 
@@ -65,7 +63,7 @@ impl KafkaSource {
 }
 
 #[async_trait]
-impl TableProvider for KafkaSource {
+impl TableProvider for KafkaTopic {
     fn as_any(&self) -> &dyn Any {
         self
     }
