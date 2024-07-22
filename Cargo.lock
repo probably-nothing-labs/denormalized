@@ -990,10 +990,13 @@ dependencies = [
 name = "df-streams-core"
 version = "0.1.0"
 dependencies = [
+ "apache-avro",
  "arrow",
  "arrow-array",
+ "arrow-json",
  "arrow-schema",
  "async-trait",
+ "base64",
  "datafusion",
  "datafusion-common",
  "datafusion-execution",
