@@ -16,8 +16,8 @@ use datafusion_execution::{SendableRecordBatchStream, TaskContext};
 use datafusion_physical_plan::stream::RecordBatchReceiverStreamBuilder;
 use datafusion_physical_plan::streaming::PartitionStream;
 use datafusion_physical_plan::time::array_to_timestamp_array;
-use rdkafka::consumer::{Consumer, StreamConsumer};
-use rdkafka::{ClientConfig, Message, Timestamp, TopicPartitionList};
+use rdkafka::consumer::Consumer;
+use rdkafka::{Message, Timestamp, TopicPartitionList};
 
 use super::KafkaTopicConfig;
 
@@ -39,25 +39,14 @@ impl PartitionStream for KafkaStreamRead {
         }
         info!("Reading partition {:?}", assigned_partitions);
 
-        let mut client_config = ClientConfig::new();
-
-        client_config
-            .set(
-                "bootstrap.servers",
-                self.config.bootstrap_servers.to_string(),
-            )
-            .set("enable.auto.commit", "false") // Disable auto-commit for manual offset control
-            // @TODO we need to store offsets somehow
-            .set("auto.offset.reset", self.config.offset_reset.to_string())
-            .set("group.id", self.config.consumer_group_id.to_string());
-
-        let consumer: StreamConsumer = client_config.create().expect("Consumer creation failed");
+        let consumer = self
+            .config
+            .make_consumer()
+            .expect("Consumer creation failed");
 
         consumer
             .assign(&assigned_partitions)
             .expect("Partition assignment failed.");
-
-        //let schema = self.config.schema.clone();
 
         let mut builder = RecordBatchReceiverStreamBuilder::new(self.config.schema.clone(), 1);
         let tx = builder.tx();

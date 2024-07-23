@@ -159,7 +159,7 @@ impl DisplayAs for KafkaSink {
         match t {
             DisplayFormatType::Default | DisplayFormatType::Verbose => {
                 let partition_count = "@todo";
-                write!(f, "MemoryTable (partitions={partition_count})")
+                write!(f, "KafkaTable (partitions={partition_count})")
             }
         }
     }

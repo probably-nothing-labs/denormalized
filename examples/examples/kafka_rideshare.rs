@@ -3,18 +3,20 @@
 #![allow(unused_imports)]
 
 use arrow_schema::{DataType, Field, Fields, Schema, TimeUnit};
+use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion::error::Result;
 use datafusion::{
     config::ConfigOptions, dataframe::DataFrame, datasource::provider_as_source,
     execution::context::SessionContext, physical_plan::time::TimestampUnit,
 };
-use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion_common::franz_arrow::infer_arrow_schema_from_json_value;
 use datafusion_expr::{col, max, min, LogicalPlanBuilder};
 use datafusion_functions::core::expr_ext::FieldAccessor;
 use datafusion_functions_aggregate::count::count;
 
-use df_streams_core::datasource::kafka::{KafkaTopic, KafkaTopicConfig, StreamEncoding};
+use df_streams_core::datasource::kafka::{
+    ConnectionOpts, KafkaTopic, KafkaTopicConfig, KafkaTopicConfigBuilder,
+};
 use df_streams_core::sinkable::Sinkable;
 
 use std::{sync::Arc, time::Duration};
@@ -58,55 +60,29 @@ async fn main() -> Result<()> {
             }
         }"#;
 
-    // register the window function with DataFusion so we can call it
-    let sample_value: serde_json::Value = serde_json::from_str(sample_event).unwrap();
-    let inferred_schema = infer_arrow_schema_from_json_value(&sample_value)?;
-    let mut fields = inferred_schema.fields().to_vec();
-
-    // Add a new column to the dataset that should mirror the occurred_at_ms field
-    let struct_fields = vec![
-        Arc::new(Field::new("barrier_batch", DataType::Utf8, false)),
-        Arc::new(Field::new(
-            String::from("canonical_timestamp"),
-            DataType::Timestamp(TimeUnit::Millisecond, None),
-            true,
-        )),
-    ];
-    fields.insert(
-        fields.len(),
-        Arc::new(Field::new(
-            String::from("_streaming_internal_metadata"),
-            DataType::Struct(Fields::from(struct_fields)),
-            true,
-        )),
-    );
-
     let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
-    let canonical_schema = Arc::new(Schema::new(fields));
-    let _config = KafkaTopicConfig {
-        bootstrap_servers: bootstrap_servers.clone(),
-        topic: String::from("driver-imu-data"),
-        consumer_group_id: String::from("kafka_rideshare"),
-        original_schema: Arc::new(inferred_schema),
-        schema: canonical_schema.clone(),
-        encoding: StreamEncoding::Json,
-        order: vec![],
-        partitions: 64_i32,
-        timestamp_column: String::from("occurred_at_ms"),
-        timestamp_unit: TimestampUnit::Int64Millis,
-        offset_reset: String::from("earliest"),
-    };
+    let read_config =
+        KafkaTopicConfigBuilder::new(bootstrap_servers.clone(), String::from("driver-imu-data"))
+            .infer_schema_from_json(sample_event)?
+            .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
+            .with_encoding("json")?
+            .with_consumer_opts(ConnectionOpts::from([(
+                "auto.offset.reset".to_string(),
+                "earliest".to_string(),
+            )]))
+            .build()
+            .await?;
 
     // Create a new streaming table
-    let source_topic = KafkaTopic(Arc::new(_config));
+    let source_topic = KafkaTopic(Arc::new(read_config));
 
-    let mut config = ConfigOptions::default();
-    let _ = config.set("datafusion.execution.batch_size", "32");
+    let mut datafusion_config = ConfigOptions::default();
+    let _ = datafusion_config.set("datafusion.execution.batch_size", "32")?;
 
     // Create the context object with a source from kafka
-    let ctx = SessionContext::new_with_config(config.into());
-    ctx.register_table("kafka_imu_data", Arc::new(source_topic))?;
+    let ctx = SessionContext::new_with_config(datafusion_config.into());
 
+    ctx.register_table("kafka_imu_data", Arc::new(source_topic))?;
 
     let df = ctx
         .clone()
@@ -123,24 +99,26 @@ async fn main() -> Result<()> {
             Some(Duration::from_millis(1_000)), // 1 second slide
         )?;
 
-    let processed_schema = Arc::new(datafusion::common::arrow::datatypes::Schema::from(df.schema()));
-    let _config = KafkaTopicConfig {
-        bootstrap_servers: bootstrap_servers.clone(),
-        topic: String::from("out"),
-        consumer_group_id: String::from("kafka_rideshare"),
-        original_schema: processed_schema.clone(),
-        schema: processed_schema.clone(),
-        encoding: StreamEncoding::Json,
-        order: vec![],
-        partitions: 64_i32,
-        timestamp_column: String::from("occurred_at_ms"),
-        timestamp_unit: TimestampUnit::Int64Millis,
-        offset_reset: String::from("earliest"),
-    };
-    let sink_topic = KafkaTopic(Arc::new(_config));
+    let processed_schema = Arc::new(datafusion::common::arrow::datatypes::Schema::from(
+        df.schema(),
+    ));
+
+    // println!("{}", processed_schema);
+
+    let write_config =
+        KafkaTopicConfigBuilder::new(bootstrap_servers.clone(), String::from("out_topic"))
+            .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
+            .with_encoding("json")?
+            .with_schema(processed_schema)
+            .with_producer_opts(ConnectionOpts::from([]))
+            .build()
+            .await?;
+
+    let sink_topic = KafkaTopic(Arc::new(write_config));
     ctx.register_table("out", Arc::new(sink_topic))?;
 
-    df.write_table("out", DataFrameWriteOptions::default()).await?;
+    df.write_table("out", DataFrameWriteOptions::default())
+        .await?;
 
     // use df_streams_sinks::{
     //     FileSink, FranzSink, KafkaSink, KafkaSinkSettings, PrettyPrinter, StdoutSink,
