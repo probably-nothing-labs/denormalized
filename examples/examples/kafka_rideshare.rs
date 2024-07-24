@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
         df.schema(),
     ));
 
-    // println!("{}", processed_schema);
+    println!("{}", processed_schema);
 
     let write_config =
         KafkaTopicConfigBuilder::new(bootstrap_servers.clone(), String::from("out_topic"))

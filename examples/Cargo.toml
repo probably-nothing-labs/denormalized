@@ -24,3 +24,4 @@ tracing-subscriber = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"] }
 tempfile = { version = "3" }
+rdkafka = { workspace = true }

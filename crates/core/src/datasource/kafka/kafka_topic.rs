@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use std::fmt::{self, Debug};
 use std::{any::Any, sync::Arc};
-use tokio::sync::RwLock;
 
 use arrow_schema::{Schema, SchemaRef, SortOptions};
 use datafusion::datasource::TableProvider;
@@ -16,8 +15,6 @@ use datafusion_execution::TaskContext;
 use datafusion_expr::{Expr, TableType};
 use datafusion_physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
 use datafusion_physical_plan::{metrics::MetricsSet, streaming::StreamingTableExec, ExecutionPlan};
-
-use arrow::record_batch::RecordBatch;
 
 use super::{KafkaTopicConfig, KafkaStreamRead};
 

@@ -1027,6 +1027,7 @@ dependencies = [
  "df-streams-core",
  "df-streams-sinks",
  "futures",
+ "rdkafka",
  "serde_json",
  "tempfile",
  "tokio",
