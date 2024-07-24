@@ -126,11 +126,6 @@ impl DataSink for KafkaSink {
                     .send(record, Duration::from_secs(0))
                     .await
                     .expect("Message not delivered");
-
-                // println!(
-                //     "{}",
-                //     arrow::util::pretty::pretty_format_batches(&[batch]).unwrap()
-                // );
             }
         }
 

@@ -14,10 +14,10 @@ use datafusion_expr::{col, max, min, LogicalPlanBuilder};
 use datafusion_functions::core::expr_ext::FieldAccessor;
 use datafusion_functions_aggregate::count::count;
 
+use df_streams_core::dataframe::StreamingDataframe;
 use df_streams_core::datasource::kafka::{
     ConnectionOpts, KafkaTopicConfigBuilder, TopicReader, TopicWriter,
 };
-use df_streams_core::sinkable::Sinkable;
 
 use std::{sync::Arc, time::Duration};
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
@@ -115,36 +115,6 @@ async fn main() -> Result<()> {
 
     df.write_table("out", DataFrameWriteOptions::default())
         .await?;
-
-    // use df_streams_sinks::{
-    //     FileSink, FranzSink, KafkaSink, KafkaSinkSettings, PrettyPrinter, StdoutSink,
-    // };
-
-    // use datafusion_franz::{RocksDBBackend, StreamMonitor, StreamMonitorConfig};
-
-    // let fname = "/tmp/out.jsonl";
-    // println!("Writing results to file {}", fname);
-    // let writer = FileSink::new(fname)?;
-    // let file_writer = Box::new(writer) as Box<dyn FranzSink>;
-    // let _ = windowed_df.sink(file_writer).await;
-
-    // let writer = StdoutSink::new()?;
-    // let sink = Box::new(writer) as Box<dyn FranzSink>;
-    // let _ = windowed_df.sink(sink).await;
-
-    // Write pretty output to the terminal
-    // let writer = PrettyPrinter::new()?;
-    // let sink = Box::new(writer) as Box<dyn FranzSink>;
-    // let _ = df.sink(sink).await;
-
-    //// Write Messages to Kafka topic
-    // let config = KafkaSinkSettings {
-    //     topic: "out_topic".to_string(),
-    //     bootstrap_servers: bootstrap_servers.clone(),
-    // };
-    // let writer = KafkaSink::new(&config)?;
-    // let sink = Box::new(writer) as Box<dyn FranzSink>;
-    // let _ = windowed_df.sink(sink).await;
 
     Ok(())
 }

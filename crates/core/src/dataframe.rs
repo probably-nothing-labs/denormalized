@@ -11,10 +11,8 @@ use datafusion_expr::Expr;
 
 use futures::StreamExt;
 
-use df_streams_sinks::FranzSink;
-
 #[async_trait]
-pub trait Sinkable {
+pub trait StreamingDataframe {
     type Error;
 
     fn streaming_window(
@@ -27,13 +25,13 @@ pub trait Sinkable {
     where
         Self: Sized;
 
-    async fn sink(self, sink: Box<dyn FranzSink>) -> Result<(), Self::Error>
+    async fn print_stream(self) -> Result<(), Self::Error>
     where
         Self: Sized;
 }
 
 #[async_trait]
-impl Sinkable for DataFrame {
+impl StreamingDataframe for DataFrame {
     type Error = DataFusionError;
 
     fn streaming_window(
@@ -51,13 +49,16 @@ impl Sinkable for DataFrame {
         Ok(DataFrame::new(session_state, plan))
     }
 
-    async fn sink(self, mut sink: Box<dyn FranzSink>) -> Result<(), Self::Error> {
+    async fn print_stream(self) -> Result<(), Self::Error> {
         let mut stream: SendableRecordBatchStream = self.execute_stream().await?;
         loop {
             match stream.next().await.transpose() {
                 Ok(Some(batch)) => {
                     if batch.num_rows() > 0 {
-                        sink.write_records(batch).await?;
+                        println!(
+                            "{}",
+                            arrow::util::pretty::pretty_format_batches(&[batch]).unwrap()
+                        );
                     }
                 }
                 Ok(None) => {
