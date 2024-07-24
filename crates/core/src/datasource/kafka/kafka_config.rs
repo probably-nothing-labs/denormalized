@@ -10,6 +10,8 @@ use crate::arrow_helpers::infer_arrow_schema_from_json_value;
 use datafusion_common::{plan_err, DataFusionError, Result};
 use datafusion_expr::Expr;
 
+use super::{TopicReader, TopicWriter};
+
 use rdkafka::consumer::StreamConsumer;
 use rdkafka::ClientConfig;
 
@@ -66,7 +68,7 @@ impl KafkaTopicConfig {
 
 pub struct KafkaTopicConfigBuilder {
     bootstrap_servers: String,
-    topic: String,
+    topic: Option<String>,
 
     schema: Option<SchemaRef>,
     infer_schema: bool,
@@ -80,10 +82,10 @@ pub struct KafkaTopicConfigBuilder {
 }
 
 impl KafkaTopicConfigBuilder {
-    pub fn new(bootstrap_servers: String, topic: String) -> Self {
+    pub fn new(bootstrap_servers: String) -> Self {
         Self {
             bootstrap_servers,
-            topic,
+            topic: None,
 
             schema: None,
             infer_schema: false,
@@ -95,6 +97,11 @@ impl KafkaTopicConfigBuilder {
             consumer_opts: ConnectionOpts::new(),
             producer_opts: ConnectionOpts::new(),
         }
+    }
+
+    pub fn with_topic(&mut self, topic: String) -> &mut Self {
+        self.topic = Some(topic);
+        self
     }
 
     pub fn with_schema(&mut self, schema: SchemaRef) -> &mut Self {
@@ -181,10 +188,12 @@ impl KafkaTopicConfigBuilder {
         Ok(Arc::new(Schema::new(fields)))
     }
 
-    pub async fn build(&self) -> Result<KafkaTopicConfig> {
-        if self.infer_schema {
-            //@todo - query the kafka topic for a few messages and try to infer the schema
-        }
+    pub async fn build_reader(&self) -> Result<TopicReader> {
+        let topic = self
+            .topic
+            .as_ref()
+            .ok_or_else(|| create_error("topic required"))?
+            .clone();
 
         let original_schema = self
             .schema
@@ -219,10 +228,10 @@ impl KafkaTopicConfigBuilder {
         let order = vec![];
 
         //@todo - query kafka topic for number of partitions and set it here
-        let partitions = 1_i32;
+        let partitions = 64_i32;
 
-        Ok(KafkaTopicConfig {
-            topic: self.topic.clone(),
+        let config = KafkaTopicConfig {
+            topic,
             bootstrap_servers: self.bootstrap_servers.clone(),
 
             original_schema,
@@ -236,7 +245,71 @@ impl KafkaTopicConfigBuilder {
 
             consumer_opts,
             producer_opts,
-        })
+        };
+
+        Ok(TopicReader(Arc::new(config)))
+    }
+
+    pub async fn build_writer(&self) -> Result<TopicWriter> {
+        let topic = self
+            .topic
+            .as_ref()
+            .ok_or_else(|| create_error("topic required"))?
+            .clone();
+
+        let original_schema = self
+            .schema
+            .as_ref()
+            .ok_or_else(|| create_error("Schema required"))?
+            .clone();
+
+        let canonical_schema = original_schema.clone();
+
+        let encoding = self
+            .encoding
+            .as_ref()
+            .ok_or_else(|| create_error("encoding required"))?
+            .clone();
+
+        let timestamp_column = self
+            .timestamp_column
+            .as_ref()
+            .ok_or_else(|| create_error("timestamp_column required"))?
+            .clone();
+
+        let timestamp_unit = self
+            .timestamp_unit
+            .as_ref()
+            .ok_or_else(|| create_error("timestamp_unit required"))?
+            .clone();
+
+        let consumer_opts = self.consumer_opts.clone();
+        let producer_opts = self.producer_opts.clone();
+
+        //@todo
+        let order = vec![];
+
+        //@todo - query kafka topic for number of partitions and set it here
+        let partitions = 64_i32;
+
+        let config = KafkaTopicConfig {
+            topic,
+            bootstrap_servers: self.bootstrap_servers.clone(),
+
+            original_schema,
+            schema: canonical_schema,
+            encoding,
+            order,
+            partitions,
+
+            timestamp_unit,
+            timestamp_column,
+
+            consumer_opts,
+            producer_opts,
+        };
+
+        Ok(TopicWriter(Arc::new(config)))
     }
 }
 
