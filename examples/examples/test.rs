@@ -4,7 +4,7 @@
 
 use datafusion::error::Result;
 use df_streams_core::datasource::kafka::{
-    ConnectionOpts, KafkaTopic, KafkaTopicConfig, KafkaTopicConfigBuilder,
+    ConnectionOpts, KafkaTopic, KafkaReadConfig, KafkaTopicConfigBuilder,
 };
 
 use rdkafka::admin::AdminClient;

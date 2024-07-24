@@ -13,17 +13,16 @@ use datafusion::physical_plan::{
 use datafusion_common::{not_impl_err, plan_err, Result};
 use datafusion_execution::TaskContext;
 use datafusion_expr::{Expr, TableType};
-use datafusion_physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
-use datafusion_physical_plan::{metrics::MetricsSet, streaming::StreamingTableExec, ExecutionPlan};
+use datafusion_physical_plan::{metrics::MetricsSet, ExecutionPlan};
 
-use super::{KafkaTopicConfig, KafkaStreamRead};
+use super::KafkaWriteConfig;
 
 // Used to createa kafka source
-pub struct TopicWriter(pub Arc<KafkaTopicConfig>);
+pub struct TopicWriter(pub Arc<KafkaWriteConfig>);
 
 impl TopicWriter {
     /// Create a new [`StreamTable`] for the given [`StreamConfig`]
-    pub fn new(config: Arc<KafkaTopicConfig>) -> Self {
+    pub fn new(config: Arc<KafkaWriteConfig>) -> Self {
         Self(config)
     }
 }

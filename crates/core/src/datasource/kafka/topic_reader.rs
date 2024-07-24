@@ -1,29 +1,22 @@
 use async_trait::async_trait;
-use futures::StreamExt;
-use std::fmt::{self, Debug};
 use std::{any::Any, sync::Arc};
 
 use arrow_schema::{Schema, SchemaRef, SortOptions};
 use datafusion::datasource::TableProvider;
 use datafusion::execution::context::SessionState;
-use datafusion::physical_plan::{
-    insert::{DataSink, DataSinkExec},
-    DisplayAs, DisplayFormatType, SendableRecordBatchStream,
-};
 use datafusion_common::{not_impl_err, plan_err, Result};
-use datafusion_execution::TaskContext;
 use datafusion_expr::{Expr, TableType};
 use datafusion_physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
-use datafusion_physical_plan::{metrics::MetricsSet, streaming::StreamingTableExec, ExecutionPlan};
+use datafusion_physical_plan::{streaming::StreamingTableExec, ExecutionPlan};
 
-use super::{KafkaTopicConfig, KafkaStreamRead};
+use super::{KafkaReadConfig, KafkaStreamRead};
 
 // Used to createa kafka source
-pub struct TopicReader(pub Arc<KafkaTopicConfig>);
+pub struct TopicReader(pub Arc<KafkaReadConfig>);
 
 impl TopicReader {
     /// Create a new [`StreamTable`] for the given [`StreamConfig`]
-    pub fn new(config: Arc<KafkaTopicConfig>) -> Self {
+    pub fn new(config: Arc<KafkaReadConfig>) -> Self {
         Self(config)
     }
 

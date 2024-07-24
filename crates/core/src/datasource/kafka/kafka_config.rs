@@ -19,7 +19,7 @@ pub type ConnectionOpts = HashMap<String, String>;
 
 /// The configuration for a [`StreamTable`]
 #[derive(Debug)]
-pub struct KafkaTopicConfig {
+pub struct KafkaReadConfig {
     pub topic: String,
     pub bootstrap_servers: String,
 
@@ -32,11 +32,10 @@ pub struct KafkaTopicConfig {
     pub timestamp_column: String,
     pub timestamp_unit: TimestampUnit,
 
-    pub consumer_opts: ConnectionOpts,
-    pub producer_opts: ConnectionOpts,
+    pub kafka_connection_opts: ConnectionOpts,
 }
 
-impl KafkaTopicConfig {
+impl KafkaReadConfig {
     pub fn make_consumer(&self) -> Result<StreamConsumer> {
         let mut client_config = ClientConfig::new();
 
@@ -44,20 +43,37 @@ impl KafkaTopicConfig {
             .set("bootstrap.servers", self.bootstrap_servers.to_string())
             .set("enable.auto.commit", "false");
 
-        for (key, value) in self.consumer_opts.clone().into_iter() {
+        for (key, value) in self.kafka_connection_opts.clone().into_iter() {
             client_config.set(key, value);
         }
 
         let consumer: StreamConsumer = client_config.create().expect("Consumer creation failed");
         Ok(consumer)
     }
+}
 
+#[derive(Debug)]
+pub struct KafkaWriteConfig {
+    pub topic: String,
+    pub bootstrap_servers: String,
+
+    pub schema: SchemaRef,
+
+    pub encoding: StreamEncoding,
+    pub partitions: i32,
+    pub timestamp_column: String,
+    pub timestamp_unit: TimestampUnit,
+
+    pub kafka_connection_opts: ConnectionOpts,
+}
+
+impl KafkaWriteConfig {
     pub fn make_producer(&self) -> Result<FutureProducer> {
         let mut client_config = ClientConfig::new();
 
         client_config.set("bootstrap.servers", self.bootstrap_servers.to_string());
 
-        for (key, value) in self.producer_opts.clone().into_iter() {
+        for (key, value) in self.kafka_connection_opts.clone().into_iter() {
             client_config.set(key, value);
         }
 
@@ -77,8 +93,6 @@ pub struct KafkaTopicConfigBuilder {
     timestamp_unit: Option<TimestampUnit>,
 
     encoding: Option<StreamEncoding>,
-    consumer_opts: ConnectionOpts,
-    producer_opts: ConnectionOpts,
 }
 
 impl KafkaTopicConfigBuilder {
@@ -94,8 +108,6 @@ impl KafkaTopicConfigBuilder {
             timestamp_unit: None,
 
             encoding: None,
-            consumer_opts: ConnectionOpts::new(),
-            producer_opts: ConnectionOpts::new(),
         }
     }
 
@@ -139,20 +151,6 @@ impl KafkaTopicConfigBuilder {
         self
     }
 
-    pub fn with_consumer_opts(&mut self, opts: ConnectionOpts) -> &mut Self {
-        for (key, value) in opts.into_iter() {
-            self.consumer_opts.insert(key.clone(), value.clone());
-        }
-        self
-    }
-
-    pub fn with_producer_opts(&mut self, opts: ConnectionOpts) -> &mut Self {
-        for (key, value) in opts.into_iter() {
-            self.producer_opts.insert(key.clone(), value.clone());
-        }
-        self
-    }
-
     pub fn with_encoding(&mut self, encoding: &str) -> Result<&mut Self> {
         self.encoding = Some(StreamEncoding::from_str(encoding)?);
         Ok(self)
@@ -188,7 +186,7 @@ impl KafkaTopicConfigBuilder {
         Ok(Arc::new(Schema::new(fields)))
     }
 
-    pub async fn build_reader(&self) -> Result<TopicReader> {
+    pub async fn build_reader(&self, opts: ConnectionOpts) -> Result<TopicReader> {
         let topic = self
             .topic
             .as_ref()
@@ -221,8 +219,10 @@ impl KafkaTopicConfigBuilder {
             .ok_or_else(|| create_error("timestamp_unit required"))?
             .clone();
 
-        let consumer_opts = self.consumer_opts.clone();
-        let producer_opts = self.producer_opts.clone();
+        let mut kafka_connection_opts = ConnectionOpts::new();
+        for (key, value) in opts.into_iter() {
+            kafka_connection_opts.insert(key.clone(), value.clone());
+        }
 
         //@todo
         let order = vec![];
@@ -230,7 +230,7 @@ impl KafkaTopicConfigBuilder {
         //@todo - query kafka topic for number of partitions and set it here
         let partitions = 64_i32;
 
-        let config = KafkaTopicConfig {
+        let config = KafkaReadConfig {
             topic,
             bootstrap_servers: self.bootstrap_servers.clone(),
 
@@ -243,27 +243,24 @@ impl KafkaTopicConfigBuilder {
             timestamp_unit,
             timestamp_column,
 
-            consumer_opts,
-            producer_opts,
+            kafka_connection_opts,
         };
 
         Ok(TopicReader(Arc::new(config)))
     }
 
-    pub async fn build_writer(&self) -> Result<TopicWriter> {
+    pub async fn build_writer(&self, opts: ConnectionOpts) -> Result<TopicWriter> {
         let topic = self
             .topic
             .as_ref()
             .ok_or_else(|| create_error("topic required"))?
             .clone();
 
-        let original_schema = self
+        let schema = self
             .schema
             .as_ref()
             .ok_or_else(|| create_error("Schema required"))?
             .clone();
-
-        let canonical_schema = original_schema.clone();
 
         let encoding = self
             .encoding
@@ -283,30 +280,25 @@ impl KafkaTopicConfigBuilder {
             .ok_or_else(|| create_error("timestamp_unit required"))?
             .clone();
 
-        let consumer_opts = self.consumer_opts.clone();
-        let producer_opts = self.producer_opts.clone();
-
-        //@todo
-        let order = vec![];
+        let mut kafka_connection_opts = ConnectionOpts::new();
+        for (key, value) in opts.into_iter() {
+            kafka_connection_opts.insert(key.clone(), value.clone());
+        }
 
         //@todo - query kafka topic for number of partitions and set it here
         let partitions = 64_i32;
 
-        let config = KafkaTopicConfig {
+        let config = KafkaWriteConfig {
             topic,
             bootstrap_servers: self.bootstrap_servers.clone(),
 
-            original_schema,
-            schema: canonical_schema,
+            schema,
             encoding,
-            order,
             partitions,
 
             timestamp_unit,
             timestamp_column,
-
-            consumer_opts,
-            producer_opts,
+            kafka_connection_opts,
         };
 
         Ok(TopicWriter(Arc::new(config)))

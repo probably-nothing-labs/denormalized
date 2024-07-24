@@ -19,10 +19,10 @@ use datafusion_physical_plan::time::array_to_timestamp_array;
 use rdkafka::consumer::Consumer;
 use rdkafka::{Message, Timestamp, TopicPartitionList};
 
-use super::KafkaTopicConfig;
+use super::KafkaReadConfig;
 
 pub struct KafkaStreamRead {
-    pub config: Arc<KafkaTopicConfig>,
+    pub config: Arc<KafkaReadConfig>,
     pub assigned_partitions: Vec<i32>,
 }
 

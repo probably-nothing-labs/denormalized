@@ -15,7 +15,7 @@ use datafusion_functions::core::expr_ext::FieldAccessor;
 use datafusion_functions_aggregate::count::count;
 
 use df_streams_core::datasource::kafka::{
-    ConnectionOpts, KafkaTopic, KafkaTopicConfig, KafkaTopicConfigBuilder, TopicReader, TopicWriter,
+    ConnectionOpts, KafkaTopicConfigBuilder, TopicReader, TopicWriter,
 };
 use df_streams_core::sinkable::Sinkable;
 
@@ -65,16 +65,15 @@ async fn main() -> Result<()> {
     let mut topic_builder = KafkaTopicConfigBuilder::new(bootstrap_servers.clone());
     topic_builder
         .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
-        .with_encoding("json")?
-        .with_consumer_opts(ConnectionOpts::from([
-            ("auto.offset.reset".to_string(), "earliest".to_string()),
-            ("group.id".to_string(), "test".to_string()),
-        ]));
+        .with_encoding("json")?;
 
     let source_topic = topic_builder
-        .infer_schema_from_json(sample_event)?
         .with_topic(String::from("driver-imu-data"))
-        .build_reader()
+        .infer_schema_from_json(sample_event)?
+        .build_reader(ConnectionOpts::from([
+            ("auto.offset.reset".to_string(), "earliest".to_string()),
+            ("group.id".to_string(), "test".to_string()),
+        ]))
         .await?;
 
     let mut datafusion_config = ConfigOptions::default();
@@ -109,7 +108,7 @@ async fn main() -> Result<()> {
     let sink_topic = topic_builder
         .with_topic(String::from("out_topic"))
         .with_schema(processed_schema)
-        .build_writer()
+        .build_writer(ConnectionOpts::new())
         .await?;
 
     ctx.register_table("out", Arc::new(sink_topic))?;
