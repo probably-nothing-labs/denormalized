@@ -72,6 +72,7 @@ impl KafkaWriteConfig {
         let mut client_config = ClientConfig::new();
 
         client_config.set("bootstrap.servers", self.bootstrap_servers.to_string());
+        client_config.set("message.timeout.ms", "60000");
 
         for (key, value) in self.kafka_connection_opts.clone().into_iter() {
             client_config.set(key, value);
@@ -82,6 +83,7 @@ impl KafkaWriteConfig {
     }
 }
 
+#[derive(Debug)]
 pub struct KafkaTopicConfigBuilder {
     bootstrap_servers: String,
     topic: Option<String>,

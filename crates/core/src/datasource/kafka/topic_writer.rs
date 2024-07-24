@@ -1,19 +1,25 @@
 use async_trait::async_trait;
 use futures::StreamExt;
 use std::fmt::{self, Debug};
+use std::time::Duration;
 use std::{any::Any, sync::Arc};
 
-use arrow_schema::{Schema, SchemaRef, SortOptions};
+use arrow::json::LineDelimitedWriter;
+use arrow_schema::SchemaRef;
+
 use datafusion::datasource::TableProvider;
 use datafusion::execution::context::SessionState;
 use datafusion::physical_plan::{
     insert::{DataSink, DataSinkExec},
     DisplayAs, DisplayFormatType, SendableRecordBatchStream,
 };
-use datafusion_common::{not_impl_err, plan_err, Result};
+use datafusion_common::{not_impl_err, Result};
 use datafusion_execution::TaskContext;
 use datafusion_expr::{Expr, TableType};
 use datafusion_physical_plan::{metrics::MetricsSet, ExecutionPlan};
+
+use rdkafka::producer::FutureProducer;
+use rdkafka::producer::FutureRecord;
 
 use super::KafkaWriteConfig;
 
@@ -60,7 +66,7 @@ impl TableProvider for TopicWriter {
         if overwrite {
             return not_impl_err!("Overwrite not implemented for TopicWriter");
         }
-        let sink = Arc::new(KafkaSink::new());
+        let sink = Arc::new(KafkaSink::new(self.0.clone()));
         Ok(Arc::new(DataSinkExec::new(
             input,
             sink,
@@ -70,30 +76,16 @@ impl TableProvider for TopicWriter {
     }
 }
 
-struct KafkaSink {}
-
-impl Debug for KafkaSink {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("KafkaSink")
-            // .field("num_partitions", &self.batches.len())
-            .finish()
-    }
-}
-
-impl DisplayAs for KafkaSink {
-    fn fmt_as(&self, t: DisplayFormatType, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match t {
-            DisplayFormatType::Default | DisplayFormatType::Verbose => {
-                let partition_count = "@todo";
-                write!(f, "KafkaTable (partitions={partition_count})")
-            }
-        }
-    }
+struct KafkaSink {
+    producer: FutureProducer,
+    config: Arc<KafkaWriteConfig>,
 }
 
 impl KafkaSink {
-    fn new() -> Self {
-        Self {}
+    fn new(config: Arc<KafkaWriteConfig>) -> Self {
+        let producer = config.make_producer().unwrap();
+
+        Self { producer, config }
     }
 }
 
@@ -113,16 +105,54 @@ impl DataSink for KafkaSink {
         _context: &Arc<TaskContext>,
     ) -> Result<u64> {
         let mut row_count = 0;
+        let topic = self.config.topic.as_str();
+
         while let Some(batch) = data.next().await.transpose()? {
+
             row_count += batch.num_rows();
+
             if batch.num_rows() > 0 {
-                println!(
-                    "{}",
-                    arrow::util::pretty::pretty_format_batches(&[batch]).unwrap()
-                );
+                let buf = Vec::new();
+                let mut writer = LineDelimitedWriter::new(buf);
+                writer.write_batches(&vec![&batch])?;
+                writer.finish()?;
+                let buf = writer.into_inner();
+
+                let record = FutureRecord::<[u8], _>::to(topic).payload(&buf);
+                // .key(key.as_str()),
+
+                let _delivery_status = self
+                    .producer
+                    .send(record, Duration::from_secs(0))
+                    .await
+                    .expect("Message not delivered");
+
+                // println!(
+                //     "{}",
+                //     arrow::util::pretty::pretty_format_batches(&[batch]).unwrap()
+                // );
             }
         }
 
         Ok(row_count as u64)
+    }
+}
+
+impl Debug for KafkaSink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("KafkaSink")
+            // .field("num_partitions", &self.batches.len())
+            .finish()
+    }
+}
+
+impl DisplayAs for KafkaSink {
+    fn fmt_as(&self, t: DisplayFormatType, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match t {
+            DisplayFormatType::Default | DisplayFormatType::Verbose => {
+                let partition_count = "@todo";
+                write!(f, "KafkaTable (partitions={partition_count})")
+            }
+        }
     }
 }
