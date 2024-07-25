@@ -14,7 +14,10 @@ datafusion-physical-plan = { workspace = true }
 arrow = { workspace = true }
 arrow-schema = { workspace = true }
 arrow-array = { workspace = true }
+arrow-json = { workspace = true }
 
+apache-avro = { workspace = true }
+base64 = { workspace = true }
 rdkafka = { workspace = true }
 futures = { workspace = true }
 df-streams-sinks = { workspace = true }

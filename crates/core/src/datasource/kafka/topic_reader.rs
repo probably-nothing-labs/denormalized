@@ -4,20 +4,19 @@ use std::{any::Any, sync::Arc};
 use arrow_schema::{Schema, SchemaRef, SortOptions};
 use datafusion::datasource::TableProvider;
 use datafusion::execution::context::SessionState;
-use datafusion_common::{plan_err, Result};
+use datafusion_common::{not_impl_err, plan_err, Result};
 use datafusion_expr::{Expr, TableType};
 use datafusion_physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
-
 use datafusion_physical_plan::{streaming::StreamingTableExec, ExecutionPlan};
 
-use crate::physical_plan::kafka::{KafkaStreamConfig, KafkaStreamRead};
+use super::{KafkaReadConfig, KafkaStreamRead};
 
 // Used to createa kafka source
-pub struct KafkaSource(pub Arc<KafkaStreamConfig>);
+pub struct TopicReader(pub Arc<KafkaReadConfig>);
 
-impl KafkaSource {
+impl TopicReader {
     /// Create a new [`StreamTable`] for the given [`StreamConfig`]
-    pub fn new(config: Arc<KafkaStreamConfig>) -> Self {
+    pub fn new(config: Arc<KafkaReadConfig>) -> Self {
         Self(config)
     }
 
@@ -54,7 +53,7 @@ impl KafkaSource {
 }
 
 #[async_trait]
-impl TableProvider for KafkaSource {
+impl TableProvider for TopicReader {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -75,6 +74,15 @@ impl TableProvider for KafkaSource {
         _limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>> {
         return self.create_physical_plan(projection).await;
+    }
+
+    async fn insert_into(
+        &self,
+        _state: &SessionState,
+        _input: Arc<dyn ExecutionPlan>,
+        _overwrite: bool,
+    ) -> Result<Arc<dyn ExecutionPlan>> {
+        return not_impl_err!("Writing not implemented for TopicReader please use TopicWriter");
     }
 }
 
