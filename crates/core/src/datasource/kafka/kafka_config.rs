@@ -84,7 +84,7 @@ impl KafkaWriteConfig {
 }
 
 #[derive(Debug)]
-pub struct KafkaTopicConfigBuilder {
+pub struct KafkaTopicBuilder {
     bootstrap_servers: String,
     topic: Option<String>,
 
@@ -97,7 +97,7 @@ pub struct KafkaTopicConfigBuilder {
     encoding: Option<StreamEncoding>,
 }
 
-impl KafkaTopicConfigBuilder {
+impl KafkaTopicBuilder {
     pub fn new(bootstrap_servers: String) -> Self {
         Self {
             bootstrap_servers,

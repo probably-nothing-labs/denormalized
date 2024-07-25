@@ -16,7 +16,7 @@ use datafusion_functions_aggregate::count::count;
 
 use df_streams_core::dataframe::StreamingDataframe;
 use df_streams_core::datasource::kafka::{
-    ConnectionOpts, KafkaTopicConfigBuilder, TopicReader, TopicWriter,
+    ConnectionOpts, KafkaTopicBuilder, TopicReader, TopicWriter,
 };
 
 use std::{sync::Arc, time::Duration};
@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
 
     let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
 
-    let mut topic_builder = KafkaTopicConfigBuilder::new(bootstrap_servers.clone());
+    let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers.clone());
     topic_builder
         .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
         .with_encoding("json")?;
