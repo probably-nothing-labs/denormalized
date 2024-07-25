@@ -13,6 +13,7 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/probably-nothing-labs/df-streams"
 version = "0.1.0"
+description = "Embeddable stream processing engine"
 
 [workspace.dependencies]
 df-streams-core = { path = "crates/core" }

@@ -99,6 +99,8 @@ async fn main() -> Result<()> {
             Some(Duration::from_millis(1_000)), // 1 second slide
         )?;
 
+    // df.clone().print_stream().await?;
+
     let processed_schema = Arc::new(datafusion::common::arrow::datatypes::Schema::from(
         df.schema(),
     ));

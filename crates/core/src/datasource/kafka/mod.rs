@@ -1,6 +1,5 @@
 pub mod kafka_config;
 pub mod kafka_stream_read;
-pub mod utils;
 pub mod topic_reader;
 pub mod topic_writer;
 
