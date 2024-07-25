@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use arrow_schema::{DataType, Field, Fields, Schema, SchemaRef, TimeUnit};
 use datafusion_physical_plan::time::TimestampUnit;
-use rdkafka::producer::FutureProducer;
 
 use crate::arrow_helpers::infer_arrow_schema_from_json_value;
 use datafusion_common::{plan_err, DataFusionError, Result};
@@ -12,7 +11,9 @@ use datafusion_expr::Expr;
 
 use super::{TopicReader, TopicWriter};
 
+use rdkafka::consumer::Consumer;
 use rdkafka::consumer::StreamConsumer;
+use rdkafka::producer::FutureProducer;
 use rdkafka::ClientConfig;
 
 pub type ConnectionOpts = HashMap<String, String>;
@@ -229,8 +230,7 @@ impl KafkaTopicBuilder {
         //@todo
         let order = vec![];
 
-        //@todo - query kafka topic for number of partitions and set it here
-        let partitions = 64_i32;
+        let partitions = get_topic_partition_count(self.bootstrap_servers.clone(), topic.clone())?;
 
         let config = KafkaReadConfig {
             topic,
@@ -287,8 +287,7 @@ impl KafkaTopicBuilder {
             kafka_connection_opts.insert(key.clone(), value.clone());
         }
 
-        //@todo - query kafka topic for number of partitions and set it here
-        let partitions = 64_i32;
+        let partitions = get_topic_partition_count(self.bootstrap_servers.clone(), topic.clone())?;
 
         let config = KafkaWriteConfig {
             topic,
@@ -331,4 +330,20 @@ fn create_error(msg: &str) -> DataFusionError {
         std::io::ErrorKind::Other,
         msg,
     )))
+}
+
+fn get_topic_partition_count(bootstrap_servers: String, topic: String) -> Result<i32> {
+    let mut client_config = ClientConfig::new();
+    client_config.set("bootstrap.servers", bootstrap_servers.to_string());
+
+    let consumer: StreamConsumer = client_config.create().expect("Consumer creation failed");
+
+    let data = consumer
+        .fetch_metadata(Some(topic.as_str()), Duration::from_millis(5_000))
+        .unwrap();
+    let topic_metadata = data.topics();
+    let md = &topic_metadata[0];
+    let partitions = md.partitions();
+
+    Ok(partitions.len() as i32)
 }
