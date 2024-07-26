@@ -7,7 +7,8 @@ use datafusion_physical_plan::ExecutionPlanProperties;
 use datafusion::common::tree_node::{Transformed, TransformedResult, TreeNode};
 use datafusion::error::Result;
 use datafusion::physical_optimizer::optimizer::PhysicalOptimizerRule;
-use datafusion::physical_plan::continuous::window::FranzStreamingWindowExec;
+
+use crate::physical_plan::streaming_window::FranzStreamingWindowExec;
 
 pub struct CoaslesceBeforeStreamingAggregate {}
 

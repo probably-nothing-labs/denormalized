@@ -5,7 +5,7 @@
 use arrow_schema::{DataType, Field, Fields, Schema, TimeUnit};
 use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion::error::Result;
-use datafusion::{config::ConfigOptions, dataframe::DataFrame, physical_plan::time::TimestampUnit};
+use datafusion::{config::ConfigOptions, dataframe::DataFrame};
 
 use datafusion::execution::{
     config::SessionConfig, context::SessionContext, runtime_env::RuntimeEnv,
@@ -21,7 +21,8 @@ use df_streams_core::datasource::kafka::{
     ConnectionOpts, KafkaTopicBuilder, TopicReader, TopicWriter,
 };
 use df_streams_core::physical_optimizer::CoaslesceBeforeStreamingAggregate;
-use df_streams_core::arrow_helpers::json_records_to_arrow_record_batch;
+use df_streams_core::utils::arrow_helpers::json_records_to_arrow_record_batch;
+use df_streams_core::physical_plan::utils::time::TimestampUnit;
 
 use std::{sync::Arc, time::Duration};
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
