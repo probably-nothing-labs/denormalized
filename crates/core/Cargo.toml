@@ -15,6 +15,7 @@ arrow = { workspace = true }
 arrow-schema = { workspace = true }
 arrow-array = { workspace = true }
 arrow-json = { workspace = true }
+arrow-ord = { workspace = true }
 
 apache-avro = { workspace = true }
 base64 = { workspace = true }

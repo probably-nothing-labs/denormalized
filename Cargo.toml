@@ -48,6 +48,7 @@ arrow-schema = { version = "52.0.0", default-features = false }
 arrow-ipc = { version = "52.0.0", default-features = false, features = ["lz4"] }
 arrow-json = { version = "52.0.0" }
 arrow-string = { version = "52.0.0", default-features = false }
+arrow-ord = { version = "52.0.0", default-features = false }
 
 apache-avro = { version = "0.16", default-features = false, features = [
   "bzip",

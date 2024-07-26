@@ -1035,6 +1035,7 @@ dependencies = [
  "arrow",
  "arrow-array",
  "arrow-json",
+ "arrow-ord",
  "arrow-schema",
  "async-trait",
  "base64",
