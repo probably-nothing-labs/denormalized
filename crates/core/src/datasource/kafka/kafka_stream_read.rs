@@ -6,7 +6,6 @@ use std::time::Duration;
 use arrow::datatypes::TimestampMillisecondType;
 use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, StructArray};
 use arrow_schema::{DataType, Field, SchemaRef, TimeUnit};
-use datafusion_common::franz_arrow::json_records_to_arrow_record_batch;
 use futures::StreamExt;
 use serde_json::Value;
 use tracing::{debug, error, info, instrument};
@@ -18,6 +17,8 @@ use datafusion_physical_plan::streaming::PartitionStream;
 use datafusion_physical_plan::time::array_to_timestamp_array;
 use rdkafka::consumer::Consumer;
 use rdkafka::{Message, Timestamp, TopicPartitionList};
+
+use crate::arrow_helpers::json_records_to_arrow_record_batch;
 
 use super::KafkaReadConfig;
 

@@ -66,3 +66,4 @@ rdkafka = "0.36.2"
 log = "^0.4"
 serde_json = "1"
 base64 = "0.22.1"
+chrono = { version = "0.4.38", default-features = false }
