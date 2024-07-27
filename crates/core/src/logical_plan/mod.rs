@@ -18,15 +18,16 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use datafusion_common::{DFSchema, DFSchemaRef, Result};
+use datafusion_common::Result;
 
 use datafusion_expr::builder::add_group_by_exprs_from_dependencies;
 use datafusion_expr::expr_rewriter::normalize_cols;
-use datafusion_expr::logical_plan::LogicalPlan;
+use datafusion_expr::logical_plan::{LogicalPlan, Extension};
 use datafusion_expr::LogicalPlanBuilder;
 use datafusion_expr::{Aggregate, Expr};
 
-use arrow::datatypes::{DataType, Field, Schema, SchemaBuilder, SchemaRef, TimeUnit};
+pub mod streaming_window;
+use streaming_window::{StreamingWindowPlanNode, StreamingWindowType, StreamingWindowSchema};
 
 pub trait StreamingLogicalPlanBuilder {
     fn streaming_window(
@@ -56,56 +57,31 @@ impl StreamingLogicalPlanBuilder for LogicalPlanBuilder {
             || StreamingWindowType::Tumbling(window_length),
             |_slide| StreamingWindowType::Sliding(window_length, _slide),
         );
+
+        
         let aggr = Aggregate::try_new(Arc::new(self.plan), group_expr, aggr_expr)
             .map(|new_aggr| {
-                LogicalPlan::StreamingWindow(
-                    new_aggr.clone(),
-                    window,
-                    StreamingWindowSchema::try_new(new_aggr).unwrap(),
-                )
+let node = StreamingWindowPlanNode {
+                        window_type: window,
+                        window_schema: StreamingWindowSchema::try_new(new_aggr)?,
+                        agg: new_agg.clone(),
+
+                        input: self.plan.clone(),
+                        expr: new_agg.clone(),
+                    };
+                let extension = Extension{
+                    node
+                };
+
+                LogicalPlan::Extension(extension)
+                
+                // LogicalPlan::Extension(
+                //     new_aggr.clone(),
+                //     window,
+                //     StreamingWindowSchema::try_new(new_aggr)?,
+                // )
             })
             .map(Self::from);
         aggr
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum StreamingWindowType {
-    Tumbling(Duration),
-    Sliding(Duration, Duration),
-    Session(Duration, String),
-}
-
-#[derive(Clone, PartialEq, Eq, Hash)]
-// mark non_exhaustive to encourage use of try_new/new()
-#[non_exhaustive]
-pub struct StreamingWindowSchema {
-    pub schema: DFSchemaRef,
-}
-
-impl StreamingWindowSchema {
-    pub fn try_new(aggr_expr: Aggregate) -> Result<Self> {
-        let inner_schema = aggr_expr.schema.inner().clone();
-        let fields = inner_schema.all_fields().to_owned();
-
-        let mut builder = SchemaBuilder::new();
-
-        for field in fields {
-            builder.push(field.clone());
-        }
-        builder.push(Field::new(
-            "window_start_time",
-            DataType::Timestamp(TimeUnit::Millisecond, None),
-            false,
-        ));
-        builder.push(Field::new(
-            "window_end_time",
-            DataType::Timestamp(TimeUnit::Millisecond, None),
-            false,
-        ));
-        let schema_with_window_columns = DFSchema::try_from(builder.finish())?;
-        Ok(StreamingWindowSchema {
-            schema: Arc::new(schema_with_window_columns),
-        })
     }
 }

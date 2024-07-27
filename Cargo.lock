@@ -423,7 +423,7 @@ dependencies = [
  "bitflags 2.6.0",
  "cexpr",
  "clang-sys",
- "itertools",
+ "itertools 0.12.1",
  "lazy_static",
  "lazycell",
  "proc-macro2",
@@ -767,7 +767,7 @@ dependencies = [
  "half",
  "hashbrown",
  "indexmap",
- "itertools",
+ "itertools 0.12.1",
  "log",
  "num_cpus",
  "object_store",
@@ -776,7 +776,6 @@ dependencies = [
  "paste",
  "pin-project-lite",
  "rand",
- "rdkafka",
  "sqlparser",
  "tempfile",
  "tokio",
@@ -848,7 +847,6 @@ dependencies = [
  "arrow",
  "arrow-array",
  "arrow-buffer",
- "bincode",
  "chrono",
  "datafusion-common",
  "paste",
@@ -873,7 +871,7 @@ dependencies = [
  "datafusion-physical-expr",
  "hashbrown",
  "hex",
- "itertools",
+ "itertools 0.12.1",
  "log",
  "md-5",
  "rand",
@@ -912,7 +910,7 @@ dependencies = [
  "datafusion-execution",
  "datafusion-expr",
  "datafusion-functions",
- "itertools",
+ "itertools 0.12.1",
  "log",
  "paste",
 ]
@@ -929,7 +927,7 @@ dependencies = [
  "datafusion-physical-expr",
  "hashbrown",
  "indexmap",
- "itertools",
+ "itertools 0.12.1",
  "log",
  "paste",
  "regex-syntax",
@@ -958,7 +956,7 @@ dependencies = [
  "hashbrown",
  "hex",
  "indexmap",
- "itertools",
+ "itertools 0.12.1",
  "log",
  "paste",
  "petgraph",
@@ -1000,16 +998,13 @@ dependencies = [
  "half",
  "hashbrown",
  "indexmap",
- "itertools",
+ "itertools 0.12.1",
  "log",
  "once_cell",
  "parking_lot",
  "pin-project-lite",
  "rand",
- "rdkafka",
- "serde_json",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -1048,6 +1043,7 @@ dependencies = [
  "datafusion-physical-plan",
  "df-streams-sinks",
  "futures",
+ "itertools 0.13.0",
  "log",
  "rdkafka",
  "serde_json",
@@ -1411,6 +1407,15 @@ name = "itertools"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
@@ -1817,7 +1822,7 @@ dependencies = [
  "chrono",
  "futures",
  "humantime",
- "itertools",
+ "itertools 0.12.1",
  "parking_lot",
  "percent-encoding",
  "snafu",

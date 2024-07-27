@@ -28,3 +28,4 @@ serde_json = { workspace = true }
 tokio = { workspace = true }
 log = { workspace = true }
 chrono = { workspace = true }
+itertools = { workspace = true }

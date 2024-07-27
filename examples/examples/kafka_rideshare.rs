@@ -21,8 +21,9 @@ use df_streams_core::datasource::kafka::{
     ConnectionOpts, KafkaTopicBuilder, TopicReader, TopicWriter,
 };
 use df_streams_core::physical_optimizer::CoaslesceBeforeStreamingAggregate;
-use df_streams_core::utils::arrow_helpers::json_records_to_arrow_record_batch;
 use df_streams_core::physical_plan::utils::time::TimestampUnit;
+use df_streams_core::query_planner::StreamingQueryPlanner;
+use df_streams_core::utils::arrow_helpers::json_records_to_arrow_record_batch;
 
 use std::{sync::Arc, time::Duration};
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
@@ -42,13 +43,9 @@ async fn main() -> Result<()> {
         datafusion_common::ScalarValue::UInt64(Some(32)),
     );
     let runtime = Arc::new(RuntimeEnv::default());
-    let mut state = SessionState::new_with_config_rt(config, runtime);
-
-    // state.add_optimizer_rule();
-    // state = state.with_query_planner(Arc::new(.. todo))
-
-    state = state.add_physical_optimizer_rule(Arc::new(CoaslesceBeforeStreamingAggregate::new()));
-
+    let state = SessionState::new_with_config_rt(config, runtime)
+        .with_query_planner(Arc::new(StreamingQueryPlanner {}))
+        .add_physical_optimizer_rule(Arc::new(CoaslesceBeforeStreamingAggregate::new()));
 
     let ctx = SessionContext::new_with_state(state);
 

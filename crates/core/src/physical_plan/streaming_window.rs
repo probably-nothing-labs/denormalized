@@ -13,12 +13,11 @@ use arrow::{
     compute::{concat_batches, filter_record_batch},
     datatypes::TimestampMillisecondType,
 };
-
-use arrow_array::{
-    Array, PrimitiveArray, RecordBatch, StructArray, TimestampMillisecondArray,
-};
+use arrow_array::{Array, PrimitiveArray, RecordBatch, StructArray, TimestampMillisecondArray};
 use arrow_ord::cmp;
 use arrow_schema::{DataType, Field, Schema, SchemaBuilder, SchemaRef, TimeUnit};
+
+use datafusion::logical_expr::{UserDefinedLogicalNode, UserDefinedLogicalNodeCore};
 use datafusion_common::{internal_err, stats::Precision, DataFusionError, Statistics};
 use datafusion_execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
 use datafusion_physical_expr::{
@@ -26,14 +25,11 @@ use datafusion_physical_expr::{
     expressions::UnKnownColumn,
     AggregateExpr, Partitioning, PhysicalExpr, PhysicalSortRequirement,
 };
-use futures::{Stream, StreamExt};
-use tracing::debug;
-
+use datafusion_physical_plan::windows::get_ordered_partition_by_indices;
 use datafusion_physical_plan::{
     aggregates::{
         aggregate_expressions, create_accumulators, finalize_aggregation,
-        get_finer_aggregate_exprs_requirement, AccumulatorItem, AggregateMode,
-        PhysicalGroupBy,
+        get_finer_aggregate_exprs_requirement, AccumulatorItem, AggregateMode, PhysicalGroupBy,
     },
     filter::batch_filter,
     InputOrderMode,
@@ -43,8 +39,9 @@ use datafusion_physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, ExecutionPlanProperties,
     PlanProperties,
 };
+use futures::{Stream, StreamExt};
+use tracing::debug;
 
-use datafusion_physical_plan::windows::get_ordered_partition_by_indices;
 use super::utils::time::RecordBatchWatermark;
 
 pub struct FranzWindowFrame {
@@ -60,11 +57,7 @@ pub struct FranzWindowFrame {
 }
 
 impl DisplayAs for FranzWindowFrame {
-    fn fmt_as(
-        &self,
-        t: DisplayFormatType,
-        f: &mut std::fmt::Formatter,
-    ) -> std::fmt::Result {
+    fn fmt_as(&self, t: DisplayFormatType, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match t {
             DisplayFormatType::Default | DisplayFormatType::Verbose => {
                 write!(f, "WindowAggExec: ")?;
@@ -177,10 +170,9 @@ impl FranzWindowFrame {
 
     pub fn evaluate(&mut self) -> Result<RecordBatch, DataFusionError> {
         let timer = self.baseline_metrics.elapsed_compute().timer();
-        let result = finalize_aggregation(&mut self.accumulators, &self.aggregation_mode)
-            .and_then(|columns| {
-                RecordBatch::try_new(self.schema.clone(), columns).map_err(Into::into)
-            });
+        let result = finalize_aggregation(&mut self.accumulators, &self.aggregation_mode).and_then(
+            |columns| RecordBatch::try_new(self.schema.clone(), columns).map_err(Into::into),
+        );
 
         timer.done();
         result
@@ -282,18 +274,16 @@ impl FranzStreamingWindowExec {
         _new_requirement.extend(req);
         _new_requirement = collapse_lex_req(_new_requirement);
 
-        let input_order_mode =
-            if indices.len() == groupby_exprs.len() && !indices.is_empty() {
-                InputOrderMode::Sorted
-            } else if !indices.is_empty() {
-                InputOrderMode::PartiallySorted(indices)
-            } else {
-                InputOrderMode::Linear
-            };
+        let input_order_mode = if indices.len() == groupby_exprs.len() && !indices.is_empty() {
+            InputOrderMode::Sorted
+        } else if !indices.is_empty() {
+            InputOrderMode::PartiallySorted(indices)
+        } else {
+            InputOrderMode::Linear
+        };
 
         // construct a map from the input expression to the output expression of the Aggregation group by
-        let projection_mapping =
-            ProjectionMapping::try_new(&group_by.expr, &input.schema())?;
+        let projection_mapping = ProjectionMapping::try_new(&group_by.expr, &input.schema())?;
 
         let cache = FranzStreamingWindowExec::compute_properties(
             &input,
@@ -354,9 +344,7 @@ impl FranzStreamingWindowExec {
                     .map(|expr| {
                         input_eq_properties
                             .project_expr(expr, projection_mapping)
-                            .unwrap_or_else(|| {
-                                Arc::new(UnKnownColumn::new(&expr.to_string()))
-                            })
+                            .unwrap_or_else(|| Arc::new(UnKnownColumn::new(&expr.to_string())))
                     })
                     .collect();
                 output_partitioning = Partitioning::Hash(normalized_exprs, part);
@@ -448,8 +436,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
             _ => {
                 // When the input row count is 0 or 1, we can adopt that statistic keeping its reliability.
                 // When it is larger than 1, we degrade the precision since it may decrease after aggregation.
-                let num_rows = if let Some(value) =
-                    self.input().statistics()?.num_rows.get_value()
+                let num_rows = if let Some(value) = self.input().statistics()?.num_rows.get_value()
                 {
                     if *value > 1 {
                         self.input().statistics()?.num_rows.to_inexact()
@@ -492,11 +479,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
 }
 
 impl DisplayAs for FranzStreamingWindowExec {
-    fn fmt_as(
-        &self,
-        t: DisplayFormatType,
-        f: &mut std::fmt::Formatter,
-    ) -> std::fmt::Result {
+    fn fmt_as(&self, t: DisplayFormatType, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match t {
             DisplayFormatType::Default | DisplayFormatType::Verbose => {
                 write!(f, "FranzStreamingWindowExec: mode={:?}", self.mode)?;
@@ -605,15 +588,12 @@ impl FranzWindowAggStream {
             .input
             .execute(partition, Arc::clone(&context))?;
 
-        let aggregate_expressions = aggregate_expressions(
-            &exec_operator.aggregate_expressions,
-            &exec_operator.mode,
-            0,
-        )?;
+        let aggregate_expressions =
+            aggregate_expressions(&exec_operator.aggregate_expressions, &exec_operator.mode, 0)?;
         let filter_expressions = match exec_operator.mode {
-            AggregateMode::Partial
-            | AggregateMode::Single
-            | AggregateMode::SinglePartitioned => agg_filter_expr,
+            AggregateMode::Partial | AggregateMode::Single | AggregateMode::SinglePartitioned => {
+                agg_filter_expr
+            }
             AggregateMode::Final | AggregateMode::FinalPartitioned => {
                 vec![None; exec_operator.aggregate_expressions.len()]
             }
@@ -713,49 +693,39 @@ impl FranzWindowAggStream {
     }
 
     #[inline]
-    fn poll_next_inner(
-        &mut self,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<RecordBatch>>> {
+    fn poll_next_inner(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<RecordBatch>>> {
         loop {
-            let result: std::prelude::v1::Result<RecordBatch, DataFusionError> =
-                match self.input.poll_next_unpin(cx) {
-                    Poll::Ready(rdy) => match rdy {
-                        Some(Ok(batch)) => {
-                            if batch.num_rows() > 0 {
-                                let watermark: RecordBatchWatermark =
-                                    RecordBatchWatermark::try_from(
-                                        &batch,
-                                        "_streaming_internal_metadata",
-                                    )?;
-                                let ranges = get_windows_for_watermark(
-                                    &watermark,
-                                    self.window_type,
-                                );
-                                let _ = self.ensure_window_frames_for_ranges(&ranges);
-                                for range in ranges {
-                                    let frame =
-                                        self.window_frames.get_mut(&range.0).unwrap();
-                                    let _ = frame.push(&batch);
-                                }
-                                self.process_watermark(watermark);
-                                let triggered_result = self.trigger_windows();
-                                triggered_result
-                            } else {
-                                Ok(RecordBatch::new_empty(
-                                    self.output_schema_with_window(),
-                                ))
+            let result: std::prelude::v1::Result<RecordBatch, DataFusionError> = match self
+                .input
+                .poll_next_unpin(cx)
+            {
+                Poll::Ready(rdy) => match rdy {
+                    Some(Ok(batch)) => {
+                        if batch.num_rows() > 0 {
+                            let watermark: RecordBatchWatermark = RecordBatchWatermark::try_from(
+                                &batch,
+                                "_streaming_internal_metadata",
+                            )?;
+                            let ranges = get_windows_for_watermark(&watermark, self.window_type);
+                            let _ = self.ensure_window_frames_for_ranges(&ranges);
+                            for range in ranges {
+                                let frame = self.window_frames.get_mut(&range.0).unwrap();
+                                let _ = frame.push(&batch);
                             }
-                        }
-                        Some(Err(e)) => Err(e),
-                        None => {
+                            self.process_watermark(watermark);
+                            let triggered_result = self.trigger_windows();
+                            triggered_result
+                        } else {
                             Ok(RecordBatch::new_empty(self.output_schema_with_window()))
                         }
-                    },
-                    Poll::Pending => {
-                        return Poll::Pending;
                     }
-                };
+                    Some(Err(e)) => Err(e),
+                    None => Ok(RecordBatch::new_empty(self.output_schema_with_window())),
+                },
+                Poll::Pending => {
+                    return Poll::Pending;
+                }
+            };
             return Poll::Ready(Some(result));
         }
     }
@@ -770,10 +740,7 @@ impl RecordBatchStream for FranzWindowAggStream {
 impl Stream for FranzWindowAggStream {
     type Item = Result<RecordBatch>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let poll: Poll<Option<std::prelude::v1::Result<RecordBatch, DataFusionError>>> =
             self.poll_next_inner(cx);
         self.baseline_metrics.record_poll(poll)
@@ -795,8 +762,7 @@ fn get_windows_for_watermark(
     match window_type {
         FranzStreamingWindowType::Session(_) => todo!(),
         FranzStreamingWindowType::Sliding(window_length, slide) => {
-            let mut current_start =
-                snap_to_window_start(start_time - window_length, window_length);
+            let mut current_start = snap_to_window_start(start_time - window_length, window_length);
             while current_start <= end_time {
                 let current_end = current_start + window_length;
                 if start_time > current_end || end_time < current_start {
@@ -809,8 +775,7 @@ fn get_windows_for_watermark(
             }
         }
         FranzStreamingWindowType::Tumbling(window_length) => {
-            let mut current_start: SystemTime =
-                snap_to_window_start(start_time, window_length);
+            let mut current_start: SystemTime = snap_to_window_start(start_time, window_length);
             while current_start <= end_time {
                 let current_end = current_start + window_length;
                 window_ranges.push((current_start, current_end));
@@ -909,9 +874,7 @@ pub fn aggregate_batch(
                 AggregateMode::Partial
                 | AggregateMode::Single
                 | AggregateMode::SinglePartitioned => accum.update_batch(values),
-                AggregateMode::Final | AggregateMode::FinalPartitioned => {
-                    accum.merge_batch(values)
-                }
+                AggregateMode::Final | AggregateMode::FinalPartitioned => accum.merge_batch(values),
             };
             let size_post = accum.size();
             allocated += size_post.saturating_sub(size_pre);
@@ -948,10 +911,8 @@ fn add_window_columns_to_record_batch(
     start_time: SystemTime,
     end_time: SystemTime,
 ) -> RecordBatch {
-    let start_time_duration =
-        start_time.duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
-    let end_time_duration =
-        end_time.duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+    let start_time_duration = start_time.duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+    let end_time_duration = end_time.duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
 
     let mut start_builder = PrimitiveBuilder::<TimestampMillisecondType>::new();
     let mut end_builder = PrimitiveBuilder::<TimestampMillisecondType>::new();
