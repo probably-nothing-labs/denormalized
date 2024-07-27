@@ -45,6 +45,7 @@ async fn main() -> Result<()> {
     let runtime = Arc::new(RuntimeEnv::default());
     let state = SessionState::new_with_config_rt(config, runtime)
         .with_query_planner(Arc::new(StreamingQueryPlanner {}))
+        // @todo -- we'll need to remove the projection optimizer rule
         .add_physical_optimizer_rule(Arc::new(CoaslesceBeforeStreamingAggregate::new()));
 
     let ctx = SessionContext::new_with_state(state);

@@ -18,11 +18,8 @@ pub struct StreamingWindowPlanNode {
     pub window_schema: StreamingWindowSchema,
     pub agg: Aggregate,
 
+    // @todo do we need to store this?
     pub input: LogicalPlan,
-    /// The sort expression (this example only supports a single sort
-    /// expr)
-    pub expr: Expr,
-
 }
 
 impl Debug for StreamingWindowPlanNode {
@@ -48,7 +45,7 @@ impl UserDefinedLogicalNodeCore for StreamingWindowPlanNode {
     }
 
     fn expressions(&self) -> Vec<Expr> {
-        vec![self.expr.clone()]
+        self.agg.aggr_expr.clone()
     }
 
     fn fmt_for_explain(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -63,9 +60,8 @@ impl UserDefinedLogicalNodeCore for StreamingWindowPlanNode {
         Ok(Self {
             window_type: self.window_type,
             window_schema: self.window_schema,
-            agg: self.agg,
+            agg: self.agg, // @todo -- should this be derived from exprs?
             input: inputs.swap_remove(0),
-            expr: exprs.swap_remove(0),
         })
     }
 }

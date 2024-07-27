@@ -22,12 +22,12 @@ use datafusion_common::Result;
 
 use datafusion_expr::builder::add_group_by_exprs_from_dependencies;
 use datafusion_expr::expr_rewriter::normalize_cols;
-use datafusion_expr::logical_plan::{LogicalPlan, Extension};
+use datafusion_expr::logical_plan::{Extension, LogicalPlan};
 use datafusion_expr::LogicalPlanBuilder;
 use datafusion_expr::{Aggregate, Expr};
 
 pub mod streaming_window;
-use streaming_window::{StreamingWindowPlanNode, StreamingWindowType, StreamingWindowSchema};
+use streaming_window::{StreamingWindowPlanNode, StreamingWindowSchema, StreamingWindowType};
 
 pub trait StreamingLogicalPlanBuilder {
     fn streaming_window(
@@ -58,23 +58,18 @@ impl StreamingLogicalPlanBuilder for LogicalPlanBuilder {
             |_slide| StreamingWindowType::Sliding(window_length, _slide),
         );
 
-        
         let aggr = Aggregate::try_new(Arc::new(self.plan), group_expr, aggr_expr)
             .map(|new_aggr| {
-let node = StreamingWindowPlanNode {
+                LogicalPlan::Extension(Extension {
+                    node: StreamingWindowPlanNode {
                         window_type: window,
                         window_schema: StreamingWindowSchema::try_new(new_aggr)?,
                         agg: new_agg.clone(),
 
                         input: self.plan.clone(),
-                        expr: new_agg.clone(),
-                    };
-                let extension = Extension{
-                    node
-                };
+                    },
+                })
 
-                LogicalPlan::Extension(extension)
-                
                 // LogicalPlan::Extension(
                 //     new_aggr.clone(),
                 //     window,

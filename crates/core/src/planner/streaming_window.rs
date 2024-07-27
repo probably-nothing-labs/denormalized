@@ -32,7 +32,7 @@ impl ExtensionPlanner for StreamingWindowPlanner {
         Ok(
             if let Some(streaming_window_node) = node.as_any().downcast_ref::<StreamingWindowPlanNode>() {
                 // Initially need to perform the aggregate and then merge the partitions
-                let input_exec = children.one()?;
+                let input_exec = children.one()?; // Should be derivable from physical_inputs
                 let physical_input_schema: Arc<Schema> = input_exec.schema();
 
                 let logical_input_schema = input.as_ref().schema();
