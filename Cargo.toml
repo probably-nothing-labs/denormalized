@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "examples"]
+members = ["crates/core", "crates/sinks", "examples"]
 
 [workspace.package]
 authors = [

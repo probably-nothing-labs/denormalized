@@ -18,7 +18,7 @@ use datafusion_physical_plan::time::array_to_timestamp_array;
 use rdkafka::consumer::Consumer;
 use rdkafka::{Message, Timestamp, TopicPartitionList};
 
-use crate::arrow_helpers::json_records_to_arrow_record_batch;
+use crate::utils::arrow_helpers::json_records_to_arrow_record_batch;
 
 use super::KafkaReadConfig;
 

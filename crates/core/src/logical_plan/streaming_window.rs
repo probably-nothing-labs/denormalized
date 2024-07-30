@@ -1,30 +1,25 @@
 use core::fmt::Debug;
 
+use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
-use std::fmt;
 
 use arrow::datatypes::{DataType, Field, SchemaBuilder, TimeUnit};
 
+use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode, UserDefinedLogicalNodeCore};
 use datafusion_common::{DFSchema, DFSchemaRef, Result};
 use datafusion_expr::{Aggregate, Expr};
-use datafusion::logical_expr::{
-    LogicalPlan, UserDefinedLogicalNode, UserDefinedLogicalNodeCore,
-};
 
+//TODO: Avoid use of Aggregate here as we need to clone the internal expressions back and forth.
 #[derive(PartialEq, Eq, Hash)]
 pub struct StreamingWindowPlanNode {
     pub window_type: StreamingWindowType,
     pub window_schema: StreamingWindowSchema,
-    pub agg: Aggregate,
-
-    // @todo do we need to store this?
+    pub aggregrate: Aggregate,
     pub input: LogicalPlan,
 }
 
 impl Debug for StreamingWindowPlanNode {
-    /// For TopK, use explain format for the Debug format. Other types
-    /// of nodes may
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         UserDefinedLogicalNodeCore::fmt_for_explain(self, f)
     }
@@ -45,7 +40,7 @@ impl UserDefinedLogicalNodeCore for StreamingWindowPlanNode {
     }
 
     fn expressions(&self) -> Vec<Expr> {
-        self.agg.aggr_expr.clone()
+        self.aggregrate.aggr_expr.clone()
     }
 
     fn fmt_for_explain(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -57,11 +52,17 @@ impl UserDefinedLogicalNodeCore for StreamingWindowPlanNode {
         mut exprs: Vec<Expr>,
         mut inputs: Vec<LogicalPlan>,
     ) -> Result<Self> {
+        let input = inputs.swap_remove(0);
+        let new_aggregation = Aggregate::try_new(
+            Arc::new(input.clone()),
+            self.aggregrate.group_expr.clone(),
+            exprs,
+        )?;
         Ok(Self {
-            window_type: self.window_type,
-            window_schema: self.window_schema,
-            agg: self.agg, // @todo -- should this be derived from exprs?
-            input: inputs.swap_remove(0),
+            window_type: self.window_type.clone(),
+            window_schema: self.window_schema.clone(),
+            aggregrate: new_aggregation,
+            input: input,
         })
     }
 }

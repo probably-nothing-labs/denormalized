@@ -58,23 +58,18 @@ impl StreamingLogicalPlanBuilder for LogicalPlanBuilder {
             |_slide| StreamingWindowType::Sliding(window_length, _slide),
         );
 
+        let plan = self.plan.clone();
+
         let aggr = Aggregate::try_new(Arc::new(self.plan), group_expr, aggr_expr)
             .map(|new_aggr| {
                 LogicalPlan::Extension(Extension {
-                    node: StreamingWindowPlanNode {
+                    node: Arc::new(StreamingWindowPlanNode {
                         window_type: window,
-                        window_schema: StreamingWindowSchema::try_new(new_aggr)?,
-                        agg: new_agg.clone(),
-
-                        input: self.plan.clone(),
-                    },
+                        window_schema: StreamingWindowSchema::try_new(new_aggr.clone()).unwrap(),
+                        aggregrate: new_aggr.clone(),
+                        input: plan,
+                    }),
                 })
-
-                // LogicalPlan::Extension(
-                //     new_aggr.clone(),
-                //     window,
-                //     StreamingWindowSchema::try_new(new_aggr)?,
-                // )
             })
             .map(Self::from);
         aggr

@@ -5,10 +5,9 @@ use datafusion::error::Result;
 use datafusion::execution::context::{QueryPlanner, SessionState};
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::physical_plan::ExecutionPlan;
-use datafusion::physical_planner::DefaultPhysicalPlanner;
+use datafusion::physical_planner::{DefaultPhysicalPlanner, PhysicalPlanner};
 
 use crate::planner::streaming_window::StreamingWindowPlanner;
-
 pub struct StreamingQueryPlanner {}
 
 #[async_trait]

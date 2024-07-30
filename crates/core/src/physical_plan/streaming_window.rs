@@ -13,12 +13,16 @@ use arrow::{
     compute::{concat_batches, filter_record_batch},
     datatypes::TimestampMillisecondType,
 };
-use arrow_array::{Array, PrimitiveArray, RecordBatch, StructArray, TimestampMillisecondArray};
+use arrow_array::{
+    Array, BooleanArray, PrimitiveArray, RecordBatch, StructArray, TimestampMillisecondArray,
+};
 use arrow_ord::cmp;
 use arrow_schema::{DataType, Field, Schema, SchemaBuilder, SchemaRef, TimeUnit};
 
 use datafusion::logical_expr::{UserDefinedLogicalNode, UserDefinedLogicalNodeCore};
-use datafusion_common::{internal_err, stats::Precision, DataFusionError, Statistics};
+use datafusion_common::{
+    downcast_value, internal_err, stats::Precision, DataFusionError, Statistics,
+};
 use datafusion_execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
 use datafusion_physical_expr::{
     equivalence::{collapse_lex_req, ProjectionMapping},
@@ -28,10 +32,9 @@ use datafusion_physical_expr::{
 use datafusion_physical_plan::windows::get_ordered_partition_by_indices;
 use datafusion_physical_plan::{
     aggregates::{
-        aggregate_expressions, create_accumulators, finalize_aggregation,
-        get_finer_aggregate_exprs_requirement, AccumulatorItem, AggregateMode, PhysicalGroupBy,
+        aggregate_expressions, finalize_aggregation, get_finer_aggregate_exprs_requirement,
+        AggregateMode, PhysicalGroupBy,
     },
-    filter::batch_filter,
     InputOrderMode,
 };
 use datafusion_physical_plan::{
@@ -42,7 +45,10 @@ use datafusion_physical_plan::{
 use futures::{Stream, StreamExt};
 use tracing::debug;
 
-use super::utils::time::RecordBatchWatermark;
+use super::utils::{
+    accumulators::{create_accumulators, AccumulatorItem},
+    time::RecordBatchWatermark,
+};
 
 pub struct FranzWindowFrame {
     pub window_start_time: SystemTime,
@@ -463,7 +469,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
     }
 
     fn schema(&self) -> SchemaRef {
-        self.properties().schema().clone()
+        self.schema.clone()
         /*         Arc::new(add_window_columns_to_schema(
             self.properties().schema().clone(),
         )) */
@@ -931,4 +937,19 @@ fn add_window_columns_to_record_batch(
     new_columns.push(Arc::new(end_array));
 
     RecordBatch::try_new(Arc::new(new_schema), new_columns).unwrap()
+}
+
+pub fn as_boolean_array(array: &dyn Array) -> Result<&BooleanArray> {
+    Ok(downcast_value!(array, BooleanArray))
+}
+
+fn batch_filter(batch: &RecordBatch, predicate: &Arc<dyn PhysicalExpr>) -> Result<RecordBatch> {
+    predicate
+        .evaluate(batch)
+        .and_then(|v| v.into_array(batch.num_rows()))
+        .and_then(|array| {
+            Ok(as_boolean_array(&array)?)
+                // apply filter array to record batch
+                .and_then(|filter_array| Ok(filter_record_batch(batch, filter_array)?))
+        })
 }

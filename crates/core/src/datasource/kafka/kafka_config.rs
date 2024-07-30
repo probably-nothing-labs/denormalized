@@ -5,9 +5,10 @@ use std::{sync::Arc, time::Duration};
 use arrow_schema::{DataType, Field, Fields, Schema, SchemaRef, TimeUnit};
 use datafusion_physical_plan::time::TimestampUnit;
 
-use crate::arrow_helpers::infer_arrow_schema_from_json_value;
 use datafusion_common::{plan_err, DataFusionError, Result};
 use datafusion_expr::Expr;
+
+use crate::utils::arrow_helpers::infer_arrow_schema_from_json_value;
 
 use super::{TopicReader, TopicWriter};
 

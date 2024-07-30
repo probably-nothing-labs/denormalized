@@ -37,9 +37,7 @@ impl PhysicalOptimizerRule for CoaslesceBeforeStreamingAggregate {
                 let partitions = match input.output_partitioning() {
                     datafusion_physical_expr::Partitioning::RoundRobinBatch(size) => size,
                     datafusion_physical_expr::Partitioning::Hash(_, size) => size,
-                    datafusion_physical_expr::Partitioning::UnknownPartitioning(size) => {
-                        size
-                    }
+                    datafusion_physical_expr::Partitioning::UnknownPartitioning(size) => size,
                 };
                 if *partitions == 1 {
                     return Ok(Transformed::no(original));
