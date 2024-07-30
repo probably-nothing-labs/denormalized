@@ -96,7 +96,7 @@ impl RocksDBBackend {
         Ok(())
     }
 
-    pub async fn put_state(
+    pub fn put_state(
         &self,
         namespace: &str,
         key: Vec<u8>,
@@ -114,7 +114,7 @@ impl RocksDBBackend {
             .map_err(|e| DataFusionError::Internal(e.to_string()))
     }
 
-    pub async fn get_state(
+    pub fn get_state(
         &self,
         namespace: &str,
         key: Vec<u8>,

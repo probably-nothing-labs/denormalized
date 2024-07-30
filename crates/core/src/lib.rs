@@ -1,3 +1,4 @@
+pub mod config_extensions;
 pub mod dataframe;
 pub mod datasource;
 pub mod logical_plan;
