@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "examples"]
+members = ["crates/core", "crates/sinks", "examples"]
 
 [workspace.package]
 authors = [
@@ -48,6 +48,7 @@ arrow-schema = { version = "52.0.0", default-features = false }
 arrow-ipc = { version = "52.0.0", default-features = false, features = ["lz4"] }
 arrow-json = { version = "52.0.0" }
 arrow-string = { version = "52.0.0", default-features = false }
+arrow-ord = { version = "52.0.0", default-features = false }
 
 apache-avro = { version = "0.16", default-features = false, features = [
   "bzip",
@@ -60,9 +61,11 @@ tracing = "0.1.40"
 tracing-log = "0.2.0"
 tracing-subscriber = "0.3.18"
 tokio = { version = "1.36", features = ["macros", "rt", "sync"] }
-serde = { version = "1", features = ["derive"] }
 async-trait = "0.1.81"
 rdkafka = "0.36.2"
 log = "^0.4"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22.1"
+chrono = { version = "0.4.38", default-features = false }
+itertools = "0.13"

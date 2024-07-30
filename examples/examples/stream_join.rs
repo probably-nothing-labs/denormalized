@@ -38,6 +38,7 @@ use datafusion_functions::core::expr_ext::FieldAccessor;
 use datafusion_functions_aggregate::count::count;
 use datafusion_physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
 
+use df_streams_sinks::{FranzSink, PrettyPrinter};
 use futures::StreamExt;
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
 
@@ -149,7 +150,7 @@ async fn main() {
 
     let writer = PrettyPrinter::new().unwrap();
     let sink = Box::new(writer) as Box<dyn FranzSink>;
-    let _ = windowed_df.sink(sink).await;
+    //let _ = windowed_df.sink(sink).await;
 }
 
 fn create_kafka_source(

@@ -7,6 +7,7 @@ pub use datafusion::dataframe::DataFrame;
 use datafusion_common::{DataFusionError, Result};
 use datafusion_execution::SendableRecordBatchStream;
 use datafusion_expr::logical_plan::LogicalPlanBuilder;
+use crate::logical_plan::StreamingLogicalPlanBuilder;
 use datafusion_expr::Expr;
 
 use futures::StreamExt;

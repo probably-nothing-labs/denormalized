@@ -5,11 +5,14 @@
 use arrow_schema::{DataType, Field, Fields, Schema, TimeUnit};
 use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion::error::Result;
-use datafusion::{
-    config::ConfigOptions, dataframe::DataFrame, datasource::provider_as_source,
-    execution::context::SessionContext, physical_plan::time::TimestampUnit,
+use datafusion::physical_plan::time::TimestampUnit;
+use datafusion::{config::ConfigOptions, dataframe::DataFrame};
+
+use datafusion::execution::{
+    config::SessionConfig, context::SessionContext, runtime_env::RuntimeEnv,
+    session_state::SessionState,
 };
-use datafusion_common::franz_arrow::infer_arrow_schema_from_json_value;
+
 use datafusion_expr::{col, max, min, LogicalPlanBuilder};
 use datafusion_functions::core::expr_ext::FieldAccessor;
 use datafusion_functions_aggregate::count::count;
@@ -18,6 +21,9 @@ use df_streams_core::dataframe::StreamingDataframe;
 use df_streams_core::datasource::kafka::{
     ConnectionOpts, KafkaTopicBuilder, TopicReader, TopicWriter,
 };
+use df_streams_core::physical_optimizer::CoaslesceBeforeStreamingAggregate;
+use df_streams_core::query_planner::StreamingQueryPlanner;
+use df_streams_core::utils::arrow_helpers::json_records_to_arrow_record_batch;
 
 use std::{sync::Arc, time::Duration};
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
@@ -31,6 +37,18 @@ async fn main() -> Result<()> {
         .with_span_events(FmtSpan::CLOSE | FmtSpan::ENTER)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
+    let config = SessionConfig::new().set(
+        "datafusion.execution.batch_size",
+        datafusion_common::ScalarValue::UInt64(Some(32)),
+    );
+    let runtime = Arc::new(RuntimeEnv::default());
+    let state = SessionState::new_with_config_rt(config, runtime)
+        .with_query_planner(Arc::new(StreamingQueryPlanner {}))
+        // @todo -- we'll need to remove the projection optimizer rule
+        .add_physical_optimizer_rule(Arc::new(CoaslesceBeforeStreamingAggregate::new()));
+
+    let ctx = SessionContext::new_with_state(state);
 
     let sample_event = r#"
         {
@@ -76,12 +94,6 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
-    let mut datafusion_config = ConfigOptions::default();
-    let _ = datafusion_config.set("datafusion.execution.batch_size", "32")?;
-
-    // Create the context object with a source from kafka
-    let ctx = SessionContext::new_with_config(datafusion_config.into());
-
     ctx.register_table("kafka_imu_data", Arc::new(source_topic))?;
 
     let df = ctx
@@ -99,7 +111,7 @@ async fn main() -> Result<()> {
             Some(Duration::from_millis(1_000)), // 1 second slide
         )?;
 
-    // df.clone().print_stream().await?;
+    df.clone().print_stream().await?;
 
     let processed_schema = Arc::new(datafusion::common::arrow::datatypes::Schema::from(
         df.schema(),
