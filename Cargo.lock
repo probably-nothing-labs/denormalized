@@ -834,7 +834,6 @@ dependencies = [
  "object_store",
  "parking_lot",
  "rand",
- "rocksdb",
  "tempfile",
  "url",
 ]
@@ -986,6 +985,7 @@ dependencies = [
  "arrow-ord",
  "arrow-schema",
  "async-trait",
+ "bincode",
  "chrono",
  "datafusion-common",
  "datafusion-common-runtime",

@@ -71,11 +71,6 @@ impl DataStream {
             self.df.schema(),
         ));
 
-        for x in processed_schema.fields.iter() {
-            println!("{:?}", x);
-        }
-        println!("");
-
         let sink_topic = KafkaTopicBuilder::new(bootstrap_servers.clone())
             .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
             .with_encoding("json")?
