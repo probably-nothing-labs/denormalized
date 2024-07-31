@@ -470,9 +470,9 @@ impl ExecutionPlan for FranzStreamingWindowExec {
 
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
-        /*         Arc::new(add_window_columns_to_schema(
-            self.properties().schema().clone(),
-        )) */
+        // Arc::new(add_window_columns_to_schema(
+        //     self.properties().schema().clone(),
+        // ))
     }
 
     fn repartitioned(
