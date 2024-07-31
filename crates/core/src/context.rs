@@ -11,6 +11,7 @@ use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder, TopicReader, T
 use crate::datastream::DataStream;
 use crate::physical_optimizer::CoaslesceBeforeStreamingAggregate;
 use crate::query_planner::StreamingQueryPlanner;
+use crate::utils::get_default_optimizer_rules;
 
 #[derive(Clone)]
 pub struct Context {
@@ -24,9 +25,10 @@ impl Context {
             datafusion_common::ScalarValue::UInt64(Some(32)),
         );
         let runtime = Arc::new(RuntimeEnv::default());
+
         let state = SessionState::new_with_config_rt(config, runtime)
             .with_query_planner(Arc::new(StreamingQueryPlanner {}))
-            // @todo -- we'll need to remove the projection optimizer rule
+            .with_optimizer_rules(get_default_optimizer_rules())
             .add_physical_optimizer_rule(Arc::new(CoaslesceBeforeStreamingAggregate::new()));
 
         Ok(Self {
