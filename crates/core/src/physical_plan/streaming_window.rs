@@ -469,7 +469,6 @@ impl ExecutionPlan for FranzStreamingWindowExec {
     }
 
     fn schema(&self) -> SchemaRef {
-        println!("Schema on Streaming Window called....");
         Arc::new(add_window_columns_to_schema(self.schema.clone()))
     }
 
