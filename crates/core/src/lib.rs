@@ -1,9 +1,11 @@
 pub mod datastream;
 pub mod context;
+pub mod config_extensions;
 pub mod datasource;
 pub mod logical_plan;
 pub mod physical_optimizer;
 pub mod physical_plan;
-pub mod utils;
 pub mod planner;
 pub mod query_planner;
+pub mod state_backend;
+pub mod utils;
