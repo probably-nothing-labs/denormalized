@@ -12,13 +12,15 @@ use serde_json::Value;
 use tracing::{debug, error};
 
 use crate::config_extensions::denormalized_config::DenormalizedConfig;
+use crate::physical_plan::utils::time::array_to_timestamp_array;
 use crate::state_backend::rocksdb_backend::get_global_rocksdb;
 use crate::utils::arrow_helpers::json_records_to_arrow_record_batch;
+
 use arrow::compute::{max, min};
 use datafusion_execution::{SendableRecordBatchStream, TaskContext};
 use datafusion_physical_plan::stream::RecordBatchReceiverStreamBuilder;
 use datafusion_physical_plan::streaming::PartitionStream;
-use datafusion_physical_plan::time::array_to_timestamp_array;
+
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::{ClientConfig, Message, Timestamp, TopicPartitionList};
 

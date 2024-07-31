@@ -293,7 +293,7 @@ impl FranzStreamingWindowExec {
 
         let cache = FranzStreamingWindowExec::compute_properties(
             &input,
-            schema.clone(),
+            Arc::new(add_window_columns_to_schema(schema.clone())),
             &projection_mapping,
             &mode,
             &input_order_mode,
@@ -469,10 +469,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
     }
 
     fn schema(&self) -> SchemaRef {
-        self.schema.clone()
-        /*         Arc::new(add_window_columns_to_schema(
-            self.properties().schema().clone(),
-        )) */
+        Arc::new(add_window_columns_to_schema(self.schema.clone()))
     }
 
     fn repartitioned(

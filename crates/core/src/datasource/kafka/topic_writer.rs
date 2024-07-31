@@ -145,7 +145,7 @@ impl DisplayAs for KafkaSink {
     fn fmt_as(&self, t: DisplayFormatType, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match t {
             DisplayFormatType::Default | DisplayFormatType::Verbose => {
-                let partition_count = "@todo";
+                let partition_count = self.config.partition_count;
                 write!(f, "KafkaTable (partitions={partition_count})")
             }
         }

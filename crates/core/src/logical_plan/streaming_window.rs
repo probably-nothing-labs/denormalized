@@ -35,8 +35,7 @@ impl UserDefinedLogicalNodeCore for StreamingWindowPlanNode {
     }
 
     fn schema(&self) -> &DFSchemaRef {
-        // @todo should be the output schema
-        self.input.schema()
+        &self.window_schema.schema
     }
 
     fn expressions(&self) -> Vec<Expr> {
@@ -62,7 +61,7 @@ impl UserDefinedLogicalNodeCore for StreamingWindowPlanNode {
             window_type: self.window_type.clone(),
             window_schema: self.window_schema.clone(),
             aggregrate: new_aggregation,
-            input: input,
+            input,
         })
     }
 }

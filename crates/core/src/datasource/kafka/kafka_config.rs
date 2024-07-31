@@ -3,12 +3,12 @@ use std::str::FromStr;
 use std::{sync::Arc, time::Duration};
 
 use arrow_schema::{DataType, Field, Fields, Schema, SchemaRef, TimeUnit};
-use datafusion_physical_plan::time::TimestampUnit;
 
 use datafusion_common::{plan_err, DataFusionError, Result};
 use datafusion_expr::Expr;
 
 use crate::utils::arrow_helpers::infer_arrow_schema_from_json_value;
+use crate::physical_plan::utils::time::TimestampUnit;
 
 use super::{TopicReader, TopicWriter};
 
@@ -30,7 +30,7 @@ pub struct KafkaReadConfig {
 
     pub encoding: StreamEncoding,
     pub order: Vec<Vec<Expr>>,
-    pub partitions: i32,
+    pub partition_count: i32,
     pub timestamp_column: String,
     pub timestamp_unit: TimestampUnit,
 
@@ -62,7 +62,7 @@ pub struct KafkaWriteConfig {
     pub schema: SchemaRef,
 
     pub encoding: StreamEncoding,
-    pub partitions: i32,
+    pub partition_count: i32,
     pub timestamp_column: String,
     pub timestamp_unit: TimestampUnit,
 
@@ -231,7 +231,7 @@ impl KafkaTopicBuilder {
         //@todo
         let order = vec![];
 
-        let partitions = get_topic_partition_count(self.bootstrap_servers.clone(), topic.clone())?;
+        let partition_count = get_topic_partition_count(self.bootstrap_servers.clone(), topic.clone())?;
 
         let config = KafkaReadConfig {
             topic,
@@ -241,7 +241,7 @@ impl KafkaTopicBuilder {
             schema: canonical_schema,
             encoding,
             order,
-            partitions,
+            partition_count,
 
             timestamp_unit,
             timestamp_column,
@@ -288,7 +288,7 @@ impl KafkaTopicBuilder {
             kafka_connection_opts.insert(key.clone(), value.clone());
         }
 
-        let partitions = get_topic_partition_count(self.bootstrap_servers.clone(), topic.clone())?;
+        let partition_count = get_topic_partition_count(self.bootstrap_servers.clone(), topic.clone())?;
 
         let config = KafkaWriteConfig {
             topic,
@@ -296,7 +296,7 @@ impl KafkaTopicBuilder {
 
             schema,
             encoding,
-            partitions,
+            partition_count,
 
             timestamp_unit,
             timestamp_column,

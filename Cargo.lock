@@ -776,7 +776,6 @@ dependencies = [
  "paste",
  "pin-project-lite",
  "rand",
- "rdkafka",
  "sqlparser",
  "tempfile",
  "tokio",
@@ -835,7 +834,6 @@ dependencies = [
  "object_store",
  "parking_lot",
  "rand",
- "rocksdb",
  "tempfile",
  "url",
 ]
@@ -848,7 +846,6 @@ dependencies = [
  "arrow",
  "arrow-array",
  "arrow-buffer",
- "bincode",
  "chrono",
  "datafusion-common",
  "paste",
@@ -1007,11 +1004,7 @@ dependencies = [
  "parking_lot",
  "pin-project-lite",
  "rand",
- "rdkafka",
- "serde",
- "serde_json",
  "tokio",
- "tracing",
 ]
 
 [[package]]

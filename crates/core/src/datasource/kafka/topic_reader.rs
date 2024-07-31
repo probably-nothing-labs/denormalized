@@ -31,9 +31,9 @@ impl TopicReader {
             }
             None => create_ordering(self.0.schema.as_ref(), &self.0.order)?,
         };
-        let mut partition_streams = Vec::with_capacity(self.0.partitions as usize);
+        let mut partition_streams = Vec::with_capacity(self.0.partition_count as usize);
 
-        for part in 0..self.0.partitions {
+        for part in 0..self.0.partition_count {
             let read_stream = Arc::new(KafkaStreamRead {
                 config: self.0.clone(),
                 assigned_partitions: vec![part],
