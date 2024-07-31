@@ -3,12 +3,12 @@ use std::str::FromStr;
 use std::{sync::Arc, time::Duration};
 
 use arrow_schema::{DataType, Field, Fields, Schema, SchemaRef, TimeUnit};
-use datafusion_physical_plan::time::TimestampUnit;
 
 use datafusion_common::{plan_err, DataFusionError, Result};
 use datafusion_expr::Expr;
 
 use crate::utils::arrow_helpers::infer_arrow_schema_from_json_value;
+use crate::physical_plan::utils::time::TimestampUnit;
 
 use super::{TopicReader, TopicWriter};
 

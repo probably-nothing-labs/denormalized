@@ -3,9 +3,7 @@
 #![allow(unused_imports)]
 
 use arrow_schema::{DataType, Field, Fields, Schema, TimeUnit};
-use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion::error::Result;
-use datafusion::physical_plan::time::TimestampUnit;
 use datafusion::{config::ConfigOptions, dataframe::DataFrame};
 
 use datafusion::execution::{
@@ -17,13 +15,15 @@ use datafusion_expr::{col, max, min, LogicalPlanBuilder};
 use datafusion_functions::core::expr_ext::FieldAccessor;
 use datafusion_functions_aggregate::count::count;
 
-use df_streams_core::dataframe::StreamingDataframe;
+use df_streams_core::context::Context;
 use df_streams_core::datasource::kafka::{
     ConnectionOpts, KafkaTopicBuilder, TopicReader, TopicWriter,
 };
+use df_streams_core::datastream::DataStream;
 use df_streams_core::physical_optimizer::CoaslesceBeforeStreamingAggregate;
 use df_streams_core::query_planner::StreamingQueryPlanner;
 use df_streams_core::utils::arrow_helpers::json_records_to_arrow_record_batch;
+use df_streams_core::physical_plan::utils::time::TimestampUnit;
 
 use std::{sync::Arc, time::Duration};
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
@@ -37,18 +37,6 @@ async fn main() -> Result<()> {
         .with_span_events(FmtSpan::CLOSE | FmtSpan::ENTER)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-
-    let config = SessionConfig::new().set(
-        "datafusion.execution.batch_size",
-        datafusion_common::ScalarValue::UInt64(Some(32)),
-    );
-    let runtime = Arc::new(RuntimeEnv::default());
-    let state = SessionState::new_with_config_rt(config, runtime)
-        .with_query_planner(Arc::new(StreamingQueryPlanner {}))
-        // @todo -- we'll need to remove the projection optimizer rule
-        .add_physical_optimizer_rule(Arc::new(CoaslesceBeforeStreamingAggregate::new()));
-
-    let ctx = SessionContext::new_with_state(state);
 
     let sample_event = r#"
         {
@@ -80,6 +68,8 @@ async fn main() -> Result<()> {
 
     let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
 
+    let ctx = Context::new()?;
+
     let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers.clone());
     topic_builder
         .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
@@ -94,41 +84,20 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
-    ctx.register_table("kafka_imu_data", Arc::new(source_topic))?;
+    let ds = ctx.from_topic(source_topic).await?.streaming_window(
+        vec![],
+        vec![
+            max(col("imu_measurement").field("gps").field("speed")),
+            min(col("imu_measurement").field("gps").field("altitude")),
+            count(col("imu_measurement")).alias("count"),
+        ],
+        Duration::from_millis(5_000),       // 5 second window
+        Some(Duration::from_millis(1_000)), // 1 second slide
+    )?;
 
-    let df = ctx
-        .clone()
-        .table("kafka_imu_data")
-        .await?
-        .streaming_window(
-            vec![],
-            vec![
-                max(col("imu_measurement").field("gps").field("speed")),
-                min(col("imu_measurement").field("gps").field("altitude")),
-                count(col("imu_measurement")).alias("count"),
-            ],
-            Duration::from_millis(5_000),       // 5 second window
-            Some(Duration::from_millis(1_000)), // 1 second slide
-        )?;
+    // ds.clone().print_stream().await?;
 
-    df.clone().print_stream().await?;
-
-    let processed_schema = Arc::new(datafusion::common::arrow::datatypes::Schema::from(
-        df.schema(),
-    ));
-
-    println!("{}", processed_schema);
-
-    let sink_topic = topic_builder
-        .with_topic(String::from("out_topic"))
-        .with_schema(processed_schema)
-        .build_writer(ConnectionOpts::new())
-        .await?;
-
-    ctx.register_table("out", Arc::new(sink_topic))?;
-
-    df.write_table("out", DataFrameWriteOptions::default())
-        .await?;
+    ds.write_table(bootstrap_servers.clone(), String::from("out_topic")).await?;
 
     Ok(())
 }
