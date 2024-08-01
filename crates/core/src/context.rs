@@ -3,11 +3,11 @@ use std::sync::{Arc, RwLock};
 use datafusion::datasource::TableProvider;
 use datafusion::execution::{
     config::SessionConfig, context::SessionContext, runtime_env::RuntimeEnv,
-    session_state::SessionState,
+    session_state::SessionStateBuilder,
 };
 use datafusion_common::{DataFusionError, Result};
 
-use crate::datasource::kafka::{TopicReader};
+use crate::datasource::kafka::TopicReader;
 use crate::datastream::DataStream;
 use crate::physical_optimizer::CoaslesceBeforeStreamingAggregate;
 use crate::query_planner::StreamingQueryPlanner;
@@ -26,10 +26,14 @@ impl Context {
         );
         let runtime = Arc::new(RuntimeEnv::default());
 
-        let state = SessionState::new_with_config_rt(config, runtime)
+        let state = SessionStateBuilder::new()
+            .with_default_features()
+            .with_config(config)
+            .with_runtime_env(runtime)
             .with_query_planner(Arc::new(StreamingQueryPlanner {}))
             .with_optimizer_rules(get_default_optimizer_rules())
-            .add_physical_optimizer_rule(Arc::new(CoaslesceBeforeStreamingAggregate::new()));
+            .with_physical_optimizer_rule(Arc::new(CoaslesceBeforeStreamingAggregate::new()))
+            .build();
 
         Ok(Self {
             session_conext: Arc::new(RwLock::new(SessionContext::new_with_state(state))),
