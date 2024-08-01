@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use std::{any::Any, sync::Arc};
 
 use arrow_schema::{Schema, SchemaRef, SortOptions};
+use datafusion::catalog::Session;
 use datafusion::datasource::TableProvider;
-use datafusion::execution::context::SessionState;
 use datafusion_common::{not_impl_err, plan_err, Result};
 use datafusion_expr::{Expr, TableType};
 use datafusion_physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
@@ -68,7 +68,7 @@ impl TableProvider for TopicReader {
 
     async fn scan(
         &self,
-        _state: &SessionState,
+        _state: &dyn Session,
         projection: Option<&Vec<usize>>,
         _filters: &[Expr],
         _limit: Option<usize>,
@@ -78,7 +78,7 @@ impl TableProvider for TopicReader {
 
     async fn insert_into(
         &self,
-        _state: &SessionState,
+        _state: &dyn Session,
         _input: Arc<dyn ExecutionPlan>,
         _overwrite: bool,
     ) -> Result<Arc<dyn ExecutionPlan>> {

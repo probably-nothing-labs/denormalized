@@ -7,8 +7,8 @@ use std::{any::Any, sync::Arc};
 use arrow::json::LineDelimitedWriter;
 use arrow_schema::SchemaRef;
 
+use datafusion::catalog::Session;
 use datafusion::datasource::TableProvider;
-use datafusion::execution::context::SessionState;
 use datafusion::physical_plan::{
     insert::{DataSink, DataSinkExec},
     DisplayAs, DisplayFormatType, SendableRecordBatchStream,
@@ -49,7 +49,7 @@ impl TableProvider for TopicWriter {
 
     async fn scan(
         &self,
-        _state: &SessionState,
+        _state: &dyn Session,
         _projection: Option<&Vec<usize>>,
         _filters: &[Expr],
         _limit: Option<usize>,
@@ -59,7 +59,7 @@ impl TableProvider for TopicWriter {
 
     async fn insert_into(
         &self,
-        _state: &SessionState,
+        _state: &dyn Session,
         input: Arc<dyn ExecutionPlan>,
         overwrite: bool,
     ) -> Result<Arc<dyn ExecutionPlan>> {
@@ -108,7 +108,6 @@ impl DataSink for KafkaSink {
         let topic = self.config.topic.as_str();
 
         while let Some(batch) = data.next().await.transpose()? {
-
             row_count += batch.num_rows();
 
             if batch.num_rows() > 0 {
