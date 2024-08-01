@@ -725,7 +725,7 @@ impl WindowAggStream {
                 return Poll::Pending;
             }
         };
-        return Poll::Ready(Some(result));
+        Poll::Ready(Some(result))
     }
 }
 
