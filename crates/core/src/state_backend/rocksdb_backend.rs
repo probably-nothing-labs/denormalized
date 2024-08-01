@@ -73,9 +73,8 @@ impl RocksDBBackend {
         nk
     }
 
-    #[warn(dead_code)]
-    pub(crate) fn destroy(&self) -> Result<(), DataFusionError> {
-        let ret = DB::destroy(&Options::default(), self.db.path());
+    pub fn destroy(&self) -> Result<(), DataFusionError> {
+        let _ret = DB::destroy(&Options::default(), self.db.path());
         Ok(())
     }
 
@@ -85,11 +84,11 @@ impl RocksDBBackend {
         key: Vec<u8>,
         value: Vec<u8>,
     ) -> Result<(), DataFusionError> {
-        /*         if !self.namespaces.contains(namespace) {
-            return Err(StateBackendError {
-                message: "Namespace does not exist.".into(),
-            });
-        } */
+        // if !self.namespaces.contains(namespace) {
+        //     return Err(StateBackendError {
+        //         message: "Namespace does not exist.".into(),
+        //     });
+        // }
         let cf: Arc<BoundColumnFamily> = self.get_cf(namespace)?;
         let namespaced_key: Vec<u8> = self.namespaced_key(namespace, &key);
         self.db

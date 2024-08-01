@@ -544,51 +544,6 @@ fn avro_values_to_arrow_array(values: &[Value], data_type: &DataType) -> Arc<dyn
     }
 }
 
-fn main() {}
-/* pub fn avro_records_to_record_batch(
-    records: Vec<Record>,
-) -> Result<RecordBatch, ArrowError> {
-    let maybe_schema: Option<Schema> = records
-        .iter()
-        .filter_map(|r| match r {
-            Record::AvroRecord(value, _) => Some(avro_record_to_arrow_schema(value)),
-            _ => None,
-        })
-        .next();
-
-    let values: Vec<&Value> = records
-        .iter()
-        .filter_map(|r: &Record| match r {
-            Record::RecordBatch(_) => None,
-            Record::AvroRecord(value, _) => Some(value),
-            Record::DataFrame(_) => todo!(),
-            Record::JsonRecord(_) => todo!(),
-        })
-        .collect();
-
-    let schema: Schema = maybe_schema.unwrap();
-    let arrays: Vec<Arc<dyn Array>> = schema
-        .fields()
-        .iter()
-        .map(|field_schema| {
-            let field_values: Vec<Value> = values
-                .iter()
-                .map(|av| match av {
-                    Value::Record(record_fields) => {
-                        let record_value = record_fields
-                            .iter()
-                            .find(|(field_name, _)| field_name == field_schema.name());
-                        record_value.map(|t| t.1.clone()).unwrap() //TODO: Unclone
-                    }
-                    _ => panic!("expected a record here."),
-                })
-                .collect();
-            avro_values_to_arrow_array(&field_values, field_schema.data_type())
-        })
-        .collect();
-    RecordBatch::try_new(Arc::new(schema), arrays)
-} */
-
 fn avro_record_to_arrow_record_batch(avro_record: &Value, schema: Arc<Schema>) -> RecordBatch {
     match avro_record {
         Value::Record(fields) => {
@@ -613,37 +568,3 @@ fn avro_record_to_arrow_record_batch(avro_record: &Value, schema: Arc<Schema>) -
         _ => panic!("Expected Value::Record for conversion"),
     }
 }
-
-/* impl AvroSchema {
-    pub fn new(schema_str: &str) -> AvroSchema {
-        let avro_schema = AvSchema::parse_str(schema_str).expect("Invalid schema!");
-        AvroSchema {
-            schema: avro_schema,
-        }
-    }
-}
-impl Decoder for AvroSchema {
-    fn decode(&self, data: &[u8]) -> RecordBatch {
-        let mut data_copy: &[u8] = data;
-        let avro_record: Value =
-            from_avro_datum(&self.schema, &mut data_copy, None).unwrap();
-        let arrow_schema: Schema = avro_record_to_arrow_schema(&avro_record); // probs should use avro schema > arrow schema converter
-        let arrow_record: RecordBatch =
-            avro_record_to_arrow_record_batch(&avro_record, Arc::new(arrow_schema));
-        arrow_record
-    }
-
-    fn write_to_avro_file(&self, value: Value) -> Result<(), Error> {
-        let output_file: std::fs::File = std::fs::File::create("sample.avro").unwrap();
-        let mut writer: Writer<'_, BufWriter<std::fs::File>> =
-            Writer::new(&self.schema, BufWriter::new(output_file));
-        writer.append(value)?;
-        writer.flush()?;
-        Ok(())
-    }
-
-    fn decode_avro(&self, data: &[u8]) -> Value {
-        let mut data_copy: &[u8] = data;
-        from_avro_datum(&self.schema, &mut data_copy, None).unwrap()
-    }
-} */
