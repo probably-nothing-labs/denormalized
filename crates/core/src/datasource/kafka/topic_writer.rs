@@ -113,7 +113,7 @@ impl DataSink for KafkaSink {
             if batch.num_rows() > 0 {
                 let buf = Vec::new();
                 let mut writer = LineDelimitedWriter::new(buf);
-                writer.write_batches(&vec![&batch])?;
+                writer.write_batches(&[&batch])?;
                 writer.finish()?;
                 let buf = writer.into_inner();
 

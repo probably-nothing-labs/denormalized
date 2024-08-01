@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use arrow::datatypes::{DataType, Field, SchemaBuilder, TimeUnit};
 
-use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode, UserDefinedLogicalNodeCore};
+use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNodeCore};
 use datafusion_common::{DFSchema, DFSchemaRef, Result};
 use datafusion_expr::{Aggregate, Expr};
 
@@ -48,7 +48,7 @@ impl UserDefinedLogicalNodeCore for StreamingWindowPlanNode {
 
     fn with_exprs_and_inputs(
         &self,
-        mut exprs: Vec<Expr>,
+        exprs: Vec<Expr>,
         mut inputs: Vec<LogicalPlan>,
     ) -> Result<Self> {
         let input = inputs.swap_remove(0);
@@ -83,7 +83,7 @@ pub struct StreamingWindowSchema {
 impl StreamingWindowSchema {
     pub fn try_new(aggr_expr: Aggregate) -> Result<Self> {
         let inner_schema = aggr_expr.schema.inner().clone();
-        let fields = inner_schema.all_fields().to_owned();
+        let fields = inner_schema.flattened_fields().to_owned();
 
         let mut builder = SchemaBuilder::new();
 

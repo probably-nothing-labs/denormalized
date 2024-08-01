@@ -1,31 +1,16 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
-#![allow(unused_imports)]
 
-use arrow_schema::{DataType, Field, Fields, Schema, TimeUnit};
 use datafusion::error::Result;
-use datafusion::{config::ConfigOptions, dataframe::DataFrame};
-
-use datafusion::execution::{
-    config::SessionConfig, context::SessionContext, runtime_env::RuntimeEnv,
-    session_state::SessionState,
-};
-
-use datafusion_expr::{col, max, min, LogicalPlanBuilder};
+use datafusion_expr::{col, max, min};
 use datafusion_functions::core::expr_ext::FieldAccessor;
 use datafusion_functions_aggregate::count::count;
 
 use df_streams_core::context::Context;
-use df_streams_core::datasource::kafka::{
-    ConnectionOpts, KafkaTopicBuilder, TopicReader, TopicWriter,
-};
-use df_streams_core::datastream::DataStream;
-use df_streams_core::physical_optimizer::CoaslesceBeforeStreamingAggregate;
-use df_streams_core::query_planner::StreamingQueryPlanner;
-use df_streams_core::utils::arrow_helpers::json_records_to_arrow_record_batch;
+use df_streams_core::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use df_streams_core::physical_plan::utils::time::TimestampUnit;
 
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
 
 #[tokio::main(flavor = "multi_thread")]
@@ -97,7 +82,8 @@ async fn main() -> Result<()> {
 
     // ds.clone().print_stream().await?;
 
-    ds.write_table(bootstrap_servers.clone(), String::from("out_topic")).await?;
+    ds.write_table(bootstrap_servers.clone(), String::from("out_topic"))
+        .await?;
 
     Ok(())
 }

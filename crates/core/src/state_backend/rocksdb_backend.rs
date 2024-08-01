@@ -1,20 +1,3 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 use std::{env, sync::OnceLock};
 
 use datafusion_common::DataFusionError;
@@ -90,9 +73,8 @@ impl RocksDBBackend {
         nk
     }
 
-    #[warn(dead_code)]
-    pub(crate) fn destroy(&self) -> Result<(), DataFusionError> {
-        let ret = DB::destroy(&Options::default(), self.db.path());
+    pub fn destroy(&self) -> Result<(), DataFusionError> {
+        let _ret = DB::destroy(&Options::default(), self.db.path());
         Ok(())
     }
 
@@ -102,11 +84,11 @@ impl RocksDBBackend {
         key: Vec<u8>,
         value: Vec<u8>,
     ) -> Result<(), DataFusionError> {
-        /*         if !self.namespaces.contains(namespace) {
-            return Err(StateBackendError {
-                message: "Namespace does not exist.".into(),
-            });
-        } */
+        // if !self.namespaces.contains(namespace) {
+        //     return Err(StateBackendError {
+        //         message: "Namespace does not exist.".into(),
+        //     });
+        // }
         let cf: Arc<BoundColumnFamily> = self.get_cf(namespace)?;
         let namespaced_key: Vec<u8> = self.namespaced_key(namespace, &key);
         self.db
@@ -137,7 +119,7 @@ impl RocksDBBackend {
         let namespaced_key: Vec<u8> = self.namespaced_key(namespace, &key);
 
         self.db
-            .delete_cf(&cf, &namespaced_key)
+            .delete_cf(&cf, namespaced_key)
             .map_err(|e| DataFusionError::Internal(e.to_string()))?;
         Ok(())
     }

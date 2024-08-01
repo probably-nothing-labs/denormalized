@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use datafusion_physical_expr::Partitioning;
+use datafusion_physical_optimizer::PhysicalOptimizerRule;
 use datafusion_physical_plan::repartition::RepartitionExec;
 use datafusion_physical_plan::ExecutionPlanProperties;
-use datafusion_physical_optimizer::PhysicalOptimizerRule;
 
 use datafusion::common::tree_node::{Transformed, TransformedResult, TreeNode};
 use datafusion::error::Result;
@@ -11,6 +11,12 @@ use datafusion::error::Result;
 use crate::physical_plan::streaming_window::FranzStreamingWindowExec;
 
 pub struct CoaslesceBeforeStreamingAggregate {}
+
+impl Default for CoaslesceBeforeStreamingAggregate {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl CoaslesceBeforeStreamingAggregate {
     #[allow(missing_docs)]
@@ -54,7 +60,7 @@ impl PhysicalOptimizerRule for CoaslesceBeforeStreamingAggregate {
                         streaming_aggr_exec.filter_expressions.clone(),
                         coalesce_exec.clone(),
                         input.schema(),
-                        streaming_aggr_exec.window_type.clone(),
+                        streaming_aggr_exec.window_type,
                     )?,
                 )))
             } else {

@@ -1,13 +1,14 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use datafusion::datasource::TableProvider;
 use datafusion::execution::{
     config::SessionConfig, context::SessionContext, runtime_env::RuntimeEnv,
-    session_state::SessionState,
+    session_state::SessionStateBuilder,
 };
 use datafusion_common::{DataFusionError, Result};
 
-use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder, TopicReader, TopicWriter};
+use crate::datasource::kafka::TopicReader;
 use crate::datastream::DataStream;
 use crate::physical_optimizer::CoaslesceBeforeStreamingAggregate;
 use crate::query_planner::StreamingQueryPlanner;
@@ -26,10 +27,14 @@ impl Context {
         );
         let runtime = Arc::new(RuntimeEnv::default());
 
-        let state = SessionState::new_with_config_rt(config, runtime)
+        let state = SessionStateBuilder::new()
+            .with_default_features()
+            .with_config(config)
+            .with_runtime_env(runtime)
             .with_query_planner(Arc::new(StreamingQueryPlanner {}))
             .with_optimizer_rules(get_default_optimizer_rules())
-            .add_physical_optimizer_rule(Arc::new(CoaslesceBeforeStreamingAggregate::new()));
+            .with_physical_optimizer_rule(Arc::new(CoaslesceBeforeStreamingAggregate::new()))
+            .build();
 
         Ok(Self {
             session_conext: Arc::new(RwLock::new(SessionContext::new_with_state(state))),
@@ -39,12 +44,12 @@ impl Context {
     pub async fn from_topic(&self, topic: TopicReader) -> Result<DataStream, DataFusionError> {
         let topic_name = topic.0.topic.clone();
 
-        self.register_table(topic_name.clone(), Arc::new(topic))?;
+        self.register_table(topic_name.clone(), Arc::new(topic)).await?;
 
         let df = self
             .session_conext
             .read()
-            .expect("Unlock datafusion context")
+            .await
             .table(topic_name.as_str())
             .await?;
 
@@ -55,14 +60,14 @@ impl Context {
         Ok(ds)
     }
 
-    pub fn register_table(
+    pub async fn register_table(
         &self,
         name: String,
         table: Arc<impl TableProvider + 'static>,
     ) -> Result<(), DataFusionError> {
         self.session_conext
             .write()
-            .expect("Unlock datafusion context")
+            .await
             .register_table(name.as_str(), table.clone())?;
 
         Ok(())

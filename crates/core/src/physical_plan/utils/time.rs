@@ -45,11 +45,10 @@ impl RecordBatchWatermark {
             .downcast_ref::<PrimitiveArray<TimestampMillisecondType>>()
             .unwrap();
 
-        let max_timestamp = system_time_from_epoch(
-            max::<TimestampMillisecondType>(&ts_array).unwrap() as _,
-        );
+        let max_timestamp =
+            system_time_from_epoch(max::<TimestampMillisecondType>(ts_array).unwrap() as _);
         let min_timestamp =
-            system_time_from_epoch(min::<TimestampMillisecondType>(&ts_array).unwrap());
+            system_time_from_epoch(min::<TimestampMillisecondType>(ts_array).unwrap());
         let result = RecordBatchWatermark {
             min_timestamp,
             max_timestamp,

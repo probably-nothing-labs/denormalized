@@ -19,7 +19,6 @@ use arrow_array::{
 use arrow_ord::cmp;
 use arrow_schema::{DataType, Field, Schema, SchemaBuilder, SchemaRef, TimeUnit};
 
-use datafusion::logical_expr::{UserDefinedLogicalNode, UserDefinedLogicalNodeCore};
 use datafusion_common::{
     downcast_value, internal_err, stats::Precision, DataFusionError, Statistics,
 };
@@ -94,7 +93,7 @@ impl FranzWindowFrame {
         schema: SchemaRef,
         baseline_metrics: BaselineMetrics,
     ) -> Self {
-        let res = Self {
+        Self {
             window_start_time,
             window_end_time,
             timestamp_column,
@@ -104,8 +103,7 @@ impl FranzWindowFrame {
             aggregation_mode,
             schema,
             baseline_metrics,
-        };
-        res
+        }
     }
 
     pub fn push(&mut self, batch: &RecordBatch) -> Result<(), DataFusionError> {
@@ -403,7 +401,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
             self.filter_expressions.clone(),
             children[0].clone(),
             self.input_schema.clone(),
-            self.window_type.clone(),
+            self.window_type,
         )?))
     }
 
@@ -412,12 +410,12 @@ impl ExecutionPlan for FranzStreamingWindowExec {
         partition: usize,
         context: Arc<TaskContext>,
     ) -> Result<SendableRecordBatchStream> {
-        let stream: Pin<Box<FranzWindowAggStream>> = Box::pin(FranzWindowAggStream::new(
+        let stream: Pin<Box<WindowAggStream>> = Box::pin(WindowAggStream::new(
             self,
             context,
             partition,
             self.watermark.clone(),
-            self.window_type.clone(),
+            self.window_type,
             self.mode,
         )?);
         Ok(stream)
@@ -555,7 +553,7 @@ impl DisplayAs for FranzStreamingWindowExec {
     }
 }
 
-pub struct FranzWindowAggStream {
+pub struct WindowAggStream {
     pub schema: SchemaRef,
     input: SendableRecordBatchStream,
     baseline_metrics: BaselineMetrics,
@@ -568,7 +566,8 @@ pub struct FranzWindowAggStream {
     aggregation_mode: AggregateMode,
 }
 
-impl FranzWindowAggStream {
+#[allow(dead_code)]
+impl WindowAggStream {
     pub fn new(
         exec_operator: &FranzStreamingWindowExec,
         context: Arc<TaskContext>,
@@ -697,50 +696,46 @@ impl FranzWindowAggStream {
 
     #[inline]
     fn poll_next_inner(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<RecordBatch>>> {
-        loop {
-            let result: std::prelude::v1::Result<RecordBatch, DataFusionError> = match self
-                .input
-                .poll_next_unpin(cx)
-            {
-                Poll::Ready(rdy) => match rdy {
-                    Some(Ok(batch)) => {
-                        if batch.num_rows() > 0 {
-                            let watermark: RecordBatchWatermark = RecordBatchWatermark::try_from(
-                                &batch,
-                                "_streaming_internal_metadata",
-                            )?;
-                            let ranges = get_windows_for_watermark(&watermark, self.window_type);
-                            let _ = self.ensure_window_frames_for_ranges(&ranges);
-                            for range in ranges {
-                                let frame = self.window_frames.get_mut(&range.0).unwrap();
-                                let _ = frame.push(&batch);
-                            }
-                            self.process_watermark(watermark);
-                            let triggered_result = self.trigger_windows();
-                            triggered_result
-                        } else {
-                            Ok(RecordBatch::new_empty(self.output_schema_with_window()))
+        let result: std::prelude::v1::Result<RecordBatch, DataFusionError> = match self
+            .input
+            .poll_next_unpin(cx)
+        {
+            Poll::Ready(rdy) => match rdy {
+                Some(Ok(batch)) => {
+                    if batch.num_rows() > 0 {
+                        let watermark: RecordBatchWatermark =
+                            RecordBatchWatermark::try_from(&batch, "_streaming_internal_metadata")?;
+                        let ranges = get_windows_for_watermark(&watermark, self.window_type);
+                        let _ = self.ensure_window_frames_for_ranges(&ranges);
+                        for range in ranges {
+                            let frame = self.window_frames.get_mut(&range.0).unwrap();
+                            let _ = frame.push(&batch);
                         }
+                        self.process_watermark(watermark);
+
+                        self.trigger_windows()
+                    } else {
+                        Ok(RecordBatch::new_empty(self.output_schema_with_window()))
                     }
-                    Some(Err(e)) => Err(e),
-                    None => Ok(RecordBatch::new_empty(self.output_schema_with_window())),
-                },
-                Poll::Pending => {
-                    return Poll::Pending;
                 }
-            };
-            return Poll::Ready(Some(result));
-        }
+                Some(Err(e)) => Err(e),
+                None => Ok(RecordBatch::new_empty(self.output_schema_with_window())),
+            },
+            Poll::Pending => {
+                return Poll::Pending;
+            }
+        };
+        Poll::Ready(Some(result))
     }
 }
 
-impl RecordBatchStream for FranzWindowAggStream {
+impl RecordBatchStream for WindowAggStream {
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
     }
 }
 
-impl Stream for FranzWindowAggStream {
+impl Stream for WindowAggStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -888,7 +883,7 @@ pub fn aggregate_batch(
 }
 
 fn add_window_columns_to_schema(schema: SchemaRef) -> Schema {
-    let fields = schema.all_fields().to_owned();
+    let fields = schema.flattened_fields().to_owned();
 
     let mut builder = SchemaBuilder::new();
 

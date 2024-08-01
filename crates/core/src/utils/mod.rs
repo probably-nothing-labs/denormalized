@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub mod arrow_helpers;
 mod default_optimizer_rules;
 pub mod serialize;

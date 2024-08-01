@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use datafusion_common::{internal_err, DFSchema};
-use datafusion_expr::{Expr, GroupingSet};
+use datafusion_expr::Expr;
 use datafusion_physical_expr::create_physical_expr;
 use datafusion_physical_plan::aggregates::PhysicalGroupBy;
 use itertools::multiunzip;
@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use datafusion::error::Result;
 use datafusion::execution::context::SessionState;
-use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode, UserDefinedLogicalNodeCore};
+use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
 use datafusion::physical_plan::aggregates::AggregateMode;
 use datafusion::physical_planner::{
     create_aggregate_expr_and_maybe_filter, ExtensionPlanner, PhysicalPlanner,
@@ -119,10 +119,10 @@ impl ExtensionPlanner for StreamingWindowPlanner {
                     multiunzip(agg_filter);
                 let franz_window_type = match streaming_window_node.window_type {
                     StreamingWindowType::Tumbling(length) => {
-                        FranzStreamingWindowType::Tumbling(length.clone())
+                        FranzStreamingWindowType::Tumbling(length)
                     }
                     StreamingWindowType::Sliding(length, slide) => {
-                        FranzStreamingWindowType::Sliding(length.clone(), slide.clone())
+                        FranzStreamingWindowType::Sliding(length, slide)
                     }
                     StreamingWindowType::Session(..) => todo!(),
                 };

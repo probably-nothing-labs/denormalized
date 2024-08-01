@@ -1,7 +1,7 @@
-pub mod datastream;
-pub mod context;
 pub mod config_extensions;
+pub mod context;
 pub mod datasource;
+pub mod datastream;
 pub mod logical_plan;
 pub mod physical_optimizer;
 pub mod physical_plan;

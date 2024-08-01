@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/sinks", "examples"]
+members = ["crates/core", "examples"]
 
 [workspace.package]
 authors = [
@@ -17,7 +17,6 @@ description = "Embeddable stream processing engine"
 
 [workspace.dependencies]
 df-streams-core = { path = "crates/core" }
-df-streams-sinks = { path = "crates/sinks" }
 
 # datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
 # datafusion-common = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
