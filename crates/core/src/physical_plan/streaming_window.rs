@@ -19,7 +19,6 @@ use arrow_array::{
 use arrow_ord::cmp;
 use arrow_schema::{DataType, Field, Schema, SchemaBuilder, SchemaRef, TimeUnit};
 
-use datafusion::logical_expr::{UserDefinedLogicalNode, UserDefinedLogicalNodeCore};
 use datafusion_common::{
     downcast_value, internal_err, stats::Precision, DataFusionError, Statistics,
 };
@@ -888,7 +887,7 @@ pub fn aggregate_batch(
 }
 
 fn add_window_columns_to_schema(schema: SchemaRef) -> Schema {
-    let fields = schema.all_fields().to_owned();
+    let fields = schema.flattened_fields().to_owned();
 
     let mut builder = SchemaBuilder::new();
 
