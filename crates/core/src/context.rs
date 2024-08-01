@@ -1,4 +1,5 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use datafusion::datasource::TableProvider;
 use datafusion::execution::{
@@ -43,12 +44,12 @@ impl Context {
     pub async fn from_topic(&self, topic: TopicReader) -> Result<DataStream, DataFusionError> {
         let topic_name = topic.0.topic.clone();
 
-        self.register_table(topic_name.clone(), Arc::new(topic))?;
+        self.register_table(topic_name.clone(), Arc::new(topic)).await?;
 
         let df = self
             .session_conext
             .read()
-            .expect("Unlock datafusion context")
+            .await
             .table(topic_name.as_str())
             .await?;
 
@@ -59,14 +60,14 @@ impl Context {
         Ok(ds)
     }
 
-    pub fn register_table(
+    pub async fn register_table(
         &self,
         name: String,
         table: Arc<impl TableProvider + 'static>,
     ) -> Result<(), DataFusionError> {
         self.session_conext
             .write()
-            .expect("Unlock datafusion context")
+            .await
             .register_table(name.as_str(), table.clone())?;
 
         Ok(())

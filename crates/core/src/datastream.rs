@@ -80,7 +80,7 @@ impl DataStream {
             .await?;
 
         self.context
-            .register_table(topic.clone(), Arc::new(sink_topic))?;
+            .register_table(topic.clone(), Arc::new(sink_topic)).await?;
 
         self.df
             .as_ref()

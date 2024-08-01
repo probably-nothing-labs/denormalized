@@ -566,6 +566,7 @@ pub struct WindowAggStream {
     aggregation_mode: AggregateMode,
 }
 
+#[allow(dead_code)]
 impl WindowAggStream {
     pub fn new(
         exec_operator: &FranzStreamingWindowExec,
