@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use datafusion_physical_expr::Partitioning;
+use datafusion_physical_optimizer::PhysicalOptimizerRule;
 use datafusion_physical_plan::repartition::RepartitionExec;
 use datafusion_physical_plan::ExecutionPlanProperties;
-use datafusion_physical_optimizer::PhysicalOptimizerRule;
 
 use datafusion::common::tree_node::{Transformed, TransformedResult, TreeNode};
 use datafusion::error::Result;

@@ -131,14 +131,11 @@ impl PartitionStream for KafkaStreamRead {
             let mut epoch = 0;
             loop {
                 let last_read_offsets = if should_checkpoint {
-                    state_backend
-                        .as_ref()
-                        .and_then(|backend| {
-                            
-                            backend
-                                .get_state(&state_namespace, partition_tag.clone().into_bytes())
-                                .unwrap()
-                        })
+                    state_backend.as_ref().and_then(|backend| {
+                        backend
+                            .get_state(&state_namespace, partition_tag.clone().into_bytes())
+                            .unwrap()
+                    })
                 } else {
                     None
                 };
@@ -239,7 +236,7 @@ impl PartitionStream for KafkaStreamRead {
                     RecordBatch::try_new(canonical_schema.clone(), columns).unwrap();
                 let tx_result = tx.send(Ok(timestamped_record_batch)).await;
                 match tx_result {
-                    Ok(m) => {
+                    Ok(_) => {
                         if should_checkpoint {
                             let _ = state_backend.as_ref().map(|backend| {
                                 backend.put_state(

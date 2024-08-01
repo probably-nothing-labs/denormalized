@@ -60,7 +60,6 @@ impl StreamingLogicalPlanBuilder for LogicalPlanBuilder {
 
         let plan = self.plan.clone();
 
-        
         Aggregate::try_new(Arc::new(self.plan), group_expr, aggr_expr)
             .map(|new_aggr| {
                 LogicalPlan::Extension(Extension {

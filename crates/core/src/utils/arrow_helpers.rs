@@ -4,9 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use apache_avro::{types::Value, Error, Schema as AvSchema};
 use arrow::array::{Array, ListArray, StringBuilder, StructArray};
-use arrow::array::{
-    BooleanBuilder, Float32Builder, Float64Builder, Int32Builder, Int64Builder,
-};
+use arrow::array::{BooleanBuilder, Float32Builder, Float64Builder, Int32Builder, Int64Builder};
 use arrow::datatypes::Fields;
 use arrow::error::ArrowError;
 use arrow::{
@@ -86,10 +84,7 @@ pub fn avro_value_to_json(value: &Value) -> serde_json::Value {
     }
 }
 
-pub fn json_to_avro_value(
-    json_value: &JValue,
-    schema: &AvSchema,
-) -> Result<Value, String> {
+pub fn json_to_avro_value(json_value: &JValue, schema: &AvSchema) -> Result<Value, String> {
     // Add schema as input
     match json_value {
         JValue::Null => Ok(Value::Null),
@@ -115,9 +110,9 @@ pub fn json_to_avro_value(
                 let mut record_fields = Vec::with_capacity(fields.len());
 
                 for field in fields {
-                    let field_json = obj.get(&field.name).ok_or_else(|| {
-                        format!("Missing field '{}' in JSON object", field.name)
-                    })?;
+                    let field_json = obj
+                        .get(&field.name)
+                        .ok_or_else(|| format!("Missing field '{}' in JSON object", field.name))?;
 
                     let field_value = json_to_avro_value(field_json, &field.schema)?;
                     record_fields.push((field.name, field_value));
@@ -145,10 +140,8 @@ fn infer_arrow_schema_from_avro_value(value: &Value, name: String) -> Field {
         Value::String(_) => Field::new(name, DataType::Utf8, true),
         Value::Array(items) => {
             if let Some(first_item) = items.first() {
-                let item_type = infer_arrow_schema_from_avro_value(
-                    first_item,
-                    format!("{}_item", name),
-                );
+                let item_type =
+                    infer_arrow_schema_from_avro_value(first_item, format!("{}_item", name));
                 Field::new(name, DataType::List(Arc::new(item_type)), true)
             } else {
                 Field::new(
@@ -253,10 +246,8 @@ fn infer_arrow_schema_fields_from_json_value(value: &JValue, name: String) -> Fi
         JValue::String(_) => Field::new(&name, DataType::Utf8, true),
         JValue::Array(items) => {
             if let Some(first_item) = items.first() {
-                let item_field = infer_arrow_schema_fields_from_json_value(
-                    first_item,
-                    format!("{}_item", name),
-                );
+                let item_field =
+                    infer_arrow_schema_fields_from_json_value(first_item, format!("{}_item", name));
                 Field::new(&name, DataType::List(Arc::new(item_field)), true)
             } else {
                 Field::new(
@@ -269,9 +260,7 @@ fn infer_arrow_schema_fields_from_json_value(value: &JValue, name: String) -> Fi
         JValue::Object(obj) => {
             let fields: Vec<Field> = obj
                 .iter()
-                .map(|(key, val)| {
-                    infer_arrow_schema_fields_from_json_value(val, key.clone())
-                })
+                .map(|(key, val)| infer_arrow_schema_fields_from_json_value(val, key.clone()))
                 .collect();
             Field::new(&name, DataType::Struct(fields.into()), true)
         }
@@ -296,9 +285,7 @@ pub fn infer_arrow_schema_from_json_value(value: &JValue) -> Result<Schema, Arro
         JValue::Object(obj) => {
             let fields: Vec<Field> = obj
                 .iter()
-                .map(|(key, val)| {
-                    infer_arrow_schema_fields_from_json_value(val, key.clone())
-                })
+                .map(|(key, val)| infer_arrow_schema_fields_from_json_value(val, key.clone()))
                 .collect();
             Ok(Schema::new(fields))
         }
@@ -388,9 +375,8 @@ fn avro_values_to_arrow_array(values: &[Value], data_type: &DataType) -> Arc<dyn
         DataType::List(field) => {
             match field.data_type() {
                 DataType::Int32 => {
-                    let builder: arrow::array::PrimitiveBuilder<
-                        arrow::datatypes::Int32Type,
-                    > = Int32Builder::new();
+                    let builder: arrow::array::PrimitiveBuilder<arrow::datatypes::Int32Type> =
+                        Int32Builder::new();
                     let mut list_builder: GenericListBuilder<
                         i32,
                         arrow::array::PrimitiveBuilder<arrow::datatypes::Int32Type>,
@@ -603,10 +589,7 @@ fn main() {}
     RecordBatch::try_new(Arc::new(schema), arrays)
 } */
 
-fn avro_record_to_arrow_record_batch(
-    avro_record: &Value,
-    schema: Arc<Schema>,
-) -> RecordBatch {
+fn avro_record_to_arrow_record_batch(avro_record: &Value, schema: Arc<Schema>) -> RecordBatch {
     match avro_record {
         Value::Record(fields) => {
             let arrays: Vec<Arc<dyn Array>> = schema

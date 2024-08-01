@@ -93,7 +93,6 @@ impl FranzWindowFrame {
         schema: SchemaRef,
         baseline_metrics: BaselineMetrics,
     ) -> Self {
-        
         Self {
             window_start_time,
             window_end_time,
@@ -715,7 +714,7 @@ impl FranzWindowAggStream {
                                 let _ = frame.push(&batch);
                             }
                             self.process_watermark(watermark);
-                            
+
                             self.trigger_windows()
                         } else {
                             Ok(RecordBatch::new_empty(self.output_schema_with_window()))

@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use arrow::datatypes::{DataType, Field, SchemaBuilder, TimeUnit};
 
-use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode, UserDefinedLogicalNodeCore};
+use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNodeCore};
 use datafusion_common::{DFSchema, DFSchemaRef, Result};
 use datafusion_expr::{Aggregate, Expr};
 

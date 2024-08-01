@@ -7,8 +7,8 @@ use arrow_schema::{DataType, Field, Fields, Schema, SchemaRef, TimeUnit};
 use datafusion_common::{plan_err, DataFusionError, Result};
 use datafusion_expr::Expr;
 
-use crate::utils::arrow_helpers::infer_arrow_schema_from_json_value;
 use crate::physical_plan::utils::time::TimestampUnit;
+use crate::utils::arrow_helpers::infer_arrow_schema_from_json_value;
 
 use super::{TopicReader, TopicWriter};
 
@@ -230,7 +230,8 @@ impl KafkaTopicBuilder {
         //@todo
         let order = vec![];
 
-        let partition_count = get_topic_partition_count(self.bootstrap_servers.clone(), topic.clone())?;
+        let partition_count =
+            get_topic_partition_count(self.bootstrap_servers.clone(), topic.clone())?;
 
         let config = KafkaReadConfig {
             topic,
@@ -286,7 +287,8 @@ impl KafkaTopicBuilder {
             kafka_connection_opts.insert(key.clone(), value.clone());
         }
 
-        let partition_count = get_topic_partition_count(self.bootstrap_servers.clone(), topic.clone())?;
+        let partition_count =
+            get_topic_partition_count(self.bootstrap_servers.clone(), topic.clone())?;
 
         let config = KafkaWriteConfig {
             topic,
