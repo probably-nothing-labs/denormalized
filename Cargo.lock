@@ -964,7 +964,6 @@ dependencies = [
  "arrow-schema",
  "arrow-string",
  "base64",
- "bincode",
  "chrono",
  "datafusion-common",
  "datafusion-execution",
@@ -1014,7 +1013,6 @@ dependencies = [
  "arrow-ord",
  "arrow-schema",
  "async-trait",
- "bincode",
  "chrono",
  "datafusion-common",
  "datafusion-common-runtime",
@@ -1072,7 +1070,6 @@ dependencies = [
  "datafusion-physical-expr",
  "datafusion-physical-optimizer",
  "datafusion-physical-plan",
- "df-streams-sinks",
  "futures",
  "itertools 0.13.0",
  "log",
@@ -1097,7 +1094,6 @@ dependencies = [
  "datafusion-functions-aggregate",
  "datafusion-physical-expr",
  "df-streams-core",
- "df-streams-sinks",
  "futures",
  "rdkafka",
  "serde_json",
@@ -1106,19 +1102,6 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "df-streams-sinks"
-version = "0.1.0"
-dependencies = [
- "arrow",
- "async-trait",
- "datafusion",
- "datafusion-common",
- "log",
- "rdkafka",
- "tokio",
 ]
 
 [[package]]

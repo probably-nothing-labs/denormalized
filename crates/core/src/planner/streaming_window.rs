@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use datafusion_common::{internal_err, DFSchema};
-use datafusion_expr::{Expr, GroupingSet};
+use datafusion_expr::{Expr};
 use datafusion_physical_expr::create_physical_expr;
 use datafusion_physical_plan::aggregates::PhysicalGroupBy;
 use itertools::multiunzip;

@@ -7,7 +7,7 @@ use datafusion::execution::{
 };
 use datafusion_common::{DataFusionError, Result};
 
-use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder, TopicReader, TopicWriter};
+use crate::datasource::kafka::{TopicReader};
 use crate::datastream::DataStream;
 use crate::physical_optimizer::CoaslesceBeforeStreamingAggregate;
 use crate::query_planner::StreamingQueryPlanner;

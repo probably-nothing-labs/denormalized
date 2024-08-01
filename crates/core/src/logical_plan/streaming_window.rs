@@ -48,7 +48,7 @@ impl UserDefinedLogicalNodeCore for StreamingWindowPlanNode {
 
     fn with_exprs_and_inputs(
         &self,
-        mut exprs: Vec<Expr>,
+        exprs: Vec<Expr>,
         mut inputs: Vec<LogicalPlan>,
     ) -> Result<Self> {
         let input = inputs.swap_remove(0);

@@ -13,7 +13,6 @@ datafusion-functions-aggregate = { workspace = true }
 datafusion-physical-expr = { workspace = true }
 
 df-streams-core = { workspace = true }
-df-streams-sinks = { workspace = true }
 
 arrow = { workspace = true }
 arrow-schema = { workspace = true }
