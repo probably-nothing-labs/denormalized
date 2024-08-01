@@ -695,40 +695,36 @@ impl FranzWindowAggStream {
 
     #[inline]
     fn poll_next_inner(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<RecordBatch>>> {
-        loop {
-            let result: std::prelude::v1::Result<RecordBatch, DataFusionError> = match self
-                .input
-                .poll_next_unpin(cx)
-            {
-                Poll::Ready(rdy) => match rdy {
-                    Some(Ok(batch)) => {
-                        if batch.num_rows() > 0 {
-                            let watermark: RecordBatchWatermark = RecordBatchWatermark::try_from(
-                                &batch,
-                                "_streaming_internal_metadata",
-                            )?;
-                            let ranges = get_windows_for_watermark(&watermark, self.window_type);
-                            let _ = self.ensure_window_frames_for_ranges(&ranges);
-                            for range in ranges {
-                                let frame = self.window_frames.get_mut(&range.0).unwrap();
-                                let _ = frame.push(&batch);
-                            }
-                            self.process_watermark(watermark);
-
-                            self.trigger_windows()
-                        } else {
-                            Ok(RecordBatch::new_empty(self.output_schema_with_window()))
+        let result: std::prelude::v1::Result<RecordBatch, DataFusionError> = match self
+            .input
+            .poll_next_unpin(cx)
+        {
+            Poll::Ready(rdy) => match rdy {
+                Some(Ok(batch)) => {
+                    if batch.num_rows() > 0 {
+                        let watermark: RecordBatchWatermark =
+                            RecordBatchWatermark::try_from(&batch, "_streaming_internal_metadata")?;
+                        let ranges = get_windows_for_watermark(&watermark, self.window_type);
+                        let _ = self.ensure_window_frames_for_ranges(&ranges);
+                        for range in ranges {
+                            let frame = self.window_frames.get_mut(&range.0).unwrap();
+                            let _ = frame.push(&batch);
                         }
+                        self.process_watermark(watermark);
+
+                        self.trigger_windows()
+                    } else {
+                        Ok(RecordBatch::new_empty(self.output_schema_with_window()))
                     }
-                    Some(Err(e)) => Err(e),
-                    None => Ok(RecordBatch::new_empty(self.output_schema_with_window())),
-                },
-                Poll::Pending => {
-                    return Poll::Pending;
                 }
-            };
-            return Poll::Ready(Some(result));
-        }
+                Some(Err(e)) => Err(e),
+                None => Ok(RecordBatch::new_empty(self.output_schema_with_window())),
+            },
+            Poll::Pending => {
+                return Poll::Pending;
+            }
+        };
+        return Poll::Ready(Some(result));
     }
 }
 
