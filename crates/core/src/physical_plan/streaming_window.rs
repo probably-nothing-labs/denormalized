@@ -410,7 +410,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
         partition: usize,
         context: Arc<TaskContext>,
     ) -> Result<SendableRecordBatchStream> {
-        let stream: Pin<Box<FranzWindowAggStream>> = Box::pin(FranzWindowAggStream::new(
+        let stream: Pin<Box<WindowAggStream>> = Box::pin(WindowAggStream::new(
             self,
             context,
             partition,
@@ -553,7 +553,7 @@ impl DisplayAs for FranzStreamingWindowExec {
     }
 }
 
-pub struct FranzWindowAggStream {
+pub struct WindowAggStream {
     pub schema: SchemaRef,
     input: SendableRecordBatchStream,
     baseline_metrics: BaselineMetrics,
@@ -566,7 +566,7 @@ pub struct FranzWindowAggStream {
     aggregation_mode: AggregateMode,
 }
 
-impl FranzWindowAggStream {
+impl WindowAggStream {
     pub fn new(
         exec_operator: &FranzStreamingWindowExec,
         context: Arc<TaskContext>,
@@ -728,13 +728,13 @@ impl FranzWindowAggStream {
     }
 }
 
-impl RecordBatchStream for FranzWindowAggStream {
+impl RecordBatchStream for WindowAggStream {
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
     }
 }
 
-impl Stream for FranzWindowAggStream {
+impl Stream for WindowAggStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
