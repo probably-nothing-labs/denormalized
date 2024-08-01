@@ -137,7 +137,7 @@ impl RocksDBBackend {
         let namespaced_key: Vec<u8> = self.namespaced_key(namespace, &key);
 
         self.db
-            .delete_cf(&cf, &namespaced_key)
+            .delete_cf(&cf, namespaced_key)
             .map_err(|e| DataFusionError::Internal(e.to_string()))?;
         Ok(())
     }

@@ -41,7 +41,7 @@ pub fn json_records_to_arrow_record_batch(
     records: Vec<serde_json::Value>,
     schema: Arc<Schema>,
 ) -> RecordBatch {
-    if records.len() == 0 {
+    if records.is_empty() {
         return RecordBatch::new_empty(schema);
     }
     let string_stream: Vec<String> = records.iter().map(|r| r.to_string()).collect();
@@ -168,7 +168,7 @@ fn infer_arrow_schema_from_avro_value(value: &Value, name: String) -> Field {
                 .collect();
             Field::new(name, DataType::Struct(schema_fields.into()), true)
         }
-        Value::Union(_, value) => infer_arrow_schema_from_avro_value(&value, name),
+        Value::Union(_, value) => infer_arrow_schema_from_avro_value(value, name),
         Value::Enum(_, _) => todo!(),
         Value::Date(_) => todo!(),
         Value::Decimal(_) => todo!(),
@@ -199,7 +199,7 @@ fn avro_record_to_arrow_schema(record: &Value) -> Schema {
 }
 
 //TODO: Remove this with proper Union handling
-fn strip_union_value<'a>(value: &'a Value) -> &'a Value {
+fn strip_union_value(value: &Value) -> &Value {
     match value {
         Value::Union(_, inner_value) => inner_value.as_ref(),
         _ => value,
@@ -217,7 +217,7 @@ fn make_struct_array(fields: &Fields, values: &[Value]) -> Arc<StructArray> {
         let field_values: Vec<Value> = values
             .iter()
             .map(|v: &Value| {
-                let extracted_value = strip_union_value(&v);
+                let extracted_value = strip_union_value(v);
                 match extracted_value {
                     Value::Record(r) => r
                         .iter()

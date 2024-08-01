@@ -94,7 +94,8 @@ impl FranzWindowFrame {
         schema: SchemaRef,
         baseline_metrics: BaselineMetrics,
     ) -> Self {
-        let res = Self {
+        
+        Self {
             window_start_time,
             window_end_time,
             timestamp_column,
@@ -104,8 +105,7 @@ impl FranzWindowFrame {
             aggregation_mode,
             schema,
             baseline_metrics,
-        };
-        res
+        }
     }
 
     pub fn push(&mut self, batch: &RecordBatch) -> Result<(), DataFusionError> {
@@ -403,7 +403,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
             self.filter_expressions.clone(),
             children[0].clone(),
             self.input_schema.clone(),
-            self.window_type.clone(),
+            self.window_type,
         )?))
     }
 
@@ -417,7 +417,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
             context,
             partition,
             self.watermark.clone(),
-            self.window_type.clone(),
+            self.window_type,
             self.mode,
         )?);
         Ok(stream)
@@ -716,8 +716,8 @@ impl FranzWindowAggStream {
                                 let _ = frame.push(&batch);
                             }
                             self.process_watermark(watermark);
-                            let triggered_result = self.trigger_windows();
-                            triggered_result
+                            
+                            self.trigger_windows()
                         } else {
                             Ok(RecordBatch::new_empty(self.output_schema_with_window()))
                         }

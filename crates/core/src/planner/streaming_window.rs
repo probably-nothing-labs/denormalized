@@ -119,10 +119,10 @@ impl ExtensionPlanner for StreamingWindowPlanner {
                     multiunzip(agg_filter);
                 let franz_window_type = match streaming_window_node.window_type {
                     StreamingWindowType::Tumbling(length) => {
-                        FranzStreamingWindowType::Tumbling(length.clone())
+                        FranzStreamingWindowType::Tumbling(length)
                     }
                     StreamingWindowType::Sliding(length, slide) => {
-                        FranzStreamingWindowType::Sliding(length.clone(), slide.clone())
+                        FranzStreamingWindowType::Sliding(length, slide)
                     }
                     StreamingWindowType::Session(..) => todo!(),
                 };

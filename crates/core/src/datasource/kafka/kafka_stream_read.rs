@@ -127,19 +127,18 @@ impl PartitionStream for KafkaStreamRead {
         let timestamp_column: String = self.config.timestamp_column.clone();
         let timestamp_unit = self.config.timestamp_unit.clone();
 
-        let _ = builder.spawn(async move {
+        builder.spawn(async move {
             let mut epoch = 0;
             loop {
                 let last_read_offsets = if should_checkpoint {
                     state_backend
                         .as_ref()
-                        .map(|backend| {
-                            let offsets = backend
+                        .and_then(|backend| {
+                            
+                            backend
                                 .get_state(&state_namespace, partition_tag.clone().into_bytes())
-                                .unwrap();
-                            offsets
+                                .unwrap()
                         })
-                        .flatten()
                 } else {
                     None
                 };
@@ -215,8 +214,8 @@ impl PartitionStream for KafkaStreamRead {
                     .downcast_ref::<PrimitiveArray<TimestampMillisecondType>>()
                     .unwrap();
 
-                let max_timestamp: Option<_> = max::<TimestampMillisecondType>(&ts_array);
-                let min_timestamp: Option<_> = min::<TimestampMillisecondType>(&ts_array);
+                let max_timestamp: Option<_> = max::<TimestampMillisecondType>(ts_array);
+                let min_timestamp: Option<_> = min::<TimestampMillisecondType>(ts_array);
                 debug!("min: {:?}, max: {:?}", min_timestamp, max_timestamp);
                 let mut columns: Vec<Arc<dyn Array>> = record_batch.columns().to_vec();
 

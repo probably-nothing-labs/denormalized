@@ -205,11 +205,10 @@ impl KafkaTopicBuilder {
 
         let canonical_schema = self.create_canonical_schema()?;
 
-        let encoding = self
+        let encoding = *self
             .encoding
             .as_ref()
-            .ok_or_else(|| create_error("encoding required"))?
-            .clone();
+            .ok_or_else(|| create_error("encoding required"))?;
 
         let timestamp_column = self
             .timestamp_column
@@ -265,11 +264,10 @@ impl KafkaTopicBuilder {
             .ok_or_else(|| create_error("Schema required"))?
             .clone();
 
-        let encoding = self
+        let encoding = *self
             .encoding
             .as_ref()
-            .ok_or_else(|| create_error("encoding required"))?
-            .clone();
+            .ok_or_else(|| create_error("encoding required"))?;
 
         let timestamp_column = self
             .timestamp_column

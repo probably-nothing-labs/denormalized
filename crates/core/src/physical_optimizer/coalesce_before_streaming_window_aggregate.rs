@@ -12,6 +12,12 @@ use crate::physical_plan::streaming_window::FranzStreamingWindowExec;
 
 pub struct CoaslesceBeforeStreamingAggregate {}
 
+impl Default for CoaslesceBeforeStreamingAggregate {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CoaslesceBeforeStreamingAggregate {
     #[allow(missing_docs)]
     pub fn new() -> Self {
@@ -54,7 +60,7 @@ impl PhysicalOptimizerRule for CoaslesceBeforeStreamingAggregate {
                         streaming_aggr_exec.filter_expressions.clone(),
                         coalesce_exec.clone(),
                         input.schema(),
-                        streaming_aggr_exec.window_type.clone(),
+                        streaming_aggr_exec.window_type,
                     )?,
                 )))
             } else {
