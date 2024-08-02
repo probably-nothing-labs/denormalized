@@ -44,7 +44,8 @@ impl Context {
     pub async fn from_topic(&self, topic: TopicReader) -> Result<DataStream, DataFusionError> {
         let topic_name = topic.0.topic.clone();
 
-        self.register_table(topic_name.clone(), Arc::new(topic)).await?;
+        self.register_table(topic_name.clone(), Arc::new(topic))
+            .await?;
 
         let df = self
             .session_conext
