@@ -75,7 +75,7 @@ mod tests {
         let encoder = JsonRowEncoder {};
         let buf = encoder.encode(&batch).unwrap();
 
-        let res: Vec<&[u8]> = vec![
+        let res: Vec<&[u8]> = [
             "{\"col1\":\"a\",\"col2\":1}",
             "{\"col1\":\"b\",\"col2\":10}",
             "{\"col1\":\"c\",\"col2\":20}",
