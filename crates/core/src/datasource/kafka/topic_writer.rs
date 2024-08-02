@@ -4,7 +4,6 @@ use std::fmt::{self, Debug};
 use std::time::Duration;
 use std::{any::Any, sync::Arc};
 
-use arrow::json::LineDelimitedWriter;
 use arrow_schema::SchemaRef;
 
 use datafusion::catalog::Session;
@@ -22,6 +21,7 @@ use rdkafka::producer::FutureProducer;
 use rdkafka::producer::FutureRecord;
 
 use super::KafkaWriteConfig;
+use crate::utils::row_encoder::{JsonRowEncoder, RowEncoder};
 
 // Used to createa kafka source
 pub struct TopicWriter(pub Arc<KafkaWriteConfig>);
@@ -110,21 +110,16 @@ impl DataSink for KafkaSink {
         while let Some(batch) = data.next().await.transpose()? {
             row_count += batch.num_rows();
 
-            if batch.num_rows() > 0 {
-                let buf = Vec::new();
-                let mut writer = LineDelimitedWriter::new(buf);
-                writer.write_batches(&[&batch])?;
-                writer.finish()?;
-                let buf = writer.into_inner();
+            let encoder = JsonRowEncoder {};
+            let rows = encoder.encode(&batch)?;
 
-                let record = FutureRecord::<[u8], _>::to(topic).payload(&buf);
+            for row in rows {
+                let record = FutureRecord::<[u8], _>::to(topic).payload(&row);
                 // .key(key.as_str()),
 
-                let _delivery_status = self
-                    .producer
-                    .send(record, Duration::from_secs(0))
-                    .await
-                    .expect("Message not delivered");
+                if let Err(msg) = self.producer.send(record, Duration::from_secs(0)).await {
+                    tracing::error!("{}", msg.0);
+                }
             }
         }
 
