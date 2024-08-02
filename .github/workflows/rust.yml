@@ -24,13 +24,13 @@ jobs:
   clippy_check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Run Clippy
-        run: cargo clippy --all-targets --all-features
-  
+    - uses: actions/checkout@v4
+    - name: Run Clippy
+      run: cargo clippy --all-targets --all-features
+
   rust_fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Run rust fmt
-        run: cargo fmt --all -- --check
+    - uses: actions/checkout@v4
+    - name: Run rust fmt
+      run: cargo fmt --all -- --check
