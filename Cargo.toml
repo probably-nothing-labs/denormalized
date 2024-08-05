@@ -8,10 +8,10 @@ authors = [
   "Amey Chaugule <amey@denormalized.io>",
 ]
 edition = "2021"
-homepage = "https://github.com/probably-nothing-labs/df-streams"
+homepage = "https://github.com/probably-nothing-labs/denormalized"
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/probably-nothing-labs/df-streams"
+repository = "https://github.com/probably-nothing-labs/denormalized"
 version = "0.1.0"
 description = "Embeddable stream processing engine"
 
