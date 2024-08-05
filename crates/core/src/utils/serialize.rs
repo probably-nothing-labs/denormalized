@@ -1,21 +1,142 @@
-use arrow::datatypes::DataType;
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::Arc;
 
-use datafusion_common::scalar::ScalarStructBuilder;
 use datafusion_common::ScalarValue;
 
 use arrow::array::*;
 use arrow::datatypes::*;
-use serde::Serializer;
-use serde_json::json;
+use half::f16;
+use serde_json::{json, Value};
 
-pub fn serialize_scalar_value<S>(value: &ScalarValue, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let json_value = match value {
+use arrow::datatypes::{DataType, Field, IntervalUnit, TimeUnit};
+
+pub fn string_to_data_type(s: &str) -> Result<DataType, Box<dyn std::error::Error>> {
+    match s {
+        "Null" => Ok(DataType::Null),
+        "Boolean" => Ok(DataType::Boolean),
+        "Int8" => Ok(DataType::Int8),
+        "Int16" => Ok(DataType::Int16),
+        "Int32" => Ok(DataType::Int32),
+        "Int64" => Ok(DataType::Int64),
+        "UInt8" => Ok(DataType::UInt8),
+        "UInt16" => Ok(DataType::UInt16),
+        "UInt32" => Ok(DataType::UInt32),
+        "UInt64" => Ok(DataType::UInt64),
+        "Float16" => Ok(DataType::Float16),
+        "Float32" => Ok(DataType::Float32),
+        "Float64" => Ok(DataType::Float64),
+        "Binary" => Ok(DataType::Binary),
+        "LargeBinary" => Ok(DataType::LargeBinary),
+        "Utf8" => Ok(DataType::Utf8),
+        "LargeUtf8" => Ok(DataType::LargeUtf8),
+        "Date32" => Ok(DataType::Date32),
+        "Date64" => Ok(DataType::Date64),
+        s if s.starts_with("Timestamp(") => {
+            let parts: Vec<&str> = s[10..s.len() - 1].split(',').collect();
+            if parts.len() != 2 {
+                return Err("Invalid Timestamp format".into());
+            }
+            let time_unit = match parts[0].trim() {
+                "Second" => TimeUnit::Second,
+                "Millisecond" => TimeUnit::Millisecond,
+                "Microsecond" => TimeUnit::Microsecond,
+                "Nanosecond" => TimeUnit::Nanosecond,
+                _ => return Err("Invalid TimeUnit".into()),
+            };
+            let timezone = parts[1].trim().trim_matches('"');
+            let timezone = if timezone == "None" {
+                None
+            } else {
+                Some(timezone.into())
+            };
+            Ok(DataType::Timestamp(time_unit, timezone))
+        }
+        s if s.starts_with("Time32(") => {
+            let time_unit = match &s[7..s.len() - 1] {
+                "Second" => TimeUnit::Second,
+                "Millisecond" => TimeUnit::Millisecond,
+                _ => return Err("Invalid TimeUnit for Time32".into()),
+            };
+            Ok(DataType::Time32(time_unit))
+        }
+        s if s.starts_with("Time64(") => {
+            let time_unit = match &s[7..s.len() - 1] {
+                "Microsecond" => TimeUnit::Microsecond,
+                "Nanosecond" => TimeUnit::Nanosecond,
+                _ => return Err("Invalid TimeUnit for Time64".into()),
+            };
+            Ok(DataType::Time64(time_unit))
+        }
+        s if s.starts_with("Duration(") => {
+            let time_unit = match &s[9..s.len() - 1] {
+                "Second" => TimeUnit::Second,
+                "Millisecond" => TimeUnit::Millisecond,
+                "Microsecond" => TimeUnit::Microsecond,
+                "Nanosecond" => TimeUnit::Nanosecond,
+                _ => return Err("Invalid TimeUnit for Duration".into()),
+            };
+            Ok(DataType::Duration(time_unit))
+        }
+        s if s.starts_with("Interval(") => {
+            let interval_unit = match &s[9..s.len() - 1] {
+                "YearMonth" => IntervalUnit::YearMonth,
+                "DayTime" => IntervalUnit::DayTime,
+                "MonthDayNano" => IntervalUnit::MonthDayNano,
+                _ => return Err("Invalid IntervalUnit".into()),
+            };
+            Ok(DataType::Interval(interval_unit))
+        }
+        s if s.starts_with("FixedSizeBinary(") => {
+            let size: i32 = s[16..s.len() - 1].parse()?;
+            Ok(DataType::FixedSizeBinary(size))
+        }
+        s if s.starts_with("List(") => {
+            let inner_type = string_to_data_type(&s[5..s.len() - 1])?;
+            Ok(DataType::List(Arc::new(Field::new(
+                "item", inner_type, true,
+            ))))
+        }
+        s if s.starts_with("LargeList(") => {
+            let inner_type = string_to_data_type(&s[10..s.len() - 1])?;
+            Ok(DataType::LargeList(Arc::new(Field::new(
+                "item", inner_type, true,
+            ))))
+        }
+        s if s.starts_with("FixedSizeList(") => {
+            let parts: Vec<&str> = s[14..s.len() - 1].split(',').collect();
+            if parts.len() != 2 {
+                return Err("Invalid FixedSizeList format".into());
+            }
+            let inner_type = string_to_data_type(parts[0].trim())?;
+            let size: i32 = parts[1].trim().parse()?;
+            Ok(DataType::FixedSizeList(
+                Arc::new(Field::new("item", inner_type, true)),
+                size,
+            ))
+        }
+        s if s.starts_with("Decimal128(") => {
+            let parts: Vec<&str> = s[10..s.len() - 1].split(',').collect();
+            if parts.len() != 2 {
+                return Err("Invalid Decimal128 format".into());
+            }
+            let precision: u8 = parts[0].trim().parse()?;
+            let scale: i8 = parts[1].trim().parse()?;
+            Ok(DataType::Decimal128(precision, scale))
+        }
+        s if s.starts_with("Decimal256(") => {
+            let parts: Vec<&str> = s[10..s.len() - 1].split(',').collect();
+            if parts.len() != 2 {
+                return Err("Invalid Decimal256 format".into());
+            }
+            let precision: u8 = parts[0].trim().parse()?;
+            let scale: i8 = parts[1].trim().parse()?;
+            Ok(DataType::Decimal256(precision, scale))
+        }
+        _ => Err(format!("Unsupported DataType string: {}", s).into()),
+    }
+}
+
+pub fn scalar_to_json(value: &ScalarValue) -> serde_json::Value {
+    match value {
         ScalarValue::Null => json!({"type": "Null"}),
         ScalarValue::Boolean(v) => json!({"type": "Boolean", "value": v}),
         ScalarValue::Float16(v) => json!({"type": "Float16", "value": v.map(|f| f.to_f32())}),
@@ -56,10 +177,15 @@ where
             "size": size,
             "value": v.as_ref().map(|b| base64::encode(b))
         }),
-        ScalarValue::List(v) => json!({
-            "type": "List",
-            "value": serialize_array(v)?
-        }),
+        ScalarValue::List(v) => {
+            let sv = ScalarValue::try_from_array(&v.value(0), 0).unwrap();
+            let dt = sv.data_type().to_string();
+            json!({
+                "type": "List",
+                "field_type": dt,
+                "value": scalar_to_json(&sv)
+            })
+        }
         ScalarValue::Date32(v) => json!({"type": "Date32", "value": v}),
         ScalarValue::Date64(v) => json!({"type": "Date64", "value": v}),
         ScalarValue::Time32Second(v) => json!({"type": "Time32Second", "value": v}),
@@ -94,558 +220,354 @@ where
         ScalarValue::DurationMillisecond(v) => json!({"type": "DurationMillisecond", "value": v}),
         ScalarValue::DurationMicrosecond(v) => json!({"type": "DurationMicrosecond", "value": v}),
         ScalarValue::DurationNanosecond(v) => json!({"type": "DurationNanosecond", "value": v}),
-        ScalarValue::Struct(v) => json!({
-            "type": "Struct",
-            "fields": v.as_ref().fields().iter().map(|f| (f.name().to_string(), f.data_type().to_string())).collect::<Vec<_>>(),
-            "value": v.as_ref().fields().iter().enumerate().map(|(i, field)| ScalarValue::try_from_array(field, 0).ok()).collect::<Vec<_>>(),
+        ScalarValue::Struct(v) => {
+            let fields = v
+                .as_ref()
+                .fields()
+                .iter()
+                .map(|f| (f.name().to_string(), f.data_type().to_string()))
+                .collect::<Vec<_>>();
 
-        }),
-        // Add other variants as needed...
-    };
-
-    json_value.serialize(serializer)
-}
-
-fn serialize_array(arr: &Arc<dyn Array>) -> Result<Vec<Option<ScalarValue>>, S::Error> {
-    (0..arr.len())
-        .map(|i| {
-            ScalarValue::try_from_array(arr.as_ref(), i)
-                .map(Some)
-                .map_err(serde::ser::Error::custom)
-        })
-        .collect()
-}
-use std::str::FromStr;
-
-impl<'de> Deserialize<'de> for ScalarValue {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(tag = "type")]
-        enum ScalarValueHelper {
-            Null,
-            Boolean {
-                value: Option<bool>,
-            },
-            Float16 {
-                value: Option<f32>,
-            },
-            Float32 {
-                value: Option<f32>,
-            },
-            Float64 {
-                value: Option<f64>,
-            },
-            Decimal128 {
-                value: Option<String>,
-                precision: u8,
-                scale: i8,
-            },
-            Decimal256 {
-                value: Option<String>,
-                precision: u8,
-                scale: i8,
-            },
-            Int8 {
-                value: Option<i8>,
-            },
-            Int16 {
-                value: Option<i16>,
-            },
-            Int32 {
-                value: Option<i32>,
-            },
-            Int64 {
-                value: Option<i64>,
-            },
-            UInt8 {
-                value: Option<u8>,
-            },
-            UInt16 {
-                value: Option<u16>,
-            },
-            UInt32 {
-                value: Option<u32>,
-            },
-            UInt64 {
-                value: Option<u64>,
-            },
-            Utf8 {
-                value: Option<String>,
-            },
-            LargeUtf8 {
-                value: Option<String>,
-            },
-            Binary {
-                value: Option<String>,
-            },
-            LargeBinary {
-                value: Option<String>,
-            },
-            FixedSizeBinary {
-                size: i32,
-                value: Option<String>,
-            },
-            List {
-                child_type: String,
-                value: Option<Vec<Option<ScalarValue>>>,
-            },
-            LargeList {
-                child_type: String,
-                value: Option<Vec<Option<ScalarValue>>>,
-            },
-            FixedSizeList {
-                child_type: String,
-                size: usize,
-                value: Option<Vec<Option<ScalarValue>>>,
-            },
-            Date32 {
-                value: Option<i32>,
-            },
-            Date64 {
-                value: Option<i64>,
-            },
-            Time32Second {
-                value: Option<i32>,
-            },
-            Time32Millisecond {
-                value: Option<i32>,
-            },
-            Time64Microsecond {
-                value: Option<i64>,
-            },
-            Time64Nanosecond {
-                value: Option<i64>,
-            },
-            Timestamp {
-                value: Option<i64>,
-                timezone: Option<String>,
-                unit: String,
-            },
-            IntervalYearMonth {
-                value: Option<i32>,
-            },
-            IntervalDayTime {
-                value: Option<(i32, i32)>,
-            },
-            IntervalMonthDayNano {
-                value: Option<(i32, i32, i64)>,
-            },
-            DurationSecond {
-                value: Option<i64>,
-            },
-            DurationMillisecond {
-                value: Option<i64>,
-            },
-            DurationMicrosecond {
-                value: Option<i64>,
-            },
-            DurationNanosecond {
-                value: Option<i64>,
-            },
-            Union {
-                value: Option<(i8, Box<ScalarValue>)>,
-                fields: Vec<(i8, String, String)>,
-                mode: String,
-            },
-            Dictionary {
-                key_type: String,
-                value: Box<ScalarValue>,
-            },
-            Utf8View {
-                value: Option<String>,
-            },
-            BinaryView {
-                value: Option<String>,
-            },
-            Struct {
-                fields: Vec<(String, String)>,
-                value: Option<Vec<Option<ScalarValue>>>,
-            },
+            let values = v
+                .columns()
+                .as_ref()
+                .iter()
+                .map(|c| {
+                    let sv = ScalarValue::try_from_array(c, 0).unwrap();
+                    scalar_to_json(&sv)
+                })
+                .collect::<Vec<_>>();
+            json!({"type" : "Struct", "fields": fields, "values": values})
         }
+        ScalarValue::Utf8View(_) => todo!(),
+        ScalarValue::BinaryView(_) => todo!(),
+        ScalarValue::FixedSizeList(_) => todo!(),
+        ScalarValue::LargeList(_) => todo!(),
+        ScalarValue::Map(_) => todo!(),
+        ScalarValue::Union(_, _, _) => todo!(),
+        ScalarValue::Dictionary(_, _) => todo!(),
+    }
+}
 
-        let helper = ScalarValueHelper::deserialize(deserializer)?;
+pub fn json_to_scalar(json: &Value) -> Result<ScalarValue, Box<dyn std::error::Error>> {
+    let obj = json.as_object().ok_or("Expected JSON object")?;
+    let typ = obj
+        .get("type")
+        .and_then(Value::as_str)
+        .ok_or("Missing or invalid 'type'")?;
 
-        Ok(match helper {
-            ScalarValueHelper::Null => ScalarValue::Null,
-            ScalarValueHelper::Boolean { value } => ScalarValue::Boolean(value),
-            ScalarValueHelper::Float16 { value } => {
-                ScalarValue::Float16(value.map(half::f16::from_f32))
+    match typ {
+        "Null" => Ok(ScalarValue::Null),
+        "Boolean" => Ok(ScalarValue::Boolean(
+            obj.get("value").and_then(Value::as_bool),
+        )),
+        "Float16" => Ok(ScalarValue::Float16(
+            obj.get("value")
+                .and_then(Value::as_f64)
+                .map(|f| f16::from_f32(f as f32)),
+        )),
+        "Float32" => Ok(ScalarValue::Float32(
+            obj.get("value").and_then(Value::as_f64).map(|f| f as f32),
+        )),
+        "Float64" => Ok(ScalarValue::Float64(
+            obj.get("value").and_then(Value::as_f64),
+        )),
+        "Decimal128" => {
+            let value = obj
+                .get("value")
+                .and_then(Value::as_str)
+                .map(|s| s.parse::<i128>().unwrap());
+            let precision = obj.get("precision").and_then(Value::as_u64).unwrap() as u8;
+            let scale = obj.get("scale").and_then(Value::as_i64).unwrap() as i8;
+            Ok(ScalarValue::Decimal128(value, precision, scale))
+        }
+        "Decimal256" => {
+            let value = obj
+                .get("value")
+                .and_then(Value::as_str)
+                .map(|s| s.parse::<i256>().unwrap());
+            let precision = obj.get("precision").and_then(Value::as_u64).unwrap() as u8;
+            let scale = obj.get("scale").and_then(Value::as_i64).unwrap() as i8;
+            Ok(ScalarValue::Decimal256(value, precision, scale))
+        }
+        "Int8" => Ok(ScalarValue::Int8(
+            obj.get("value").and_then(Value::as_i64).map(|i| i as i8),
+        )),
+        "Int16" => Ok(ScalarValue::Int16(
+            obj.get("value").and_then(Value::as_i64).map(|i| i as i16),
+        )),
+        "Int32" => Ok(ScalarValue::Int32(
+            obj.get("value").and_then(Value::as_i64).map(|i| i as i32),
+        )),
+        "Int64" => Ok(ScalarValue::Int64(obj.get("value").and_then(Value::as_i64))),
+        "UInt8" => Ok(ScalarValue::UInt8(
+            obj.get("value").and_then(Value::as_u64).map(|i| i as u8),
+        )),
+        "UInt16" => Ok(ScalarValue::UInt16(
+            obj.get("value").and_then(Value::as_u64).map(|i| i as u16),
+        )),
+        "UInt32" => Ok(ScalarValue::UInt32(
+            obj.get("value").and_then(Value::as_u64).map(|i| i as u32),
+        )),
+        "UInt64" => Ok(ScalarValue::UInt64(
+            obj.get("value").and_then(Value::as_u64),
+        )),
+        "Utf8" => Ok(ScalarValue::Utf8(
+            obj.get("value").and_then(Value::as_str).map(String::from),
+        )),
+        "LargeUtf8" => Ok(ScalarValue::LargeUtf8(
+            obj.get("value").and_then(Value::as_str).map(String::from),
+        )),
+        "Binary" => Ok(ScalarValue::Binary(
+            obj.get("value")
+                .and_then(Value::as_str)
+                .map(|s| base64::decode(s).unwrap()),
+        )),
+        "LargeBinary" => Ok(ScalarValue::LargeBinary(
+            obj.get("value")
+                .and_then(Value::as_str)
+                .map(|s| base64::decode(s).unwrap()),
+        )),
+        "FixedSizeBinary" => {
+            let size = obj.get("size").and_then(Value::as_u64).unwrap() as i32;
+            let value = obj
+                .get("value")
+                .and_then(Value::as_str)
+                .map(|s| base64::decode(s).unwrap());
+            Ok(ScalarValue::FixedSizeBinary(size, value))
+        }
+        // "List" => {
+        //     let value = obj.get("value").ok_or("Missing 'value' for List")?;
+        //     let field_type = obj
+        //         .get("field_type")
+        //         .map(|ft| ft.as_str())
+        //         .ok_or("Missing 'field_type' for List")?;
+        //     let data_type = string_to_data_type(field_type.unwrap())?;
+        //     let element: ScalarValue = json_to_scalar(value)?;
+        //     let array = element.to_array_of_size(1).unwrap();
+        //     ListArray::from_iter_primitive::<data_type, _, _>(array);
+        //     Ok(ScalarValue::List(Arc::new()))
+        // }
+        "Date32" => Ok(ScalarValue::Date32(
+            obj.get("value").and_then(Value::as_i64).map(|i| i as i32),
+        )),
+        "Date64" => Ok(ScalarValue::Date64(
+            obj.get("value").and_then(Value::as_i64),
+        )),
+        "Time32Second" => Ok(ScalarValue::Time32Second(
+            obj.get("value").and_then(Value::as_i64).map(|i| i as i32),
+        )),
+        "Time32Millisecond" => Ok(ScalarValue::Time32Millisecond(
+            obj.get("value").and_then(Value::as_i64).map(|i| i as i32),
+        )),
+        "Time64Microsecond" => Ok(ScalarValue::Time64Microsecond(
+            obj.get("value").and_then(Value::as_i64),
+        )),
+        "Time64Nanosecond" => Ok(ScalarValue::Time64Nanosecond(
+            obj.get("value").and_then(Value::as_i64),
+        )),
+        "Timestamp" => {
+            let value = obj.get("value").and_then(Value::as_i64);
+            let timezone = obj
+                .get("timezone")
+                .and_then(Value::as_str)
+                .map(|s| s.to_string().into());
+            let unit = obj
+                .get("unit")
+                .and_then(Value::as_str)
+                .ok_or("Missing or invalid 'unit'")?;
+            match unit {
+                "Second" => Ok(ScalarValue::TimestampSecond(value, timezone)),
+                "Millisecond" => Ok(ScalarValue::TimestampMillisecond(value, timezone)),
+                "Microsecond" => Ok(ScalarValue::TimestampMicrosecond(value, timezone)),
+                "Nanosecond" => Ok(ScalarValue::TimestampNanosecond(value, timezone)),
+                _ => Err("Invalid timestamp unit".into()),
             }
-            ScalarValueHelper::Float32 { value } => ScalarValue::Float32(value),
-            ScalarValueHelper::Float64 { value } => ScalarValue::Float64(value),
-            ScalarValueHelper::Decimal128 {
-                value,
-                precision,
-                scale,
-            } => ScalarValue::Decimal128(
-                value.map(|s| s.parse().unwrap()), //TODO: fix me
-                precision,
-                scale,
-            ),
-            ScalarValueHelper::Decimal256 {
-                value,
-                precision,
-                scale,
-            } => ScalarValue::Decimal256(value.map(|s| s.parse().unwrap()), precision, scale),
-            ScalarValueHelper::Int8 { value } => ScalarValue::Int8(value),
-            ScalarValueHelper::Int16 { value } => ScalarValue::Int16(value),
-            ScalarValueHelper::Int32 { value } => ScalarValue::Int32(value),
-            ScalarValueHelper::Int64 { value } => ScalarValue::Int64(value),
-            ScalarValueHelper::UInt8 { value } => ScalarValue::UInt8(value),
-            ScalarValueHelper::UInt16 { value } => ScalarValue::UInt16(value),
-            ScalarValueHelper::UInt32 { value } => ScalarValue::UInt32(value),
-            ScalarValueHelper::UInt64 { value } => ScalarValue::UInt64(value),
-            ScalarValueHelper::Utf8 { value } => ScalarValue::Utf8(value),
-            ScalarValueHelper::LargeUtf8 { value } => ScalarValue::LargeUtf8(value),
-            ScalarValueHelper::Binary { value } => {
-                ScalarValue::Binary(value.map(|s| base64::decode(s).unwrap()))
-            }
-            ScalarValueHelper::LargeBinary { value } => {
-                ScalarValue::LargeBinary(value.map(|s| base64::decode(s).unwrap()))
-            }
-            ScalarValueHelper::FixedSizeBinary { size, value } => {
-                ScalarValue::FixedSizeBinary(size, value.map(|s| base64::decode(s).unwrap()))
-            }
-            ScalarValueHelper::List { child_type, value } => {
-                let field = Arc::new(Field::new(
-                    "item",
-                    DataType::from_str(&child_type).map_err(serde::de::Error::custom)?,
-                    true,
-                ));
-                let values: Vec<Option<ScalarValue>> = value.unwrap_or_default();
-                let scalar_values: Vec<ScalarValue> = values
-                    .into_iter()
-                    .map(|v| v.unwrap_or(ScalarValue::Null))
-                    .collect();
-                let data = ScalarValue::new_list(&scalar_values, &field.data_type());
-                ScalarValue::List(data)
-            }
-            ScalarValueHelper::LargeList { child_type, value } => {
-                let field = Arc::new(Field::new(
-                    "item",
-                    DataType::from_str(&child_type).map_err(serde::de::Error::custom)?,
-                    true,
-                ));
-                let values: Vec<Option<ScalarValue>> = value.unwrap_or_default();
-                let scalar_values: Vec<ScalarValue> = values
-                    .into_iter()
-                    .map(|v| v.unwrap_or(ScalarValue::Null))
-                    .collect();
-                ScalarValue::LargeList(ScalarValue::new_large_list(
-                    &scalar_values,
-                    &field.data_type(),
-                ))
-            }
-            ScalarValueHelper::FixedSizeList {
-                child_type,
-                size,
-                value,
-            } => {
-                let field = Arc::new(Field::new(
-                    "item",
-                    DataType::from_str(&child_type).map_err(serde::de::Error::custom)?,
-                    true,
-                ));
-                let values: Vec<Option<ScalarValue>> = value.unwrap_or_default();
-                let scalar_values: Vec<ScalarValue> = values
-                    .into_iter()
-                    .map(|v| v.unwrap_or(ScalarValue::Null))
-                    .collect();
-                let data_type = DataType::FixedSizeList(field, scalar_values.len() as i32);
-                let value_data = ScalarValue::new_list(&scalar_values, &data_type).to_data();
-                let list_array = FixedSizeListArray::from(value_data);
-                ScalarValue::FixedSizeList(Arc::new(list_array))
-            }
-            ScalarValueHelper::Date32 { value } => ScalarValue::Date32(value),
-            ScalarValueHelper::Date64 { value } => ScalarValue::Date64(value),
-            ScalarValueHelper::Time32Second { value } => ScalarValue::Time32Second(value),
-            ScalarValueHelper::Time32Millisecond { value } => ScalarValue::Time32Millisecond(value),
-            ScalarValueHelper::Time64Microsecond { value } => ScalarValue::Time64Microsecond(value),
-            ScalarValueHelper::Time64Nanosecond { value } => ScalarValue::Time64Nanosecond(value),
-            ScalarValueHelper::Timestamp {
-                value,
-                timezone,
-                unit,
-            } => match unit.as_str() {
-                "Second" => ScalarValue::TimestampSecond(value, timezone.map(Arc::from)),
-                "Millisecond" => ScalarValue::TimestampMillisecond(value, timezone.map(Arc::from)),
-                "Microsecond" => ScalarValue::TimestampMicrosecond(value, timezone.map(Arc::from)),
-                "Nanosecond" => ScalarValue::TimestampNanosecond(value, timezone.map(Arc::from)),
-                _ => return Err(serde::de::Error::custom("Invalid timestamp unit")),
-            },
-            ScalarValueHelper::IntervalYearMonth { value } => ScalarValue::IntervalYearMonth(value),
-            ScalarValueHelper::IntervalDayTime { value } => ScalarValue::IntervalDayTime(
-                value.map(|(days, millis)| IntervalDayTime::new(days, millis)),
-            ),
-            ScalarValueHelper::IntervalMonthDayNano { value } => ScalarValue::IntervalMonthDayNano(
-                value.map(|(months, days, nanos)| IntervalMonthDayNano::new(months, days, nanos)),
-            ),
-            ScalarValueHelper::DurationSecond { value } => ScalarValue::DurationSecond(value),
-            ScalarValueHelper::DurationMillisecond { value } => {
-                ScalarValue::DurationMillisecond(value)
-            }
-            ScalarValueHelper::DurationMicrosecond { value } => {
-                ScalarValue::DurationMicrosecond(value)
-            }
-            ScalarValueHelper::DurationNanosecond { value } => {
-                ScalarValue::DurationNanosecond(value)
-            }
-            ScalarValueHelper::Union {
-                value,
-                fields,
-                mode,
-            } => {
-                let union_fields = fields
-                    .into_iter()
-                    .map(|(i, name, type_str)| {
-                        (
-                            i,
-                            Arc::new(Field::new(
-                                name,
-                                DataType::from_str(&type_str).unwrap(),
-                                true,
-                            )),
-                        )
-                    })
-                    .collect();
-                let union_mode = match mode.as_str() {
-                    "Sparse" => UnionMode::Sparse,
-                    "Dense" => UnionMode::Dense,
-                    _ => return Err(serde::de::Error::custom("Invalid union mode")),
-                };
-                ScalarValue::Union(value, union_fields, union_mode)
-            }
-            ScalarValueHelper::Dictionary { key_type, value } => {
-                ScalarValue::Dictionary(Box::new(DataType::from_str(&key_type).unwrap()), value)
-            }
-            ScalarValueHelper::Utf8View { value } => ScalarValue::Utf8View(value),
-            ScalarValueHelper::BinaryView { value } => {
-                ScalarValue::BinaryView(value.map(|s| base64::decode(s).unwrap()))
-            }
-            ScalarValueHelper::Struct { fields, value } => {
-                let struct_fields: Vec<Field> = fields
-                    .into_iter()
-                    .map(|(name, type_str)| {
-                        Field::new(name, DataType::from_str(&type_str).unwrap(), true)
-                    })
-                    .collect();
-                let values: Vec<Option<ScalarValue>> = value.unwrap_or_default();
-                let scalar_values: Vec<ScalarValue> = values
-                    .into_iter()
-                    .map(|v| v.unwrap_or(ScalarValue::Null))
-                    .collect();
-                let mut builder = ScalarStructBuilder::new();
-                for (field, value) in struct_fields.clone().into_iter().zip(scalar_values) {
-                    builder = builder.with_scalar(field, value);
-                }
-                let struct_array = builder.build().unwrap();
+        }
+        "IntervalYearMonth" => Ok(ScalarValue::IntervalYearMonth(
+            obj.get("value").and_then(Value::as_i64).map(|i| i as i32),
+        )),
+        // "IntervalDayTime" => {
+        //     let value = obj
+        //         .get("value")
+        //         .and_then(Value::as_array)
+        //         .map(|arr| {
+        //             if arr.len() == 2 {
+        //                 Some(arrow_buffer::IntervalDayTime::make_value(
+        //                     arr[0].as_i64().unwrap() as i32,
+        //                     arr[1].as_i64().unwrap() as i32,
+        //                 ))
+        //             } else {
+        //                 None
+        //             }
+        //         })
+        //         .flatten();
+        //     Ok(ScalarValue::IntervalDayTime(value))
+        // }
+        // "IntervalMonthDayNano" => {
+        //     let value = obj
+        //         .get("value")
+        //         .and_then(Value::as_array)
+        //         .map(|arr| {
+        //             if arr.len() == 3 {
+        //                 Some(arrow_buffer::IntervalMonthDayNano::make_value(
+        //                     arr[0].as_i64().unwrap() as i32,
+        //                     arr[1].as_i64().unwrap() as i32,
+        //                     arr[2].as_i64().unwrap(),
+        //                 ))
+        //             } else {
+        //                 None
+        //             }
+        //         })
+        //         .flatten();
+        //     Ok(ScalarValue::IntervalMonthDayNano(value))
+        // }
+        "DurationSecond" => Ok(ScalarValue::DurationSecond(
+            obj.get("value").and_then(Value::as_i64),
+        )),
+        "DurationMillisecond" => Ok(ScalarValue::DurationMillisecond(
+            obj.get("value").and_then(Value::as_i64),
+        )),
+        "DurationMicrosecond" => Ok(ScalarValue::DurationMicrosecond(
+            obj.get("value").and_then(Value::as_i64),
+        )),
+        "DurationNanosecond" => Ok(ScalarValue::DurationNanosecond(
+            obj.get("value").and_then(Value::as_i64),
+        )),
+        // "Struct" => {
+        //     let fields = obj
+        //         .get("fields")
+        //         .and_then(Value::as_array)
+        //         .ok_or("Missing or invalid 'fields'")?;
+        //     let values = obj
+        //         .get("values")
+        //         .and_then(Value::as_array)
+        //         .ok_or("Missing or invalid 'values'")?;
 
-                ScalarValue::Struct(Arc::new(StructArray::new(
-                    Fields::from(struct_fields),
-                    vec![struct_array.to_array().unwrap()],
-                    None,
-                )))
-            }
-        })
+        //     let field_vec: Vec<Field> = fields
+        //         .iter()
+        //         .map(|f| {
+        //             let name = f[0].as_str().unwrap().to_string();
+        //             let data_type = f[1].as_str().unwrap().parse().unwrap();
+        //             Field::new(name, data_type, true)
+        //         })
+        //         .collect();
+
+        //     let value_vec: Vec<ArrayRef> = values
+        //         .iter()
+        //         .map(|v| {
+        //             let scalar = json_to_scalar(v).unwrap();
+        //             scalar.to_array().unwrap()
+        //         })
+        //         .collect();
+
+        //     let struct_array = StructArray::from((field_vec, value_vec));
+        //     Ok(ScalarValue::Struct(Arc::new(struct_array)))
+        // }
+        _ => Err(format!("Unsupported type: {}", typ).into()),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
-    use std::sync::Arc;
+    use datafusion_common::ScalarValue;
+    use serde_json::json;
 
-    fn test_serde_roundtrip(scalar: ScalarValue) {
-        let serialized = serde_json::to_string(&scalar).unwrap();
-        let deserialized: ScalarValue = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(scalar, deserialized);
+    fn test_roundtrip(scalar: ScalarValue) {
+        let json = scalar_to_json(&scalar);
+        let roundtrip = json_to_scalar(&json).unwrap();
+        assert_eq!(scalar, roundtrip, "Failed roundtrip for {:?}", scalar);
     }
 
     #[test]
-    fn test_large_utf8() {
-        test_serde_roundtrip(ScalarValue::LargeUtf8(Some("hello".to_string())));
-        test_serde_roundtrip(ScalarValue::LargeUtf8(None));
+    fn test_null() {
+        test_roundtrip(ScalarValue::Null);
+    }
+
+    #[test]
+    fn test_boolean() {
+        test_roundtrip(ScalarValue::Boolean(Some(true)));
+        test_roundtrip(ScalarValue::Boolean(Some(false)));
+        test_roundtrip(ScalarValue::Boolean(None));
+    }
+
+    #[test]
+    fn test_float() {
+        test_roundtrip(ScalarValue::Float32(Some(3.14)));
+        test_roundtrip(ScalarValue::Float32(None));
+        test_roundtrip(ScalarValue::Float64(Some(3.14159265359)));
+        test_roundtrip(ScalarValue::Float64(None));
+    }
+
+    #[test]
+    fn test_int() {
+        test_roundtrip(ScalarValue::Int8(Some(42)));
+        test_roundtrip(ScalarValue::Int8(None));
+        test_roundtrip(ScalarValue::Int16(Some(-1000)));
+        test_roundtrip(ScalarValue::Int16(None));
+        test_roundtrip(ScalarValue::Int32(Some(1_000_000)));
+        test_roundtrip(ScalarValue::Int32(None));
+        test_roundtrip(ScalarValue::Int64(Some(-1_000_000_000)));
+        test_roundtrip(ScalarValue::Int64(None));
+    }
+
+    #[test]
+    fn test_uint() {
+        test_roundtrip(ScalarValue::UInt8(Some(255)));
+        test_roundtrip(ScalarValue::UInt8(None));
+        test_roundtrip(ScalarValue::UInt16(Some(65535)));
+        test_roundtrip(ScalarValue::UInt16(None));
+        test_roundtrip(ScalarValue::UInt32(Some(4_294_967_295)));
+        test_roundtrip(ScalarValue::UInt32(None));
+        test_roundtrip(ScalarValue::UInt64(Some(18_446_744_073_709_551_615)));
+        test_roundtrip(ScalarValue::UInt64(None));
+    }
+
+    #[test]
+    fn test_utf8() {
+        test_roundtrip(ScalarValue::Utf8(Some("Hello, World!".to_string())));
+        test_roundtrip(ScalarValue::Utf8(None));
+        test_roundtrip(ScalarValue::LargeUtf8(Some("大きな文字列".to_string())));
+        test_roundtrip(ScalarValue::LargeUtf8(None));
     }
 
     #[test]
     fn test_binary() {
-        test_serde_roundtrip(ScalarValue::Binary(Some(vec![1, 2, 3])));
-        test_serde_roundtrip(ScalarValue::Binary(None));
-    }
-
-    #[test]
-    fn test_large_binary() {
-        test_serde_roundtrip(ScalarValue::LargeBinary(Some(vec![1, 2, 3])));
-        test_serde_roundtrip(ScalarValue::LargeBinary(None));
-    }
-
-    #[test]
-    fn test_fixed_size_binary() {
-        test_serde_roundtrip(ScalarValue::FixedSizeBinary(3, Some(vec![1, 2, 3])));
-        test_serde_roundtrip(ScalarValue::FixedSizeBinary(3, None));
-    }
-
-    #[test]
-    fn test_list() {
-        let list = ListArray::from_iter_primitive::<Int32Type, _, _>(vec![Some(vec![
-            Some(1),
-            Some(2),
-            Some(3),
-        ])]);
-        test_serde_roundtrip(ScalarValue::List(Arc::new(list)));
-    }
-
-    #[test]
-    fn test_large_list() {
-        let list = LargeListArray::from_iter_primitive::<Int32Type, _, _>(vec![Some(vec![
-            Some(1),
-            Some(2),
-            Some(3),
-        ])]);
-        test_serde_roundtrip(ScalarValue::LargeList(Arc::new(list)));
+        test_roundtrip(ScalarValue::Binary(Some(vec![0, 1, 2, 3, 4])));
+        test_roundtrip(ScalarValue::Binary(None));
+        test_roundtrip(ScalarValue::LargeBinary(Some(vec![
+            255, 254, 253, 252, 251,
+        ])));
+        test_roundtrip(ScalarValue::LargeBinary(None));
+        test_roundtrip(ScalarValue::FixedSizeBinary(
+            5,
+            Some(vec![10, 20, 30, 40, 50]),
+        ));
+        test_roundtrip(ScalarValue::FixedSizeBinary(5, None));
     }
 
     // #[test]
-    // fn test_fixed_size_list() {
-    //     let list = FixedSizeListArray::from_iter_primitive::<Int32Type, _, _>(
-    //         vec![Some(vec![Some(1), Some(2), Some(3)])],
-    //         3,
-    //     );
-    //     test_serde_roundtrip(ScalarValue::FixedSizeList(Arc::new(list)));
+    // fn test_list() {
+    //     let inner = ScalarValue::Int32(Some(42));
+    //     let list = ScalarValue::List(Arc::new(inner.to_array().unwrap()));
+    //     test_roundtrip(list);
     // }
 
     #[test]
-    fn test_date32() {
-        test_serde_roundtrip(ScalarValue::Date32(Some(1000)));
-        test_serde_roundtrip(ScalarValue::Date32(None));
-    }
-
-    #[test]
-    fn test_date64() {
-        test_serde_roundtrip(ScalarValue::Date64(Some(86400000)));
-        test_serde_roundtrip(ScalarValue::Date64(None));
-    }
-
-    #[test]
-    fn test_time32_second() {
-        test_serde_roundtrip(ScalarValue::Time32Second(Some(3600)));
-        test_serde_roundtrip(ScalarValue::Time32Second(None));
-    }
-
-    #[test]
-    fn test_time32_millisecond() {
-        test_serde_roundtrip(ScalarValue::Time32Millisecond(Some(3600000)));
-        test_serde_roundtrip(ScalarValue::Time32Millisecond(None));
-    }
-
-    #[test]
-    fn test_time64_microsecond() {
-        test_serde_roundtrip(ScalarValue::Time64Microsecond(Some(3600000000)));
-        test_serde_roundtrip(ScalarValue::Time64Microsecond(None));
-    }
-
-    #[test]
-    fn test_time64_nanosecond() {
-        test_serde_roundtrip(ScalarValue::Time64Nanosecond(Some(3600000000000)));
-        test_serde_roundtrip(ScalarValue::Time64Nanosecond(None));
-    }
-
-    #[test]
     fn test_timestamp() {
-        test_serde_roundtrip(ScalarValue::TimestampSecond(
+        test_roundtrip(ScalarValue::TimestampSecond(
             Some(1625097600),
-            Some(Arc::from("UTC")),
+            Some("UTC".into()),
         ));
-        test_serde_roundtrip(ScalarValue::TimestampMillisecond(Some(1625097600000), None));
-        test_serde_roundtrip(ScalarValue::TimestampMicrosecond(
+        test_roundtrip(ScalarValue::TimestampMillisecond(Some(1625097600000), None));
+        test_roundtrip(ScalarValue::TimestampMicrosecond(
             Some(1625097600000000),
-            Some(Arc::from("UTC")),
+            Some("America/New_York".into()),
         ));
-        test_serde_roundtrip(ScalarValue::TimestampNanosecond(
+        test_roundtrip(ScalarValue::TimestampNanosecond(
             Some(1625097600000000000),
             None,
         ));
     }
-
-    #[test]
-    fn test_interval_year_month() {
-        test_serde_roundtrip(ScalarValue::IntervalYearMonth(Some(14)));
-        test_serde_roundtrip(ScalarValue::IntervalYearMonth(None));
-    }
-
-    #[test]
-    fn test_interval_day_time() {
-        test_serde_roundtrip(ScalarValue::IntervalDayTime(Some(IntervalDayTime::new(
-            5, 43200000,
-        ))));
-        test_serde_roundtrip(ScalarValue::IntervalDayTime(None));
-    }
-
-    #[test]
-    fn test_interval_month_day_nano() {
-        test_serde_roundtrip(ScalarValue::IntervalMonthDayNano(Some(
-            IntervalMonthDayNano::new(1, 15, 1000000000),
-        )));
-        test_serde_roundtrip(ScalarValue::IntervalMonthDayNano(None));
-    }
-
-    #[test]
-    fn test_duration() {
-        test_serde_roundtrip(ScalarValue::DurationSecond(Some(3600)));
-        test_serde_roundtrip(ScalarValue::DurationMillisecond(Some(3600000)));
-        test_serde_roundtrip(ScalarValue::DurationMicrosecond(Some(3600000000)));
-        test_serde_roundtrip(ScalarValue::DurationNanosecond(Some(3600000000000)));
-    }
-
-    // #[test]
-    // fn test_union() {
-    //     let fields = vec![
-    //         (0, Arc::new(Field::new("f1", DataType::Int32, true))),
-    //         (1, Arc::new(Field::new("f2", DataType::Utf8, true))),
-    //     ];
-    //     test_serde_roundtrip(ScalarValue::Union(
-    //         Some((0, Box::new(ScalarValue::Int32(Some(42))))),
-    //         fields.clone(),
-    //         UnionMode::Sparse,
-    //     ));
-    //     test_serde_roundtrip(ScalarValue::Union(None, fields, UnionMode::Dense));
-    // }
-
-    #[test]
-    fn test_dictionary() {
-        test_serde_roundtrip(ScalarValue::Dictionary(
-            Box::new(DataType::Int8),
-            Box::new(ScalarValue::Utf8(Some("hello".to_string()))),
-        ));
-    }
-
-    #[test]
-    fn test_utf8_view() {
-        test_serde_roundtrip(ScalarValue::Utf8View(Some("hello".to_string())));
-        test_serde_roundtrip(ScalarValue::Utf8View(None));
-    }
-
-    #[test]
-    fn test_binary_view() {
-        test_serde_roundtrip(ScalarValue::BinaryView(Some(vec![1, 2, 3])));
-        test_serde_roundtrip(ScalarValue::BinaryView(None));
-    }
-
-    /* #[test]
-    fn test_struct() {
-        let fields = vec![
-            Field::new("f1", DataType::Int32, true),
-            Field::new("f2", DataType::Utf8, true),
-        ];
-        let values = vec![
-            Some(ScalarValue::Int32(Some(42))),
-            Some(ScalarValue::Utf8(Some("hello".to_string()))),
-        ];
-        let struct_array = StructArray::from(values);
-        test_serde_roundtrip(ScalarValue::Struct(Arc::new(struct_array)));
-    } */
 }

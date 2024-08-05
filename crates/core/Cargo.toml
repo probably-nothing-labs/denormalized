@@ -32,3 +32,4 @@ itertools = { workspace = true }
 serde.workspace = true
 rocksdb = "0.22.0"
 bincode = "1.3.3"
+half = "2.4.1"
