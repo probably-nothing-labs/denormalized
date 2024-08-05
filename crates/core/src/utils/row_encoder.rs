@@ -33,10 +33,7 @@ impl RowEncoder for JsonRowEncoder {
             return Ok(vec![]);
         }
 
-        // BufWriter uses a buffer size of 8KB
-        // We therefore double this and flush once we have more than 8KB
         let mut buffer = Vec::with_capacity(batch.num_rows());
-
         for i in 0..batch.num_rows() {
             let row = batch.slice(i, 1);
             buffer.push(self.batch_to_json(&row)?);
