@@ -1,13 +1,51 @@
 use std::sync::Arc;
 
+use arrow_array::ListArray;
 use datafusion_common::ScalarValue;
 
-use arrow::array::*;
 use arrow::datatypes::*;
 use half::f16;
 use serde_json::{json, Value};
 
 use arrow::datatypes::{DataType, Field, IntervalUnit, TimeUnit};
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerializableScalarValue(#[serde(with = "scalar_value_serde")] ScalarValue);
+
+impl From<ScalarValue> for SerializableScalarValue {
+    fn from(value: ScalarValue) -> Self {
+        SerializableScalarValue(value)
+    }
+}
+
+impl From<SerializableScalarValue> for ScalarValue {
+    fn from(value: SerializableScalarValue) -> Self {
+        value.0
+    }
+}
+
+mod scalar_value_serde {
+    use super::*;
+    use serde::{de::Error, Deserializer, Serializer};
+
+    pub fn serialize<S>(value: &ScalarValue, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let json = scalar_to_json(value);
+        json.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ScalarValue, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let json = serde_json::Value::deserialize(deserializer)?;
+        json_to_scalar(&json).map_err(D::Error::custom)
+    }
+}
 
 pub fn string_to_data_type(s: &str) -> Result<DataType, Box<dyn std::error::Error>> {
     match s {
@@ -336,18 +374,59 @@ pub fn json_to_scalar(json: &Value) -> Result<ScalarValue, Box<dyn std::error::E
                 .map(|s| base64::decode(s).unwrap());
             Ok(ScalarValue::FixedSizeBinary(size, value))
         }
-        // "List" => {
-        //     let value = obj.get("value").ok_or("Missing 'value' for List")?;
-        //     let field_type = obj
-        //         .get("field_type")
-        //         .map(|ft| ft.as_str())
-        //         .ok_or("Missing 'field_type' for List")?;
-        //     let data_type = string_to_data_type(field_type.unwrap())?;
-        //     let element: ScalarValue = json_to_scalar(value)?;
-        //     let array = element.to_array_of_size(1).unwrap();
-        //     ListArray::from_iter_primitive::<data_type, _, _>(array);
-        //     Ok(ScalarValue::List(Arc::new()))
-        // }
+        "List" => {
+            let value = obj.get("value").ok_or("Missing 'value' for List")?;
+            let field_type = obj
+                .get("field_type")
+                .map(|ft| ft.as_str())
+                .ok_or("Missing 'field_type' for List")?;
+            let data_type: DataType = string_to_data_type(field_type.unwrap())?;
+            let element: ScalarValue = json_to_scalar(value)?;
+            let array = element.to_array_of_size(1).unwrap();
+            let list_array = match data_type {
+                DataType::Boolean => ListArray::from_iter_primitive::<BooleanType, _, _>(array),
+                DataType::Int8 => todo!(),
+                DataType::Int16 => todo!(),
+                DataType::Int32 => todo!(),
+                DataType::Int64 => todo!(),
+                DataType::UInt8 => todo!(),
+                DataType::UInt16 => todo!(),
+                DataType::UInt32 => todo!(),
+                DataType::UInt64 => todo!(),
+                DataType::Float16 => todo!(),
+                DataType::Float32 => todo!(),
+                DataType::Float64 => todo!(),
+                DataType::Timestamp(_, _) => todo!(),
+                DataType::Date32 => todo!(),
+                DataType::Date64 => todo!(),
+                DataType::Time32(_) => todo!(),
+                DataType::Time64(_) => todo!(),
+                DataType::Duration(_) => todo!(),
+                DataType::Interval(_) => todo!(),
+                DataType::Binary => todo!(),
+                DataType::FixedSizeBinary(_) => todo!(),
+                DataType::LargeBinary => todo!(),
+                DataType::BinaryView => todo!(),
+                DataType::Utf8 => todo!(),
+                DataType::LargeUtf8 => todo!(),
+                DataType::Utf8View => todo!(),
+                DataType::List(_) => todo!(),
+                DataType::ListView(_) => todo!(),
+                DataType::FixedSizeList(_, _) => todo!(),
+                DataType::LargeList(_) => todo!(),
+                DataType::LargeListView(_) => todo!(),
+                DataType::Struct(_) => todo!(),
+                DataType::Union(_, _) => todo!(),
+                DataType::Dictionary(_, _) => todo!(),
+                DataType::Decimal128(_, _) => todo!(),
+                DataType::Decimal256(_, _) => todo!(),
+                DataType::Map(_, _) => todo!(),
+                DataType::RunEndEncoded(_, _) => todo!(),
+                _ => Err("DataType {} not supported.", data_type),
+            };
+            let list_array = ListArray::from_iter_primitive::<data_type, _, _>(array);
+            Ok(ScalarValue::List(Arc::new()))
+        }
         "Date32" => Ok(ScalarValue::Date32(
             obj.get("value").and_then(Value::as_i64).map(|i| i as i32),
         )),
@@ -472,7 +551,6 @@ pub fn json_to_scalar(json: &Value) -> Result<ScalarValue, Box<dyn std::error::E
 mod tests {
     use super::*;
     use datafusion_common::ScalarValue;
-    use serde_json::json;
 
     fn test_roundtrip(scalar: ScalarValue) {
         let json = scalar_to_json(&scalar);
@@ -569,5 +647,22 @@ mod tests {
             Some(1625097600000000000),
             None,
         ));
+    }
+
+    #[test]
+    fn test_serializable_scalar_value() {
+        let original = ScalarValue::Int32(Some(42));
+        let serializable = SerializableScalarValue::from(original.clone());
+
+        // Serialize
+        let serialized = serde_json::to_string(&serializable).unwrap();
+
+        // Deserialize
+        let deserialized: SerializableScalarValue = serde_json::from_str(&serialized).unwrap();
+
+        // Convert back to ScalarValue
+        let result: ScalarValue = deserialized.into();
+
+        assert_eq!(original, result);
     }
 }
