@@ -9,17 +9,32 @@ It currently supports sourcing and sinking to kafka, windowed aggregations, and 
 
 This repo is still a *work-in-progress* and we are actively seeking design partners. If you have have a specific use-case you'd like to discuss please drop us a line via a github issue or email hello@denormalized.io.
 
-## Building Denormalized
+## Quickstart
 
-Simply run `cargo build`
+### Prerequisites
+- Docker
+- Rust/Cargo installed
 
-## Running Examples
+### Running an example
+1. Start kafka in docker `docker run -p 9092:9092 --name kafka apache/kafka`
+2. Start emitting some sample data: `cargo run --example emit_measurements`
+3. Run a [simple streaming aggregation](./examples/examples/simple_aggregation.rs) on the data using denormalized: `cargo run --example emit_measurements`
 
-See our [benchmarking repo](https://github.com/probably-nothing-labs/benchmarking) for local Kafka setup and data generation.
+## More examples
 
-With the data generation in place, run -
+A more powerful example can be seen in our [kafka ridesharing example](./docs/kafka_rideshare_example.md)
 
-`cargo run --example kafka_rideshare`
+## Roadmap
+- [x] Stream aggregation
+- [x] Stream joins
+- [ ] Checkpointing / restoration
+- [ ] Session windows
+- [ ] Stateful UDF API
+- [ ] DuckDB support
+- [ ] Reading/writing from Postgres
+- [ ] Python bindings
+- [ ] Typescript bindings
+- [ ] UI
 
 ## Credits
 
