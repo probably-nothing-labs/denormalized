@@ -1,9 +1,14 @@
 use std::sync::Arc;
 
-use arrow_array::ListArray;
+use arrow_array::{BooleanArray, GenericListArray, ListArray};
 use datafusion_common::ScalarValue;
 
-use arrow::datatypes::*;
+use arrow::{
+    array::{BooleanBuilder, GenericListBuilder, ListBuilder},
+    buffer::{OffsetBuffer, ScalarBuffer},
+    datatypes::*,
+};
+use arrow_array::types::Int32Type;
 use half::f16;
 use serde_json::{json, Value};
 
@@ -380,52 +385,13 @@ pub fn json_to_scalar(json: &Value) -> Result<ScalarValue, Box<dyn std::error::E
                 .get("field_type")
                 .map(|ft| ft.as_str())
                 .ok_or("Missing 'field_type' for List")?;
-            let data_type: DataType = string_to_data_type(field_type.unwrap())?;
+            let dt: DataType = string_to_data_type(field_type.unwrap())?;
             let element: ScalarValue = json_to_scalar(value)?;
             let array = element.to_array_of_size(1).unwrap();
-            let list_array = match data_type {
-                DataType::Boolean => ListArray::from_iter_primitive::<BooleanType, _, _>(array),
-                DataType::Int8 => todo!(),
-                DataType::Int16 => todo!(),
-                DataType::Int32 => todo!(),
-                DataType::Int64 => todo!(),
-                DataType::UInt8 => todo!(),
-                DataType::UInt16 => todo!(),
-                DataType::UInt32 => todo!(),
-                DataType::UInt64 => todo!(),
-                DataType::Float16 => todo!(),
-                DataType::Float32 => todo!(),
-                DataType::Float64 => todo!(),
-                DataType::Timestamp(_, _) => todo!(),
-                DataType::Date32 => todo!(),
-                DataType::Date64 => todo!(),
-                DataType::Time32(_) => todo!(),
-                DataType::Time64(_) => todo!(),
-                DataType::Duration(_) => todo!(),
-                DataType::Interval(_) => todo!(),
-                DataType::Binary => todo!(),
-                DataType::FixedSizeBinary(_) => todo!(),
-                DataType::LargeBinary => todo!(),
-                DataType::BinaryView => todo!(),
-                DataType::Utf8 => todo!(),
-                DataType::LargeUtf8 => todo!(),
-                DataType::Utf8View => todo!(),
-                DataType::List(_) => todo!(),
-                DataType::ListView(_) => todo!(),
-                DataType::FixedSizeList(_, _) => todo!(),
-                DataType::LargeList(_) => todo!(),
-                DataType::LargeListView(_) => todo!(),
-                DataType::Struct(_) => todo!(),
-                DataType::Union(_, _) => todo!(),
-                DataType::Dictionary(_, _) => todo!(),
-                DataType::Decimal128(_, _) => todo!(),
-                DataType::Decimal256(_, _) => todo!(),
-                DataType::Map(_, _) => todo!(),
-                DataType::RunEndEncoded(_, _) => todo!(),
-                _ => Err("DataType {} not supported.", data_type),
-            };
-            let list_array = ListArray::from_iter_primitive::<data_type, _, _>(array);
-            Ok(ScalarValue::List(Arc::new()))
+            let offsets = OffsetBuffer::new(ScalarBuffer::from(vec![0]));
+            let field = Field::new("item", dt, true);
+            let list = GenericListArray::try_new(Arc::new(field), offsets, array, None)?;
+            Ok(ScalarValue::List(Arc::new(list)))
         }
         "Date32" => Ok(ScalarValue::Date32(
             obj.get("value").and_then(Value::as_i64).map(|i| i as i32),

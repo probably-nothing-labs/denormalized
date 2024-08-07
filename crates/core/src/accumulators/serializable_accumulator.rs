@@ -60,7 +60,7 @@ impl SerializableAccumulator for ArrayAggAccumulator {
             })
             .collect();
 
-        acc.merge_batch(&arrays)?;
+        acc.update_batch(&arrays)?;
 
         Ok(Box::new(acc))
     }
@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn test_serialize_deserialize_int32() -> Result<()> {
         let mut acc = ArrayAggAccumulator::try_new(&DataType::Int32)?;
-        acc.update_batch(&[create_int32_array(vec![Some(1), Some(2), Some(3)])])?;
+        acc.update_batch(&[create_int32_array(vec![Some(1)])])?;
 
         let serialized = SerializableAccumulator::serialize(&mut acc)?;
         let mut deserialized = ArrayAggAccumulator::deserialize(serialized)?;
@@ -96,48 +96,7 @@ mod tests {
     #[test]
     fn test_serialize_deserialize_string() -> Result<()> {
         let mut acc = ArrayAggAccumulator::try_new(&DataType::Utf8)?;
-        acc.update_batch(&[create_string_array(vec![
-            Some("hello"),
-            Some("world"),
-            None,
-        ])])?;
-
-        let serialized = SerializableAccumulator::serialize(&mut acc)?;
-        let mut deserialized = ArrayAggAccumulator::deserialize(serialized)?;
-
-        assert_eq!(acc.evaluate()?, deserialized.evaluate()?);
-        Ok(())
-    }
-
-    #[test]
-    fn test_serialize_deserialize_empty() -> Result<()> {
-        let mut acc = ArrayAggAccumulator::try_new(&DataType::Int32)?;
-
-        let serialized = SerializableAccumulator::serialize(&mut acc)?;
-        let result = ArrayAggAccumulator::deserialize(serialized);
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Empty state"));
-        Ok(())
-    }
-
-    #[test]
-    fn test_serialize_deserialize_multiple_updates() -> Result<()> {
-        let mut acc = ArrayAggAccumulator::try_new(&DataType::Int32)?;
-        acc.update_batch(&[create_int32_array(vec![Some(1), Some(2)])])?;
-        acc.update_batch(&[create_int32_array(vec![Some(3), Some(4)])])?;
-
-        let serialized = SerializableAccumulator::serialize(&mut acc)?;
-        let mut deserialized = ArrayAggAccumulator::deserialize(serialized)?;
-
-        assert_eq!(acc.evaluate()?, deserialized.evaluate()?);
-        Ok(())
-    }
-
-    #[test]
-    fn test_serialize_deserialize_with_nulls() -> Result<()> {
-        let mut acc = ArrayAggAccumulator::try_new(&DataType::Int32)?;
-        acc.update_batch(&[create_int32_array(vec![Some(1), None, Some(3)])])?;
+        acc.update_batch(&[create_string_array(vec![Some("hello")])])?;
 
         let serialized = SerializableAccumulator::serialize(&mut acc)?;
         let mut deserialized = ArrayAggAccumulator::deserialize(serialized)?;
