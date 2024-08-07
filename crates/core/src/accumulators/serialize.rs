@@ -537,9 +537,9 @@ mod tests {
 
     #[test]
     fn test_float() {
-        test_roundtrip(ScalarValue::Float32(Some(3.14)));
+        test_roundtrip(ScalarValue::Float32(Some(3.24)));
         test_roundtrip(ScalarValue::Float32(None));
-        test_roundtrip(ScalarValue::Float64(Some(3.14159265359)));
+        test_roundtrip(ScalarValue::Float64(Some(3.24159265359)));
         test_roundtrip(ScalarValue::Float64(None));
     }
 
