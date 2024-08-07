@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
-use arrow_array::{BooleanArray, GenericListArray, ListArray};
+use arrow_array::GenericListArray;
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use datafusion_common::ScalarValue;
 
 use arrow::{
-    array::{BooleanBuilder, GenericListBuilder, ListBuilder},
     buffer::{OffsetBuffer, ScalarBuffer},
     datatypes::*,
 };
-use arrow_array::types::Int32Type;
 use half::f16;
 use serde_json::{json, Value};
 
@@ -209,16 +208,16 @@ pub fn scalar_to_json(value: &ScalarValue) -> serde_json::Value {
         ScalarValue::LargeUtf8(v) => json!({"type": "LargeUtf8", "value": v}),
         ScalarValue::Binary(v) => json!({
             "type": "Binary",
-            "value": v.as_ref().map(|b| base64::encode(b))
+            "value": v.as_ref().map(|b| STANDARD.encode(b))
         }),
         ScalarValue::LargeBinary(v) => json!({
             "type": "LargeBinary",
-            "value": v.as_ref().map(|b| base64::encode(b))
+            "value": v.as_ref().map(|b| STANDARD.encode(b))
         }),
         ScalarValue::FixedSizeBinary(size, v) => json!({
             "type": "FixedSizeBinary",
             "size": size,
-            "value": v.as_ref().map(|b| base64::encode(b))
+            "value": v.as_ref().map(|b| STANDARD.encode(b))
         }),
         ScalarValue::List(v) => {
             let sv = ScalarValue::try_from_array(&v.value(0), 0).unwrap();
@@ -364,19 +363,19 @@ pub fn json_to_scalar(json: &Value) -> Result<ScalarValue, Box<dyn std::error::E
         "Binary" => Ok(ScalarValue::Binary(
             obj.get("value")
                 .and_then(Value::as_str)
-                .map(|s| base64::decode(s).unwrap()),
+                .map(|s| STANDARD.decode(s).unwrap()),
         )),
         "LargeBinary" => Ok(ScalarValue::LargeBinary(
             obj.get("value")
                 .and_then(Value::as_str)
-                .map(|s| base64::decode(s).unwrap()),
+                .map(|s| STANDARD.decode(s).unwrap()),
         )),
         "FixedSizeBinary" => {
             let size = obj.get("size").and_then(Value::as_u64).unwrap() as i32;
             let value = obj
                 .get("value")
                 .and_then(Value::as_str)
-                .map(|s| base64::decode(s).unwrap());
+                .map(|s| STANDARD.decode(s).unwrap());
             Ok(ScalarValue::FixedSizeBinary(size, value))
         }
         "List" => {

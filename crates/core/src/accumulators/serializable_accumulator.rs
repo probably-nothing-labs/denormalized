@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 
 use super::serialize::SerializableScalarValue;
 
+#[allow(dead_code)]
 pub trait SerializableAccumulator {
     fn serialize(&mut self) -> Result<String>;
-    fn deserialize(bytes: String) -> Result<Box<dyn Accumulator>>;
+    fn deserialize(self, bytes: String) -> Result<Box<dyn Accumulator>>;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -28,7 +29,7 @@ impl SerializableAccumulator for ArrayAggAccumulator {
         Ok(serde_json::to_string(&serializable_state).unwrap())
     }
 
-    fn deserialize(bytes: String) -> Result<Box<dyn Accumulator>> {
+    fn deserialize(self, bytes: String) -> Result<Box<dyn Accumulator>> {
         let serializable_state: SerializableArrayAggState =
             serde_json::from_str(bytes.as_str()).unwrap();
         let state: Vec<ScalarValue> = serializable_state
@@ -87,7 +88,9 @@ mod tests {
         acc.update_batch(&[create_int32_array(vec![Some(1)])])?;
 
         let serialized = SerializableAccumulator::serialize(&mut acc)?;
-        let mut deserialized = ArrayAggAccumulator::deserialize(serialized)?;
+        let acc2 = ArrayAggAccumulator::try_new(&DataType::Int32)?;
+
+        let mut deserialized = ArrayAggAccumulator::deserialize(acc2, serialized)?;
 
         assert_eq!(acc.evaluate()?, deserialized.evaluate()?);
         Ok(())
@@ -99,7 +102,9 @@ mod tests {
         acc.update_batch(&[create_string_array(vec![Some("hello")])])?;
 
         let serialized = SerializableAccumulator::serialize(&mut acc)?;
-        let mut deserialized = ArrayAggAccumulator::deserialize(serialized)?;
+        let acc2 = ArrayAggAccumulator::try_new(&DataType::Utf8)?;
+
+        let mut deserialized = ArrayAggAccumulator::deserialize(acc2, serialized)?;
 
         assert_eq!(acc.evaluate()?, deserialized.evaluate()?);
         Ok(())
