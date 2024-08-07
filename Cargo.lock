@@ -1086,6 +1086,7 @@ dependencies = [
  "datafusion-physical-optimizer",
  "datafusion-physical-plan",
  "futures",
+ "half",
  "itertools 0.13.0",
  "log",
  "rdkafka",
