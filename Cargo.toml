@@ -8,10 +8,10 @@ authors = [
   "Amey Chaugule <amey@denormalized.io>",
 ]
 edition = "2021"
-homepage = "https://github.com/probably-nothing-labs/df-streams"
+homepage = "https://github.com/probably-nothing-labs/denormalized"
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/probably-nothing-labs/df-streams"
+repository = "https://github.com/probably-nothing-labs/denormalized"
 version = "0.1.0"
 description = "Embeddable stream processing engine"
 
@@ -50,7 +50,7 @@ futures = "0.3"
 tracing = "0.1.40"
 tracing-log = "0.2.0"
 tracing-subscriber = "0.3.18"
-tokio = { version = "1.36", features = ["macros", "rt", "sync"] }
+tokio = { version = "1.36", features = ["macros", "rt", "sync", "rt-multi-thread"] }
 async-trait = "0.1.81"
 rdkafka = "0.36.2"
 log = "^0.4"
