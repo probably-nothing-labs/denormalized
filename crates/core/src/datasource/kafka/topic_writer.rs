@@ -7,15 +7,15 @@ use std::{any::Any, sync::Arc};
 use arrow_schema::SchemaRef;
 
 use datafusion::catalog::Session;
+use datafusion::common::{not_impl_err, Result};
 use datafusion::datasource::TableProvider;
+use datafusion::execution::TaskContext;
+use datafusion::logical_expr::{Expr, TableType};
 use datafusion::physical_plan::{
     insert::{DataSink, DataSinkExec},
-    DisplayAs, DisplayFormatType, SendableRecordBatchStream,
+    metrics::MetricsSet,
+    DisplayAs, DisplayFormatType, ExecutionPlan, SendableRecordBatchStream,
 };
-use datafusion_common::{not_impl_err, Result};
-use datafusion_execution::TaskContext;
-use datafusion_expr::{Expr, TableType};
-use datafusion_physical_plan::{metrics::MetricsSet, ExecutionPlan};
 
 use rdkafka::producer::FutureProducer;
 use rdkafka::producer::FutureRecord;

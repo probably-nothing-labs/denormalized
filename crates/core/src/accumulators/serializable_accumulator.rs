@@ -1,7 +1,7 @@
 use arrow::array::{Array, ArrayRef};
+use datafusion::common::{Result, ScalarValue};
 use datafusion::functions_aggregate::array_agg::ArrayAggAccumulator;
-use datafusion_common::{Result, ScalarValue};
-use datafusion_expr::Accumulator;
+use datafusion::logical_expr::Accumulator;
 use serde::{Deserialize, Serialize};
 
 use super::serialize::SerializableScalarValue;
@@ -42,7 +42,7 @@ impl SerializableAccumulator for ArrayAggAccumulator {
         let datatype = if let Some(ScalarValue::List(list)) = state.first() {
             list.data_type().clone()
         } else {
-            return Err(datafusion_common::DataFusionError::Internal(
+            return Err(datafusion::common::DataFusionError::Internal(
                 "Invalid state for ArrayAggAccumulator".to_string(),
             ));
         };

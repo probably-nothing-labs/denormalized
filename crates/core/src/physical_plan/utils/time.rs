@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use arrow::{
     compute::{max, min},
@@ -9,8 +9,7 @@ use arrow_array::{
     TimestampMillisecondArray,
 };
 use chrono::NaiveDateTime;
-use datafusion_common::DataFusionError;
-use std::time::Duration;
+use datafusion::common::DataFusionError;
 
 #[derive(Debug, Clone)]
 pub enum TimestampUnit {

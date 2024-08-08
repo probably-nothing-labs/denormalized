@@ -19,27 +19,24 @@ use arrow_array::{
 use arrow_ord::cmp;
 use arrow_schema::{DataType, Field, Schema, SchemaBuilder, SchemaRef, TimeUnit};
 
-use datafusion_common::{
+use datafusion::common::{
     downcast_value, internal_err, stats::Precision, DataFusionError, Statistics,
 };
-use datafusion_execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
-use datafusion_physical_expr::{
+use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
+use datafusion::physical_expr::{
     equivalence::{collapse_lex_req, ProjectionMapping},
     expressions::UnKnownColumn,
     AggregateExpr, Partitioning, PhysicalExpr, PhysicalSortRequirement,
 };
-use datafusion_physical_plan::windows::get_ordered_partition_by_indices;
-use datafusion_physical_plan::{
+use datafusion::physical_plan::{
     aggregates::{
         aggregate_expressions, finalize_aggregation, get_finer_aggregate_exprs_requirement,
         AggregateMode, PhysicalGroupBy,
     },
-    InputOrderMode,
-};
-use datafusion_physical_plan::{
     metrics::{BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet},
+    windows::get_ordered_partition_by_indices,
     DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, ExecutionPlanProperties,
-    PlanProperties,
+    InputOrderMode, PlanProperties,
 };
 use futures::{Stream, StreamExt};
 use tracing::debug;
@@ -79,7 +76,7 @@ impl DisplayAs for FranzWindowFrame {
     }
 }
 
-use datafusion_common::Result;
+use datafusion::common::Result;
 
 impl FranzWindowFrame {
     pub fn new(
@@ -473,7 +470,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
     fn repartitioned(
         &self,
         _target_partitions: usize,
-        _config: &datafusion_common::config::ConfigOptions,
+        _config: &datafusion::common::config::ConfigOptions,
     ) -> Result<Option<Arc<dyn ExecutionPlan>>> {
         Ok(None)
     }

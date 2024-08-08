@@ -1,12 +1,12 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::TableProvider;
 use datafusion::execution::{
     config::SessionConfig, context::SessionContext, runtime_env::RuntimeEnv,
     session_state::SessionStateBuilder,
 };
-use datafusion_common::{DataFusionError, Result};
 
 use crate::datasource::kafka::TopicReader;
 use crate::datastream::DataStream;
@@ -23,7 +23,7 @@ impl Context {
     pub fn new() -> Result<Self, DataFusionError> {
         let config = SessionConfig::new().set(
             "datafusion.execution.batch_size",
-            datafusion_common::ScalarValue::UInt64(Some(32)),
+            datafusion::common::ScalarValue::UInt64(Some(32)),
         );
         let runtime = Arc::new(RuntimeEnv::default());
 

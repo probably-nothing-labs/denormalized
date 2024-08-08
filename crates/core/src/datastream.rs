@@ -1,12 +1,11 @@
 use futures::StreamExt;
 use std::{sync::Arc, time::Duration};
 
+use datafusion::common::{DataFusionError, Result};
 pub use datafusion::dataframe::DataFrame;
 use datafusion::dataframe::DataFrameWriteOptions;
-use datafusion_common::{DataFusionError, Result};
-use datafusion_execution::SendableRecordBatchStream;
-use datafusion_expr::logical_plan::LogicalPlanBuilder;
-use datafusion_expr::Expr;
+use datafusion::execution::SendableRecordBatchStream;
+use datafusion::logical_expr::{logical_plan::LogicalPlanBuilder, Expr};
 
 use crate::context::Context;
 use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
@@ -15,7 +14,7 @@ use crate::physical_plan::utils::time::TimestampUnit;
 
 #[derive(Clone)]
 pub struct DataStream {
-    pub(crate) df: Arc<DataFrame>,
+    pub df: Arc<DataFrame>,
     pub(crate) context: Arc<Context>,
 }
 

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use arrow_array::GenericListArray;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use datafusion_common::ScalarValue;
+use datafusion::common::ScalarValue;
 
 use arrow::{
     buffer::{OffsetBuffer, ScalarBuffer},
@@ -515,7 +515,7 @@ pub fn json_to_scalar(json: &Value) -> Result<ScalarValue, Box<dyn std::error::E
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datafusion_common::ScalarValue;
+    use datafusion::common::ScalarValue;
 
     fn test_roundtrip(scalar: ScalarValue) {
         let json = scalar_to_json(&scalar);

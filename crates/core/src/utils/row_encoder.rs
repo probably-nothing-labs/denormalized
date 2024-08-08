@@ -1,6 +1,6 @@
 use arrow::json::writer::{JsonFormat, Writer};
 use datafusion::arrow::record_batch::RecordBatch;
-use datafusion_common::Result;
+use datafusion::common::Result;
 
 pub trait RowEncoder {
     fn encode(&self, batch: &RecordBatch) -> Result<Vec<Vec<u8>>>;

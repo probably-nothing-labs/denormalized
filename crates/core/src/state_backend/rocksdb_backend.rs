@@ -1,11 +1,13 @@
-use std::{env, sync::OnceLock};
+use std::{
+    env,
+    sync::{Arc, OnceLock},
+};
 
-use datafusion_common::DataFusionError;
+use datafusion::common::DataFusionError;
 use log::debug;
 use rocksdb::{
     BoundColumnFamily, ColumnFamilyDescriptor, DBWithThreadMode, MultiThreaded, Options, DB,
 };
-use std::sync::Arc;
 
 pub struct RocksDBBackend {
     db: DBWithThreadMode<MultiThreaded>,

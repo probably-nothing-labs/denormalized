@@ -3,11 +3,11 @@ use std::{any::Any, sync::Arc};
 
 use arrow_schema::{Schema, SchemaRef, SortOptions};
 use datafusion::catalog::Session;
+use datafusion::common::{not_impl_err, plan_err, Result};
 use datafusion::datasource::TableProvider;
-use datafusion_common::{not_impl_err, plan_err, Result};
-use datafusion_expr::{Expr, TableType};
-use datafusion_physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
-use datafusion_physical_plan::{streaming::StreamingTableExec, ExecutionPlan};
+use datafusion::logical_expr::{Expr, TableType};
+use datafusion::physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
+use datafusion::physical_plan::{streaming::StreamingTableExec, ExecutionPlan};
 
 use super::{KafkaReadConfig, KafkaStreamRead};
 

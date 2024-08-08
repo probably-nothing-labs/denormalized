@@ -2,8 +2,8 @@ use datafusion::common::test_util::datafusion_test_data;
 use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion::datasource::MemTable;
 use datafusion::error::Result;
+use datafusion::logical_expr::{col, max, min};
 use datafusion::prelude::*;
-use datafusion_expr::{col, max, min};
 
 /// This example demonstrates executing a simple query against an Arrow data source (CSV) and
 /// fetching results with streaming aggregation and streaming window

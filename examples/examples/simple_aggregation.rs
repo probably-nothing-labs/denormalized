@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use datafusion::error::Result;
 use datafusion::functions_aggregate::average::avg;
-use datafusion_expr::{col, max, min};
+use datafusion::logical_expr::{col, max, min};
 
 use df_streams_core::context::Context;
 use df_streams_core::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
