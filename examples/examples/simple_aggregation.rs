@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use datafusion::error::Result;
 use datafusion::functions_aggregate::average::avg;
+use datafusion::logical_expr::lit;
 use datafusion::logical_expr::{col, max, min};
 
 use df_streams_core::context::Context;
@@ -29,16 +30,22 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
-    let ds = ctx.from_topic(source_topic).await?.streaming_window(
-        vec![],
-        vec![
-            min(col("temperature")).alias("min"),
-            max(col("temperature")).alias("max"),
-            avg(col("temperature")).alias("average"),
-        ],
-        Duration::from_millis(1_000), // 5 second window
-        None,
-    )?;
+    let ds = ctx
+        .from_topic(source_topic)
+        .await?
+        .streaming_window(
+            vec![],
+            vec![
+                min(col("temperature")).alias("min"),
+                max(col("temperature")).alias("max"),
+                avg(col("temperature")).alias("average"),
+            ],
+            Duration::from_millis(1_000), // 5 second window
+            None,
+        )?
+        .filter(col("max").gt(lit(114)))?;
+
+    println!("{}", ds.df.logical_plan().display_indent());
 
     ds.clone().print_stream().await?;
 
