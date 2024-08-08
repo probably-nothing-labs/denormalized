@@ -2,9 +2,9 @@
 #![allow(unused_variables)]
 
 use datafusion::error::Result;
-use datafusion_expr::{col, max, min};
-use datafusion_functions::core::expr_ext::FieldAccessor;
-use datafusion_functions_aggregate::count::count;
+use datafusion::logical_expr::{col, max, min};
+use datafusion::functions::core::expr_ext::FieldAccessor;
+use datafusion::functions_aggregate::count::count;
 
 use df_streams_core::context::Context;
 use df_streams_core::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};

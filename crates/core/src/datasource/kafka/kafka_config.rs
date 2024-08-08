@@ -4,8 +4,8 @@ use std::{sync::Arc, time::Duration};
 
 use arrow_schema::{DataType, Field, Fields, Schema, SchemaRef, TimeUnit};
 
-use datafusion_common::{plan_err, DataFusionError, Result};
-use datafusion_expr::Expr;
+use datafusion::common::{plan_err, DataFusionError, Result};
+use datafusion::logical_expr::Expr;
 
 use crate::physical_plan::utils::time::TimestampUnit;
 use crate::utils::arrow_helpers::infer_arrow_schema_from_json_value;

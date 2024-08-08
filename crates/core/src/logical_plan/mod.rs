@@ -1,13 +1,13 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use datafusion_common::Result;
+use datafusion::common::Result;
 
-use datafusion_expr::builder::add_group_by_exprs_from_dependencies;
-use datafusion_expr::expr_rewriter::normalize_cols;
-use datafusion_expr::logical_plan::{Extension, LogicalPlan};
-use datafusion_expr::LogicalPlanBuilder;
-use datafusion_expr::{Aggregate, Expr};
+use datafusion::logical_expr::builder::add_group_by_exprs_from_dependencies;
+use datafusion::logical_expr::expr_rewriter::normalize_cols;
+use datafusion::logical_expr::logical_plan::{Extension, LogicalPlan};
+use datafusion::logical_expr::LogicalPlanBuilder;
+use datafusion::logical_expr::{Aggregate, Expr};
 
 pub mod streaming_window;
 use streaming_window::{StreamingWindowPlanNode, StreamingWindowSchema, StreamingWindowType};

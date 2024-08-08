@@ -3,8 +3,8 @@
 // use serde::{Deserialize, Deserializer, Serialize, Serializer};
 // use std::sync::Arc;
 
-// use datafusion_common::scalar::ScalarStructBuilder;
-// use datafusion_common::ScalarValue;
+// use datafusion::common::scalar::ScalarStructBuilder;
+// use datafusion::common::ScalarValue;
 
 // use arrow::array::*;
 // use arrow::datatypes::*;

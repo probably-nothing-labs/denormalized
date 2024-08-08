@@ -1,6 +1,6 @@
 use std::result;
 
-use datafusion_common::DataFusionError;
+use datafusion::common::DataFusionError;
 
 pub mod accumulators;
 pub mod time;

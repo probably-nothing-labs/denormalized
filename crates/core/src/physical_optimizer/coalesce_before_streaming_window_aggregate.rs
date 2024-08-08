@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use datafusion_physical_expr::Partitioning;
-use datafusion_physical_optimizer::PhysicalOptimizerRule;
-use datafusion_physical_plan::repartition::RepartitionExec;
-use datafusion_physical_plan::ExecutionPlanProperties;
+use datafusion::physical_expr::Partitioning;
+use datafusion::physical_optimizer::PhysicalOptimizerRule;
+use datafusion::physical_plan::repartition::RepartitionExec;
+use datafusion::physical_plan::ExecutionPlanProperties;
 
 use datafusion::common::tree_node::{Transformed, TransformedResult, TreeNode};
 use datafusion::error::Result;
@@ -33,7 +33,7 @@ impl PhysicalOptimizerRule for CoaslesceBeforeStreamingAggregate {
     fn optimize(
         &self,
         plan: Arc<dyn datafusion::physical_plan::ExecutionPlan>,
-        config: &datafusion_common::config::ConfigOptions,
+        config: &datafusion::common::config::ConfigOptions,
     ) -> Result<Arc<dyn datafusion::physical_plan::ExecutionPlan>> {
         plan.transform(|original| {
             if let Some(streaming_aggr_exec) =
@@ -41,9 +41,9 @@ impl PhysicalOptimizerRule for CoaslesceBeforeStreamingAggregate {
             {
                 let input = streaming_aggr_exec.input();
                 let partitions = match input.output_partitioning() {
-                    datafusion_physical_expr::Partitioning::RoundRobinBatch(size) => size,
-                    datafusion_physical_expr::Partitioning::Hash(_, size) => size,
-                    datafusion_physical_expr::Partitioning::UnknownPartitioning(size) => size,
+                    datafusion::physical_expr::Partitioning::RoundRobinBatch(size) => size,
+                    datafusion::physical_expr::Partitioning::Hash(_, size) => size,
+                    datafusion::physical_expr::Partitioning::UnknownPartitioning(size) => size,
                 };
                 if *partitions == 1 {
                     return Ok(Transformed::no(original));

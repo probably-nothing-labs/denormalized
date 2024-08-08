@@ -6,9 +6,9 @@ use std::time::Duration;
 
 use arrow::datatypes::{DataType, Field, SchemaBuilder, TimeUnit};
 
+use datafusion::common::{DFSchema, DFSchemaRef, Result};
+use datafusion::logical_expr::{Aggregate, Expr};
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNodeCore};
-use datafusion_common::{DFSchema, DFSchemaRef, Result};
-use datafusion_expr::{Aggregate, Expr};
 
 //TODO: Avoid use of Aggregate here as we need to clone the internal expressions back and forth.
 #[derive(PartialEq, Eq, Hash)]

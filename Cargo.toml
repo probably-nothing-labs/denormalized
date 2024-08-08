@@ -17,18 +17,7 @@ description = "Embeddable stream processing engine"
 
 [workspace.dependencies]
 df-streams-core = { path = "crates/core" }
-
-datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
-datafusion-common = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
-datafusion-expr = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
-datafusion-functions = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
-datafusion-functions-aggregate = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
-datafusion-optimizer = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
-datafusion-physical-expr = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
-datafusion-physical-plan = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
-datafusion-physical-optimizer = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
-datafusion-sql = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
-datafusion-execution = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
+datafusion = "40.0"
 
 arrow = { version = "52.0.0", features = ["prettyprint"] }
 arrow-array = { version = "52.0.0", default-features = false, features = [
@@ -59,3 +48,6 @@ serde_json = "1"
 base64 = "0.22.1"
 chrono = { version = "0.4.38", default-features = false }
 itertools = "0.13"
+
+[patch.crates-io]
+datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion" }
