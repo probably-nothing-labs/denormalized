@@ -128,7 +128,7 @@ impl ExtensionPlanner for StreamingWindowPlanner {
                 };
 
                 let initial_aggr = Arc::new(FranzStreamingWindowExec::try_new(
-                    AggregateMode::Partial,
+                    AggregateMode::Single,
                     groups.clone(),
                     aggregates.clone(),
                     filters.clone(),
