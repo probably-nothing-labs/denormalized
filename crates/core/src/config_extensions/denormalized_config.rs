@@ -1,5 +1,5 @@
-use datafusion::config::ConfigExtension;
 use datafusion::common::extensions_options;
+use datafusion::config::ConfigExtension;
 
 extensions_options! {
     pub struct DenormalizedConfig {

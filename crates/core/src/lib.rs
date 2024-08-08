@@ -1,3 +1,4 @@
+pub mod accumulators;
 pub mod config_extensions;
 pub mod context;
 pub mod datasource;

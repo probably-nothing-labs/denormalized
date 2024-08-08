@@ -1080,6 +1080,7 @@ dependencies = [
  "chrono",
  "datafusion",
  "futures",
+ "half",
  "itertools 0.13.0",
  "log",
  "rdkafka",

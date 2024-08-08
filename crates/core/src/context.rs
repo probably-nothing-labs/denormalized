@@ -1,12 +1,12 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::TableProvider;
 use datafusion::execution::{
     config::SessionConfig, context::SessionContext, runtime_env::RuntimeEnv,
     session_state::SessionStateBuilder,
 };
-use datafusion::common::{DataFusionError, Result};
 
 use crate::datasource::kafka::TopicReader;
 use crate::datastream::DataStream;
