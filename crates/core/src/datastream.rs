@@ -19,6 +19,20 @@ pub struct DataStream {
 }
 
 impl DataStream {
+    pub fn filter(&self, predicate: Expr) -> Result<Self> {
+        let (session_state, plan) = self.df.as_ref().clone().into_parts();
+
+        let plan = LogicalPlanBuilder::from(plan).filter(predicate)?.build()?;
+
+        Ok(Self {
+            df: Arc::new(DataFrame::new(session_state, plan)),
+            context: self.context.clone(),
+        })
+    }
+
+    // drop_columns, sync, columns: &[&str]
+    // count
+
     pub fn streaming_window(
         &self,
         group_expr: Vec<Expr>,
@@ -46,7 +60,10 @@ impl DataStream {
                     if batch.num_rows() > 0 {
                         println!(
                             "{}",
-                            arrow::util::pretty::pretty_format_batches(&[batch]).unwrap()
+                            datafusion::common::arrow::util::pretty::pretty_format_batches(&[
+                                batch
+                            ])
+                            .unwrap()
                         );
                     }
                 }
