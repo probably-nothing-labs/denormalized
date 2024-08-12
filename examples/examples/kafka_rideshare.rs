@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
-    let ds = ctx.from_topic(source_topic).await?.streaming_window(
+    let ds = ctx.from_topic(source_topic).await?.window(
         vec![],
         vec![
             max(col("imu_measurement").field("gps").field("speed")),

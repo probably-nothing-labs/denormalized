@@ -19,6 +19,9 @@ pub struct DataStream {
 }
 
 impl DataStream {
+    pub fn schema(&self) -> Result<Self> {
+    }
+
     pub fn filter(&self, predicate: Expr) -> Result<Self> {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
 
@@ -33,7 +36,7 @@ impl DataStream {
     // drop_columns, sync, columns: &[&str]
     // count
 
-    pub fn streaming_window(
+    pub fn window(
         &self,
         group_expr: Vec<Expr>,
         aggr_expr: Vec<Expr>,

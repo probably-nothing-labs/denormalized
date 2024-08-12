@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
     let ds = ctx
         .from_topic(source_topic)
         .await?
-        .streaming_window(
+        .window(
             vec![],
             vec![
                 min(col("temperature")).alias("min"),
