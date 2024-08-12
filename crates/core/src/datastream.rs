@@ -1,7 +1,7 @@
 use futures::StreamExt;
 use std::{sync::Arc, time::Duration};
 
-use datafusion::common::{DataFusionError, Result};
+use datafusion::common::{DFSchema, DataFusionError, Result};
 pub use datafusion::dataframe::DataFrame;
 use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion::execution::SendableRecordBatchStream;
@@ -19,7 +19,8 @@ pub struct DataStream {
 }
 
 impl DataStream {
-    pub fn schema(&self) -> Result<Self> {
+    pub fn schema(&self) -> &DFSchema {
+        self.df.schema()
     }
 
     pub fn filter(&self, predicate: Expr) -> Result<Self> {
