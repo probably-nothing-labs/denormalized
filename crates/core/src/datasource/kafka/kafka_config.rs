@@ -85,7 +85,7 @@ impl KafkaWriteConfig {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KafkaTopicBuilder {
     bootstrap_servers: String,
     topic: Option<String>,

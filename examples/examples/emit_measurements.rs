@@ -1,35 +1,52 @@
 use datafusion::error::Result;
+use rand::seq::SliceRandom;
 use rdkafka::producer::FutureProducer;
-use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureRecord;
 use rdkafka::util::Timeout;
 
-#[derive(Serialize, Deserialize)]
-pub struct Measurment {
-    occurred_at_ms: u64,
-    temperature: f64,
-}
+use df_streams_examples::Measurment;
 
 /// docker run -p 9092:9092 --name kafka apache/kafka
 #[tokio::main]
 async fn main() -> Result<()> {
+    let mut rng = rand::thread_rng();
+
     let producer: FutureProducer = ClientConfig::new()
         .set("bootstrap.servers", String::from("localhost:9092"))
         .set("message.timeout.ms", "60000")
         .create()
         .expect("Producer creation error");
 
-    let topic = "temperature".to_string();
+    let sensors = ["sensor_0", "sensor_1", "sensor_2", "sensor_3", "sensor_4"];
 
     loop {
-        let msg = serde_json::to_vec(&Measurment {
-            occurred_at_ms: get_timestamp_ms(),
-            temperature: rand::random::<f64>() * 115.0,
-        })
-        .unwrap();
+        let sensor_name = sensors.choose(&mut rng).unwrap().to_string();
+
+        // Alternate between sending random temperature and humidity readings
+        let (topic, msg) = if rand::random::<f64>() < 0.4 {
+            (
+                "temperature".to_string(),
+                serde_json::to_vec(&Measurment {
+                    occurred_at_ms: get_timestamp_ms(),
+                    sensor_name,
+                    reading: rand::random::<f64>() * 115.0,
+                })
+                .unwrap(),
+            )
+        } else {
+            (
+                "humidity".to_string(),
+                serde_json::to_vec(&Measurment {
+                    occurred_at_ms: get_timestamp_ms(),
+                    sensor_name,
+                    reading: rand::random::<f64>(),
+                })
+                .unwrap(),
+            )
+        };
 
         producer
             .send(
