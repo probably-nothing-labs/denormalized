@@ -1,17 +1,24 @@
+use datafusion::logical_expr::LogicalPlan;
 use futures::StreamExt;
 use std::{sync::Arc, time::Duration};
 
-use datafusion::common::{DataFusionError, Result};
+use datafusion::common::{DFSchema, DataFusionError, Result};
 pub use datafusion::dataframe::DataFrame;
 use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion::execution::SendableRecordBatchStream;
-use datafusion::logical_expr::{logical_plan::LogicalPlanBuilder, Expr};
+use datafusion::logical_expr::{
+    logical_plan::LogicalPlanBuilder, utils::find_window_exprs, Expr, JoinType,
+};
 
 use crate::context::Context;
 use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use crate::logical_plan::StreamingLogicalPlanBuilder;
 use crate::physical_plan::utils::time::TimestampUnit;
 
+/// The primary interface for building a streaming job
+///
+/// Wraps the DataFusion DataFrame and context objects and provides methods
+/// for constructing and executing streaming pipelines.
 #[derive(Clone)]
 pub struct DataStream {
     pub df: Arc<DataFrame>,
@@ -19,8 +26,87 @@ pub struct DataStream {
 }
 
 impl DataStream {
-    pub fn streaming_window(
-        &self,
+    // Select columns in the output stream
+    pub fn select(self, expr_list: Vec<Expr>) -> Result<Self, DataFusionError> {
+        let (session_state, plan) = self.df.as_ref().clone().into_parts();
+
+        let window_func_exprs = find_window_exprs(&expr_list);
+        let plan = if window_func_exprs.is_empty() {
+            plan
+        } else {
+            LogicalPlanBuilder::window_plan(plan, window_func_exprs)?
+        };
+        let project_plan = LogicalPlanBuilder::from(plan).project(expr_list)?.build()?;
+
+        Ok(Self {
+            df: Arc::new(DataFrame::new(session_state, project_plan)),
+            context: self.context.clone(),
+        })
+    }
+
+    // Apply a filter
+    pub fn filter(self, predicate: Expr) -> Result<Self> {
+        let (session_state, plan) = self.df.as_ref().clone().into_parts();
+
+        let plan = LogicalPlanBuilder::from(plan).filter(predicate)?.build()?;
+
+        Ok(Self {
+            df: Arc::new(DataFrame::new(session_state, plan)),
+            context: self.context.clone(),
+        })
+    }
+
+    // Join two streams using the specified expression
+    pub fn join_on(
+        self,
+        right: impl Joinable,
+        join_type: JoinType,
+        on_exprs: impl IntoIterator<Item = Expr>,
+    ) -> Result<Self, DataFusionError> {
+        let (session_state, plan) = self.df.as_ref().clone().into_parts();
+        let right_plan = right.get_plan();
+
+        let plan = LogicalPlanBuilder::from(plan)
+            .join_on(right_plan, join_type, on_exprs)?
+            .build()?;
+
+        Ok(Self {
+            df: Arc::new(DataFrame::new(session_state, plan)),
+            context: self.context.clone(),
+        })
+    }
+
+    // Join two streams together using explicitly specified columns
+    // Also supports joining a DataStream with a DataFrame object
+    pub fn join(
+        self,
+        right: impl Joinable,
+        join_type: JoinType,
+        left_cols: &[&str],
+        right_cols: &[&str],
+        filter: Option<Expr>,
+    ) -> Result<Self, DataFusionError> {
+        let (session_state, plan) = self.df.as_ref().clone().into_parts();
+        let right_plan = right.get_plan();
+
+        let plan = LogicalPlanBuilder::from(plan)
+            .join(
+                right_plan,
+                join_type,
+                (left_cols.to_vec(), right_cols.to_vec()),
+                filter,
+            )?
+            .build()?;
+
+        Ok(Self {
+            df: Arc::new(DataFrame::new(session_state, plan)),
+            context: self.context.clone(),
+        })
+    }
+
+    /// create a streaming window
+    pub fn window(
+        self,
         group_expr: Vec<Expr>,
         aggr_expr: Vec<Expr>,
         window_length: Duration,
@@ -37,16 +123,20 @@ impl DataStream {
         })
     }
 
-    pub async fn print_stream(&self) -> Result<(), DataFusionError> {
+    /// execute the stream and print the results to stdout.
+    /// Mainly used for development and debugging
+    pub async fn print_stream(self) -> Result<(), DataFusionError> {
         let mut stream: SendableRecordBatchStream =
             self.df.as_ref().clone().execute_stream().await?;
         loop {
             match stream.next().await.transpose() {
                 Ok(Some(batch)) => {
-                    if batch.num_rows() > 0 {
+                    for i in 0..batch.num_rows() {
+                        let row = batch.slice(i, 1);
                         println!(
                             "{}",
-                            arrow::util::pretty::pretty_format_batches(&[batch]).unwrap()
+                            datafusion::common::arrow::util::pretty::pretty_format_batches(&[row])
+                                .unwrap()
                         );
                     }
                 }
@@ -61,8 +151,28 @@ impl DataStream {
         }
     }
 
-    pub async fn write_table(
-        &self,
+    /// Return the schema of DataFrame that backs the DataStream
+    pub fn schema(&self) -> &DFSchema {
+        self.df.schema()
+    }
+
+    /// Prints the schema of the underlying dataframe
+    /// Useful for debugging chained method calls.
+    pub fn print_schema(self) -> Result<Self, DataFusionError> {
+        println!("{}", self.df.schema());
+        Ok(self)
+    }
+
+    /// Prints the underlying logical_plan.
+    /// Useful for debugging chained method calls.
+    pub fn print_plan(self) -> Result<Self, DataFusionError> {
+        println!("{}", self.df.logical_plan().display_indent());
+        Ok(self)
+    }
+
+    /// execute the stream and write the results to a give kafka topic
+    pub async fn sink_kafka(
+        self,
         bootstrap_servers: String,
         topic: String,
     ) -> Result<(), DataFusionError> {
@@ -89,5 +199,23 @@ impl DataStream {
             .await?;
 
         Ok(())
+    }
+}
+
+/// Trait that allows both DataStream and DataFrame objects to be joined to
+/// the current DataStream
+pub trait Joinable {
+    fn get_plan(self) -> LogicalPlan;
+}
+impl Joinable for DataFrame {
+    fn get_plan(self) -> LogicalPlan {
+        let (_, plan) = self.into_parts();
+        plan
+    }
+}
+impl Joinable for DataStream {
+    fn get_plan(self) -> LogicalPlan {
+        let (_, plan) = self.df.as_ref().clone().into_parts();
+        plan
     }
 }

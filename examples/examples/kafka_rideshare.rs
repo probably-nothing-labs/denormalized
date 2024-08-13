@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-
 use datafusion::error::Result;
 use datafusion::functions::core::expr_ext::FieldAccessor;
 use datafusion::functions_aggregate::count::count;
@@ -13,6 +10,8 @@ use df_streams_core::physical_plan::utils::time::TimestampUnit;
 use std::time::Duration;
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
 
+/// An example job that processes sample rideshare data. See [docs/kafka_rideshare_example.md] for
+/// more details
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {
     tracing_log::LogTracer::init().expect("Failed to set up log tracer");
@@ -69,7 +68,7 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
-    let ds = ctx.from_topic(source_topic).await?.streaming_window(
+    let ds = ctx.from_topic(source_topic).await?.window(
         vec![],
         vec![
             max(col("imu_measurement").field("gps").field("speed")),
@@ -82,7 +81,7 @@ async fn main() -> Result<()> {
 
     // ds.clone().print_stream().await?;
 
-    ds.write_table(bootstrap_servers.clone(), String::from("out_topic"))
+    ds.sink_kafka(bootstrap_servers.clone(), String::from("out_topic"))
         .await?;
 
     Ok(())
