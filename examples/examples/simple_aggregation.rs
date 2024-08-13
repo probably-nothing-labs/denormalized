@@ -3,7 +3,7 @@ use std::time::Duration;
 use datafusion::error::Result;
 use datafusion::functions_aggregate::average::avg;
 use datafusion::functions_aggregate::count::count;
-// use datafusion::logical_expr::lit;
+use datafusion::logical_expr::lit;
 use datafusion::logical_expr::{col, max, min};
 
 use df_streams_core::context::Context;
@@ -14,6 +14,10 @@ use df_streams_examples::get_sample_json;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Warn)
+        .init();
+
     let sample_event = get_sample_json();
 
     let bootstrap_servers = String::from("localhost:9092");
@@ -32,18 +36,22 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
-    let ds = ctx.from_topic(source_topic).await?.window(
-        vec![],
-        vec![
-            count(col("reading")).alias("count"),
-            min(col("reading")).alias("min"),
-            max(col("reading")).alias("max"),
-            avg(col("reading")).alias("average"),
-        ],
-        Duration::from_millis(1_000),
-        None,
-    )?;
-    // .filter(col("max").gt(lit(114)))?;
+    let ds = ctx
+        .from_topic(source_topic)
+        .await?
+        // .filter(col("reading").gt(lit(70)))?
+        .window(
+            vec![],
+            vec![
+                count(col("reading")).alias("count"),
+                min(col("reading")).alias("min"),
+                max(col("reading")).alias("max"),
+                avg(col("reading")).alias("average"),
+            ],
+            Duration::from_millis(1_000),
+            None,
+        )?
+        .filter(col("max").lt(lit(113)))?;
 
     ds.clone().print_stream().await?;
 

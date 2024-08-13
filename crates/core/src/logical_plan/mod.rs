@@ -12,6 +12,7 @@ use datafusion::logical_expr::{Aggregate, Expr};
 pub mod streaming_window;
 use streaming_window::{StreamingWindowPlanNode, StreamingWindowSchema, StreamingWindowType};
 
+/// Extend the DataFusion logical plan builder with streaming specific functionality
 pub trait StreamingLogicalPlanBuilder {
     fn streaming_window(
         self,
@@ -24,7 +25,7 @@ pub trait StreamingLogicalPlanBuilder {
 
 // Extend the LogicalPlanBuilder with functions to add streaming operators to the plan
 impl StreamingLogicalPlanBuilder for LogicalPlanBuilder {
-    /// Apply franz window functions to extend the schema
+    /// Apply a streaming window functions to extend the schema
     fn streaming_window(
         self,
         group_expr: impl IntoIterator<Item = impl Into<Expr>>,
