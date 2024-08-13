@@ -2,7 +2,8 @@ use datafusion::common::test_util::datafusion_test_data;
 use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion::datasource::MemTable;
 use datafusion::error::Result;
-use datafusion::logical_expr::{col, max, min};
+use datafusion::functions_aggregate::expr_fn::{max, min};
+use datafusion::logical_expr::col;
 use datafusion::prelude::*;
 
 /// This example demonstrates executing a simple query against an Arrow data source (CSV) and
