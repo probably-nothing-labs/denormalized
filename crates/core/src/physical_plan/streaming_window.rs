@@ -664,8 +664,7 @@ impl WindowAggStream {
                 self.window_frames.remove(&timestamp);
             }
         }
-        concat_batches(&self.output_schema_with_window(), &results)
-            .map_err(|err| DataFusionError::ArrowError(err, None))
+        concat_batches(&self.schema, &results).map_err(|err| DataFusionError::ArrowError(err, None))
     }
 
     fn process_watermark(&mut self, watermark: RecordBatchWatermark) {

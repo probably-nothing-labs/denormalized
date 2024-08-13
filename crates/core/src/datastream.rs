@@ -43,12 +43,12 @@ impl DataStream {
         loop {
             match stream.next().await.transpose() {
                 Ok(Some(batch)) => {
-                    if batch.num_rows() > 0 {
-                        println!(
-                            "{}",
-                            arrow::util::pretty::pretty_format_batches(&[batch]).unwrap()
-                        );
-                    }
+                    //if batch.num_rows() > 0 {
+                    println!(
+                        "{}",
+                        arrow::util::pretty::pretty_format_batches(&[batch]).unwrap()
+                    );
+                    //}
                 }
                 Ok(None) => {
                     log::warn!("No RecordBatch in stream");

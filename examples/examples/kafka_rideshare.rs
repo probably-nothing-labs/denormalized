@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
         .with_topic(String::from("driver-imu-data"))
         .infer_schema_from_json(sample_event)?
         .build_reader(ConnectionOpts::from([
-            ("auto.offset.reset".to_string(), "earliest".to_string()),
+            ("auto.offset.reset".to_string(), "latest".to_string()),
             ("group.id".to_string(), "test".to_string()),
         ]))
         .await?;
