@@ -1,7 +1,8 @@
 use datafusion::error::Result;
 use datafusion::functions::core::expr_ext::FieldAccessor;
 use datafusion::functions_aggregate::count::count;
-use datafusion::logical_expr::{col, max, min};
+use datafusion::functions_aggregate::expr_fn::{max, min};
+use datafusion::logical_expr::col;
 
 use df_streams_core::context::Context;
 use df_streams_core::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
