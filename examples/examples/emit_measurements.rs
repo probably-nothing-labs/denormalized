@@ -9,7 +9,11 @@ use rdkafka::util::Timeout;
 
 use df_streams_examples::Measurment;
 
-/// docker run -p 9092:9092 --name kafka apache/kafka
+/// This script emits test data to a kafka cluster
+///
+/// To run start kafka in docker run `docker run -p 9092:9092 --name kafka apache/kafka`
+/// Sample sensor data will then be emitted to two topics: `temperature` and `humidity`
+/// This data is read processed by other exmpales
 #[tokio::main]
 async fn main() -> Result<()> {
     let mut rng = rand::thread_rng();

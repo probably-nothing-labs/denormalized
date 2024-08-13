@@ -12,6 +12,8 @@ use df_streams_core::physical_plan::utils::time::TimestampUnit;
 
 use df_streams_examples::get_sample_json;
 
+/// Demonstrates a simple stream aggregate job on data generated via the `emit_measurements.rs`
+/// example script.
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::builder()
