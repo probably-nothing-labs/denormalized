@@ -46,6 +46,27 @@ use super::utils::{
     time::RecordBatchWatermark,
 };
 
+pub fn add_window_columns_to_physical_schema(inner_schema: SchemaRef) -> SchemaRef {
+    let fields = inner_schema.fields().to_owned();
+
+    let mut builder = SchemaBuilder::new();
+
+    for field in fields.iter() {
+        builder.push(field.clone());
+    }
+    builder.push(Field::new(
+        "window_start_time",
+        DataType::Timestamp(TimeUnit::Millisecond, None),
+        false,
+    ));
+    builder.push(Field::new(
+        "window_end_time",
+        DataType::Timestamp(TimeUnit::Millisecond, None),
+        false,
+    ));
+    Arc::new(builder.finish())
+}
+
 pub struct FranzWindowFrame {
     pub window_start_time: SystemTime,
     window_end_time: SystemTime,
@@ -158,7 +179,11 @@ impl FranzWindowFrame {
             &TimestampMillisecondArray::new_scalar(end_time_duration),
         )?;
         let final_batch = filter_record_batch(&filtered_batch, &lt_cmp_filter)?;
-
+        let final_batch = add_window_columns_to_record_batch(
+            final_batch,
+            self.window_start_time,
+            self.window_end_time,
+        );
         let _ = aggregate_batch(
             &self.aggregation_mode,
             final_batch,
@@ -192,8 +217,8 @@ pub struct FranzStreamingWindowExec {
     pub(crate) input: Arc<dyn ExecutionPlan>,
     pub aggregate_expressions: Vec<Arc<dyn AggregateExpr>>,
     pub filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
-    /// Schema after the window is run
     pub group_by: PhysicalGroupBy,
+    /// Schema after the window is run
     schema: SchemaRef,
     pub input_schema: SchemaRef,
 
@@ -213,18 +238,21 @@ impl FranzStreamingWindowExec {
         aggr_expr: Vec<Arc<dyn AggregateExpr>>,
         filter_expr: Vec<Option<Arc<dyn PhysicalExpr>>>,
         input: Arc<dyn ExecutionPlan>,
-        input_schema: SchemaRef,
+        _input_schema: SchemaRef,
         window_type: FranzStreamingWindowType,
     ) -> Result<Self> {
+        println!("trying new schema");
+        let exec_plan_schema = input.schema();
+        let input_schema = add_window_columns_to_physical_schema(exec_plan_schema);
+
         let schema = create_schema(
-            &input.schema(),
+            &input_schema,
             &group_by.expr,
             &aggr_expr,
             group_by.contains_null(),
             mode,
         )?;
-
-        let schema = Arc::new(schema);
+        println!("\n IS: {:?} \n\n NS {:?}", input_schema, schema);
         FranzStreamingWindowExec::try_new_with_schema(
             mode,
             group_by,
@@ -232,7 +260,7 @@ impl FranzStreamingWindowExec {
             filter_expr,
             input,
             input_schema,
-            schema,
+            Arc::new(schema),
             window_type,
         )
     }
@@ -275,20 +303,15 @@ impl FranzStreamingWindowExec {
         _new_requirement.extend(req);
         _new_requirement = collapse_lex_req(_new_requirement);
 
-        let input_order_mode = if indices.len() == groupby_exprs.len() && !indices.is_empty() {
-            InputOrderMode::Sorted
-        } else if !indices.is_empty() {
-            InputOrderMode::PartiallySorted(indices)
-        } else {
-            InputOrderMode::Linear
-        };
+        let input_order_mode = InputOrderMode::Linear;
 
         // construct a map from the input expression to the output expression of the Aggregation group by
-        let projection_mapping = ProjectionMapping::try_new(&group_by.expr, &input.schema())?;
-
+        println!("constructing a projection mapping");
+        let projection_mapping = ProjectionMapping::try_new(&group_by.expr, &input_schema)?;
+        println!("modi hai to mumkin hain");
         let cache = FranzStreamingWindowExec::compute_properties(
             &input,
-            Arc::new(add_window_columns_to_schema(schema.clone())),
+            schema.clone(),
             &projection_mapping,
             &mode,
             &input_order_mode,
@@ -464,7 +487,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
     }
 
     fn schema(&self) -> SchemaRef {
-        Arc::new(add_window_columns_to_schema(self.schema.clone()))
+        self.schema.clone()
     }
 
     fn repartitioned(
@@ -627,12 +650,12 @@ impl WindowAggStream {
             for (timestamp, frame) in self.window_frames.iter_mut() {
                 if watermark >= frame.window_end_time {
                     let rb = frame.evaluate()?;
-                    let result = add_window_columns_to_record_batch(
-                        rb,
-                        frame.window_start_time,
-                        frame.window_end_time,
-                    );
-                    results.push(result);
+                    // let result = add_window_columns_to_record_batch(
+                    //     rb,
+                    //     frame.window_start_time,
+                    //     frame.window_end_time,
+                    // );
+                    results.push(rb);
                     window_frames_to_remove.push(*timestamp);
                 }
             }
@@ -712,11 +735,11 @@ impl WindowAggStream {
 
                         self.trigger_windows()
                     } else {
-                        Ok(RecordBatch::new_empty(self.output_schema_with_window()))
+                        Ok(RecordBatch::new_empty(self.schema.clone()))
                     }
                 }
                 Some(Err(e)) => Err(e),
-                None => Ok(RecordBatch::new_empty(self.output_schema_with_window())),
+                None => Ok(RecordBatch::new_empty(self.schema.clone())),
             },
             Poll::Pending => {
                 return Poll::Pending;
@@ -837,13 +860,6 @@ pub fn aggregate_batch(
     filters: &[Option<Arc<dyn PhysicalExpr>>],
 ) -> Result<usize> {
     let mut allocated = 0usize;
-
-    // 1.1 iterate accumulators and respective expressions together
-    // 1.2 filter the batch if necessary
-    // 1.3 evaluate expressions
-    // 1.4 update / merge accumulators with the expressions' values
-
-    // 1.1
     accumulators
         .iter_mut()
         .zip(expressions)
@@ -880,11 +896,11 @@ pub fn aggregate_batch(
 }
 
 fn add_window_columns_to_schema(schema: SchemaRef) -> Schema {
-    let fields = schema.flattened_fields().to_owned();
+    let fields = schema.fields().to_owned();
 
     let mut builder = SchemaBuilder::new();
 
-    for field in fields {
+    for field in fields.iter() {
         builder.push(field.clone());
     }
     builder.push(Field::new(

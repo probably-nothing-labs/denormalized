@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
     tracing_log::LogTracer::init().expect("Failed to set up log tracer");
 
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(tracing::Level::DEBUG)
         .with_span_events(FmtSpan::CLOSE | FmtSpan::ENTER)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
@@ -80,10 +80,13 @@ async fn main() -> Result<()> {
         Some(Duration::from_millis(1_000)), // 1 second slide
     )?;
 
-    // ds.clone().print_stream().await?;
+    println!("getting schema");
+    let returned_schema = ds.df.schema();
+    println!("returned schema is {:?}", returned_schema);
+    ds.clone().print_stream().await?;
 
-    ds.write_table(bootstrap_servers.clone(), String::from("out_topic"))
-        .await?;
+    //ds.write_table(bootstrap_servers.clone(), String::from("out_topic"))
+    //    .await?;
 
     Ok(())
 }
