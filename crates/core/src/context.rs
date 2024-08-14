@@ -16,15 +16,23 @@ use crate::utils::get_default_optimizer_rules;
 
 #[derive(Clone)]
 pub struct Context {
-    session_conext: Arc<RwLock<SessionContext>>,
+    pub session_conext: Arc<RwLock<SessionContext>>,
 }
 
 impl Context {
     pub fn new() -> Result<Self, DataFusionError> {
-        let config = SessionConfig::new().set(
-            "datafusion.execution.batch_size",
-            datafusion::common::ScalarValue::UInt64(Some(32)),
-        );
+        let config = SessionConfig::new()
+            .set(
+                "datafusion.execution.batch_size",
+                datafusion::common::ScalarValue::UInt64(Some(32)),
+            )
+            // coalesce_batches slows down the pipeline and increases latency as it tries to concat
+            // small batches together so we disable it.
+            .set(
+                "datafusion.execution.coalesce_batches",
+                datafusion::common::ScalarValue::Boolean(Some(false)),
+            );
+
         let runtime = Arc::new(RuntimeEnv::default());
 
         let state = SessionStateBuilder::new()
