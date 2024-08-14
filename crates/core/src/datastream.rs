@@ -9,6 +9,7 @@ use datafusion::execution::SendableRecordBatchStream;
 use datafusion::logical_expr::{
     logical_plan::LogicalPlanBuilder, utils::find_window_exprs, Expr, JoinType,
 };
+use datafusion::physical_plan::display::DisplayableExecutionPlan;
 
 use crate::context::Context;
 use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
@@ -163,11 +164,26 @@ impl DataStream {
         Ok(self)
     }
 
-    /// Prints the underlying logical_plan.
+    /// Prints the underlying logical plan.
     /// Useful for debugging chained method calls.
     pub fn print_plan(self) -> Result<Self, DataFusionError> {
         println!("{}", self.df.logical_plan().display_indent());
         Ok(self)
+    }
+
+    /// Prints the underlying physical plan.
+    /// Useful for debugging and development
+    pub async fn print_physical_plan(self) -> Result<Self, DataFusionError> {
+        let (session_state, plan) = self.df.as_ref().clone().into_parts();
+        let physical_plan = self.df.as_ref().clone().create_physical_plan().await?;
+        let displayable_plan = DisplayableExecutionPlan::new(physical_plan.as_ref());
+
+        println!("{}", displayable_plan.indent(true));
+
+        Ok(Self {
+            df: Arc::new(DataFrame::new(session_state, plan)),
+            context: self.context.clone(),
+        })
     }
 
     /// execute the stream and write the results to a give kafka topic
