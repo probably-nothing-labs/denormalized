@@ -41,7 +41,6 @@ async fn main() -> Result<()> {
     let ds = ctx
         .from_topic(source_topic)
         .await?
-        // .filter(col("reading").gt(lit(70)))?
         .window(
             vec![],
             vec![
@@ -53,7 +52,7 @@ async fn main() -> Result<()> {
             Duration::from_millis(1_000),
             None,
         )?
-        .filter(col("max").lt(lit(113)))?;
+        .filter(col("max").gt(lit(113)))?;
 
     ds.clone().print_stream().await?;
 
