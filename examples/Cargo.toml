@@ -1,5 +1,5 @@
 [package]
-name = "df-streams-examples"
+name = "denormalized-examples"
 version = { workspace = true }
 edition = { workspace = true }
 publish = false
@@ -7,7 +7,7 @@ publish = false
 [dependencies]
 datafusion = { workspace = true }
 
-df-streams-core = { workspace = true }
+denormalized = { workspace = true }
 
 arrow = { workspace = true }
 arrow-schema = { workspace = true }

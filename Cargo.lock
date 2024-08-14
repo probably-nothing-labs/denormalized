@@ -1131,8 +1131,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "df-streams-core"
-version = "0.1.0"
+name = "denormalized"
+version = "0.0.1"
 dependencies = [
  "ahash",
  "apache-avro",
@@ -1161,13 +1161,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "df-streams-examples"
-version = "0.1.0"
+name = "denormalized-examples"
+version = "0.0.1"
 dependencies = [
  "arrow",
  "arrow-schema",
  "datafusion",
- "df-streams-core",
+ "denormalized",
  "env_logger",
  "futures",
  "log",

@@ -4,9 +4,9 @@ use datafusion::functions_aggregate::count::count;
 use datafusion::functions_aggregate::expr_fn::{max, min};
 use datafusion::logical_expr::col;
 
-use df_streams_core::context::Context;
-use df_streams_core::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
-use df_streams_core::physical_plan::utils::time::TimestampUnit;
+use denormalized::context::Context;
+use denormalized::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
+use denormalized::physical_plan::utils::time::TimestampUnit;
 
 use std::time::Duration;
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
