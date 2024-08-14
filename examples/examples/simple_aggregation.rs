@@ -6,11 +6,11 @@ use datafusion::functions_aggregate::count::count;
 use datafusion::functions_aggregate::expr_fn::{max, min};
 use datafusion::logical_expr::{col, lit};
 
-use df_streams_core::context::Context;
-use df_streams_core::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
-use df_streams_core::physical_plan::utils::time::TimestampUnit;
+use denormalized::context::Context;
+use denormalized::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
+use denormalized::physical_plan::utils::time::TimestampUnit;
 
-use df_streams_examples::get_sample_json;
+use denormalized_examples::get_sample_json;
 
 /// Demonstrates a simple stream aggregate job on data generated via the `emit_measurements.rs`
 /// example script.
