@@ -17,7 +17,9 @@ use datafusion::physical_planner::{
 };
 
 use crate::logical_plan::streaming_window::{StreamingWindowPlanNode, StreamingWindowType};
-use crate::physical_plan::streaming_window::{FranzStreamingWindowExec, FranzStreamingWindowType};
+use crate::physical_plan::continuous::streaming_window::{
+    FranzStreamingWindowExec, FranzStreamingWindowType,
+};
 
 /// Physical planner for TopK nodes
 pub struct StreamingWindowPlanner {}

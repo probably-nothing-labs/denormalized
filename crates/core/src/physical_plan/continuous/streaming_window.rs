@@ -41,9 +41,12 @@ use datafusion::physical_plan::{
 use futures::{Stream, StreamExt};
 use tracing::debug;
 
-use super::utils::{
-    accumulators::{create_accumulators, AccumulatorItem},
-    time::RecordBatchWatermark,
+use crate::physical_plan::{
+    continuous::grouped_window_agg_stream::GroupedWindowAggStream,
+    utils::{
+        accumulators::{create_accumulators, AccumulatorItem},
+        time::RecordBatchWatermark,
+    },
 };
 
 pub struct FranzWindowFrame {
@@ -77,6 +80,8 @@ impl DisplayAs for FranzWindowFrame {
 }
 
 use datafusion::common::Result;
+
+use super::{add_window_columns_to_record_batch, add_window_columns_to_schema, batch_filter};
 
 impl FranzWindowFrame {
     pub fn new(
@@ -194,11 +199,11 @@ pub struct FranzStreamingWindowExec {
     pub filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     /// Schema after the window is run
     pub group_by: PhysicalGroupBy,
-    schema: SchemaRef,
+    pub schema: SchemaRef,
     pub input_schema: SchemaRef,
 
     pub watermark: Arc<Mutex<Option<SystemTime>>>,
-    metrics: ExecutionPlanMetricsSet,
+    pub(crate) metrics: ExecutionPlanMetricsSet,
     cache: PlanProperties,
     pub mode: AggregateMode,
     pub window_type: FranzStreamingWindowType,
@@ -407,15 +412,27 @@ impl ExecutionPlan for FranzStreamingWindowExec {
         partition: usize,
         context: Arc<TaskContext>,
     ) -> Result<SendableRecordBatchStream> {
-        let stream: Pin<Box<WindowAggStream>> = Box::pin(WindowAggStream::new(
-            self,
-            context,
-            partition,
-            self.watermark.clone(),
-            self.window_type,
-            self.mode,
-        )?);
-        Ok(stream)
+        if self.group_by.is_empty() {
+            debug!("GROUP BY expression is empty creating a SimpleWindowAggStream");
+            Ok(Box::pin(WindowAggStream::new(
+                self,
+                context,
+                partition,
+                self.watermark.clone(),
+                self.window_type,
+                self.mode,
+            )?))
+        } else {
+            debug!("Creating a GroupedWindowAggStream");
+            Ok(Box::pin(GroupedWindowAggStream::new(
+                self,
+                context,
+                partition,
+                self.watermark.clone(),
+                self.window_type,
+                self.mode,
+            )?))
+        }
     }
 
     fn metrics(&self) -> Option<MetricsSet> {
@@ -573,12 +590,6 @@ impl WindowAggStream {
         window_type: FranzStreamingWindowType,
         aggregation_mode: AggregateMode,
     ) -> Result<Self> {
-        // TODO: 6/12/2024 Why was this commented out?
-
-        // In WindowAggExec all partition by columns should be ordered.
-        //if window_expr[0].partition_by().len() != ordered_partition_by_indices.len() {
-        //    return internal_err!("All partition by columns should have an ordering");
-        //}
         let agg_schema = Arc::clone(&exec_operator.schema);
         let agg_filter_expr = exec_operator.filter_expressions.clone();
 
@@ -746,7 +757,7 @@ impl Stream for WindowAggStream {
     }
 }
 
-fn get_windows_for_watermark(
+pub fn get_windows_for_watermark(
     watermark: &RecordBatchWatermark,
     window_type: FranzStreamingWindowType,
 ) -> Vec<(SystemTime, SystemTime)> {
@@ -877,68 +888,4 @@ pub fn aggregate_batch(
         })?;
 
     Ok(allocated)
-}
-
-fn add_window_columns_to_schema(schema: SchemaRef) -> Schema {
-    let fields = schema.flattened_fields().to_owned();
-
-    let mut builder = SchemaBuilder::new();
-
-    for field in fields {
-        builder.push(field.clone());
-    }
-    builder.push(Field::new(
-        "window_start_time",
-        DataType::Timestamp(TimeUnit::Millisecond, None),
-        false,
-    ));
-    builder.push(Field::new(
-        "window_end_time",
-        DataType::Timestamp(TimeUnit::Millisecond, None),
-        false,
-    ));
-
-    builder.finish()
-}
-
-fn add_window_columns_to_record_batch(
-    record_batch: RecordBatch,
-    start_time: SystemTime,
-    end_time: SystemTime,
-) -> RecordBatch {
-    let start_time_duration = start_time.duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
-    let end_time_duration = end_time.duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
-
-    let mut start_builder = PrimitiveBuilder::<TimestampMillisecondType>::new();
-    let mut end_builder = PrimitiveBuilder::<TimestampMillisecondType>::new();
-
-    for _ in 0..record_batch.num_rows() {
-        start_builder.append_value(start_time_duration);
-        end_builder.append_value(end_time_duration);
-    }
-
-    let start_array = start_builder.finish();
-    let end_array = end_builder.finish();
-
-    let new_schema = add_window_columns_to_schema(record_batch.schema());
-    let mut new_columns = record_batch.columns().to_vec();
-    new_columns.push(Arc::new(start_array));
-    new_columns.push(Arc::new(end_array));
-
-    RecordBatch::try_new(Arc::new(new_schema), new_columns).unwrap()
-}
-
-pub fn as_boolean_array(array: &dyn Array) -> Result<&BooleanArray> {
-    Ok(downcast_value!(array, BooleanArray))
-}
-
-fn batch_filter(batch: &RecordBatch, predicate: &Arc<dyn PhysicalExpr>) -> Result<RecordBatch> {
-    predicate
-        .evaluate(batch)
-        .and_then(|v| v.into_array(batch.num_rows()))
-        .and_then(|array| {
-            Ok(as_boolean_array(&array)?)
-                // apply filter array to record batch
-                .and_then(|filter_array| Ok(filter_record_batch(batch, filter_array)?))
-        })
 }
