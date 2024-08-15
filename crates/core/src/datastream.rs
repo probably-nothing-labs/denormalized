@@ -132,14 +132,11 @@ impl DataStream {
         loop {
             match stream.next().await.transpose() {
                 Ok(Some(batch)) => {
-                    for i in 0..batch.num_rows() {
-                        let row = batch.slice(i, 1);
-                        println!(
-                            "{}",
-                            datafusion::common::arrow::util::pretty::pretty_format_batches(&[row])
-                                .unwrap()
-                        );
-                    }
+                    println!(
+                        "{}",
+                        datafusion::common::arrow::util::pretty::pretty_format_batches(&[batch])
+                            .unwrap()
+                    );
                 }
                 Ok(None) => {
                     log::warn!("No RecordBatch in stream");
