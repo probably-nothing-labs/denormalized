@@ -5,7 +5,7 @@
 </h1>
 
 Denormalized is a fast embeddable stream processing engine built on Apache DataFusion.
-It currently supports sourcing and sinking to kafka, windowed aggregations, and stream joins.
+It currently supports kafka as a real-time source and a sink, windowed aggregations, and stream joins.
 
 This repo is still a *work-in-progress* and we are actively seeking design partners. If you have have a specific use-case you'd like to discuss please drop us a line via a github issue or email hello@denormalized.io.
 
