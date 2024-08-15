@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
         .from_topic(source_topic)
         .await?
         .window(
-            vec![],
+            vec![col("sensor_name")],
             vec![
                 count(col("reading")).alias("count"),
                 min(col("reading")).alias("min"),

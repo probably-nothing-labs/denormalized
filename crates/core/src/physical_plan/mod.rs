@@ -1,2 +1,2 @@
-pub mod streaming_window;
+pub mod continuous;
 pub mod utils;
