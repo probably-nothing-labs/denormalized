@@ -9,19 +9,14 @@ use std::{
 };
 
 use arrow::{
-    array::PrimitiveBuilder,
     compute::{concat_batches, filter_record_batch},
     datatypes::TimestampMillisecondType,
 };
-use arrow_array::{
-    Array, BooleanArray, PrimitiveArray, RecordBatch, StructArray, TimestampMillisecondArray,
-};
+use arrow_array::{Array, PrimitiveArray, RecordBatch, StructArray, TimestampMillisecondArray};
 use arrow_ord::cmp;
-use arrow_schema::{DataType, Field, Schema, SchemaBuilder, SchemaRef, TimeUnit};
+use arrow_schema::{Field, Schema, SchemaRef};
 
-use datafusion::common::{
-    downcast_value, internal_err, stats::Precision, DataFusionError, Statistics,
-};
+use datafusion::common::{internal_err, stats::Precision, DataFusionError, Statistics};
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{
     equivalence::{collapse_lex_req, ProjectionMapping},

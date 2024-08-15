@@ -17,39 +17,36 @@ use arrow_ord::cmp;
 use arrow_schema::{Schema, SchemaRef};
 use datafusion::{
     common::{utils::proxy::VecAllocExt, DataFusionError, Result},
-    execution::{
-        memory_pool::{MemoryConsumer, MemoryReservation},
-        runtime_env::RuntimeEnv,
-    },
+    execution::memory_pool::{MemoryConsumer, MemoryReservation},
     logical_expr::EmitTo,
     physical_plan::{aggregates::PhysicalGroupBy, PhysicalExpr},
 };
 use datafusion::{
     execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext},
     physical_plan::{
-        aggregates::{aggregate_expressions, AggregateMode},
+        aggregates::{
+            aggregate_expressions,
+            group_values::{new_group_values, GroupValues},
+            order::GroupOrdering,
+            AggregateMode,
+        },
         metrics::BaselineMetrics,
         AggregateExpr,
     },
 };
 use futures::{Stream, StreamExt};
 
-use crate::physical_plan::utils::{
-    accumulators::{create_accumulators, AccumulatorItem},
-    time::RecordBatchWatermark,
-};
+use crate::physical_plan::utils::time::RecordBatchWatermark;
 
 use super::{
     add_window_columns_to_record_batch, add_window_columns_to_schema, create_group_accumulator,
-    group_values::{new_group_values, GroupValues},
-    order::GroupOrdering,
     streaming_window::{
         get_windows_for_watermark, FranzStreamingWindowExec, FranzStreamingWindowType,
-        FranzWindowFrame,
     },
     GroupsAccumulatorItem,
 };
 
+#[allow(dead_code)]
 pub struct GroupedWindowAggStream {
     pub schema: SchemaRef,
     input: SendableRecordBatchStream,

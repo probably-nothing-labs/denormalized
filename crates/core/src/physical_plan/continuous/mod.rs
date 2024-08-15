@@ -17,8 +17,6 @@ use datafusion::{
 pub mod grouped_window_agg_stream;
 pub mod streaming_window;
 
-mod group_values;
-mod order;
 use datafusion::physical_expr::AggregateExpr;
 use log::debug;
 
