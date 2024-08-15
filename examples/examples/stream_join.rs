@@ -5,11 +5,11 @@ use datafusion::error::Result;
 use datafusion::functions_aggregate::average::avg;
 use datafusion::logical_expr::col;
 
-use df_streams_core::context::Context;
-use df_streams_core::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
-use df_streams_core::physical_plan::utils::time::TimestampUnit;
+use denormalized::context::Context;
+use denormalized::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
+use denormalized::physical_plan::utils::time::TimestampUnit;
 
-use df_streams_examples::get_sample_json;
+use denormalized_examples::get_sample_json;
 
 /// Demonstrates a simple stream join on data generated via the `emit_measurements.rs`
 /// example script.

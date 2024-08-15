@@ -7,7 +7,7 @@ use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureRecord;
 use rdkafka::util::Timeout;
 
-use df_streams_examples::Measurment;
+use denormalized_examples::Measurment;
 
 /// This script emits test data to a kafka cluster
 ///
