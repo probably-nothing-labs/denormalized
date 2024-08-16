@@ -193,7 +193,7 @@ impl PartitionStream for KafkaStreamRead {
                         }
                         Ok(Err(err)) => {
                             error!("Error reading from Kafka {:?}", err);
-                            // Consider implementing a retry mechanism here
+                            // TODO: Implement a retry mechanism here
                         }
                         Err(_) => {
                             // Timeout reached
