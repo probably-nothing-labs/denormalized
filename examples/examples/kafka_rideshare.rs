@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
     tracing_log::LogTracer::init().expect("Failed to set up log tracer");
 
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(tracing::Level::DEBUG)
+        .with_max_level(tracing::Level::INFO)
         .with_span_events(FmtSpan::CLOSE | FmtSpan::ENTER)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
