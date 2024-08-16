@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -36,16 +35,14 @@ struct BatchReadMetadata {
     epoch: i32,
     min_timestamp: Option<i64>,
     max_timestamp: Option<i64>,
-    offsets_read: Vec<(i32, i64)>,
+    offsets_read: HashMap<i32, i64>,
 }
 
 impl BatchReadMetadata {
-    // Serialize to Vec<u8> using bincode
     fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         bincode::serialize(self)
     }
 
-    // Deserialize from Vec<u8> using bincode
     fn from_bytes(bytes: &[u8]) -> Result<Self, bincode::Error> {
         bincode::deserialize(bytes)
     }
@@ -56,7 +53,8 @@ fn create_consumer(config: Arc<KafkaReadConfig>) -> StreamConsumer {
 
     client_config
         .set("bootstrap.servers", config.bootstrap_servers.to_string())
-        .set("enable.auto.commit", "false");
+        .set("enable.auto.commit", "false")
+        .set("auto.offset.reset", "earliest");
 
     for (key, value) in config.kafka_connection_opts.clone().into_iter() {
         client_config.set(key, value);
@@ -79,7 +77,7 @@ impl PartitionStream for KafkaStreamRead {
             .extensions
             .get::<DenormalizedConfig>();
 
-        let should_checkpoint = config_options.map_or_else(|| false, |c| c.checkpoint);
+        let should_checkpoint = config_options.map_or(false, |c| c.checkpoint);
 
         let topic = self.config.topic.clone();
         for partition in self.assigned_partitions.clone() {
@@ -105,8 +103,7 @@ impl PartitionStream for KafkaStreamRead {
 
         let state_namespace = format!("kafka_source_{}", topic);
 
-        if state_backend.is_some() {
-            let backend = state_backend.as_ref().unwrap();
+        if let Some(backend) = &state_backend {
             let _ = match backend.get_cf(&state_namespace) {
                 Ok(cf) => {
                     debug!("cf for this already exists");
@@ -117,8 +114,7 @@ impl PartitionStream for KafkaStreamRead {
                     backend.get_cf(&state_namespace)
                 }
             };
-        };
-        //let schema = self.config.schema.clone();
+        }
 
         let mut builder = RecordBatchReceiverStreamBuilder::new(self.config.schema.clone(), 1);
         let tx = builder.tx();
@@ -126,36 +122,51 @@ impl PartitionStream for KafkaStreamRead {
         let json_schema = self.config.original_schema.clone();
         let timestamp_column: String = self.config.timestamp_column.clone();
         let timestamp_unit = self.config.timestamp_unit.clone();
+        let batch_timeout = Duration::from_millis(100);
 
         builder.spawn(async move {
             let mut epoch = 0;
             loop {
-                let last_read_offsets = if should_checkpoint {
-                    state_backend.as_ref().and_then(|backend| {
-                        backend
-                            .get_state(&state_namespace, partition_tag.clone().into_bytes())
-                            .unwrap()
-                    })
-                } else {
-                    None
-                };
-
-                match last_read_offsets {
-                    Some(offsets) => {
+                let mut last_offsets = HashMap::new();
+                if let Some(backend) = &state_backend {
+                    if let Some(offsets) = backend
+                        .get_state(&state_namespace, partition_tag.clone().into_bytes())
+                        .unwrap()
+                    {
                         let last_batch_metadata = BatchReadMetadata::from_bytes(&offsets).unwrap();
+                        last_offsets = last_batch_metadata.offsets_read;
                         debug!(
                             "epoch is {} and last read offsets are {:?}",
-                            epoch, last_batch_metadata
+                            epoch, last_offsets
                         );
+                    } else {
+                        debug!("epoch is {} and no prior offsets were found.", epoch);
                     }
-                    None => debug!("epoch is {} and no prior offsets were found.", epoch),
-                };
-                let mut offsets_read: Vec<(i32, i64)> = vec![];
-                let batch: Vec<serde_json::Value> = consumer
-                    .stream()
-                    .take_until(tokio::time::sleep(Duration::from_secs(1)))
-                    .map(|message| match message {
-                        Ok(m) => {
+                }
+
+                for (partition, offset) in &last_offsets {
+                    consumer
+                        .seek(
+                            &topic,
+                            *partition,
+                            rdkafka::Offset::Offset(*offset + 1),
+                            Duration::from_secs(10),
+                        )
+                        .expect("Failed to seek to stored offset");
+                }
+
+                let mut offsets_read: HashMap<i32, i64> = HashMap::new();
+                let mut batch: Vec<serde_json::Value> = Vec::new();
+                let start_time = std::time::Instant::now();
+
+                while start_time.elapsed() < batch_timeout {
+                    match tokio::time::timeout(
+                        batch_timeout - start_time.elapsed(),
+                        consumer.recv(),
+                    )
+                    .await
+                    {
+                        Ok(Ok(m)) => {
                             let timestamp = match m.timestamp() {
                                 Timestamp::NotAvailable => -1_i64,
                                 Timestamp::CreateTime(ts) => ts,
@@ -178,85 +189,90 @@ impl PartitionStream for KafkaStreamRead {
                                     .insert("kafka_key".to_string(), Value::from(String::from("")));
                             }
                             let new_payload = serde_json::to_value(deserialized_record).unwrap();
-                            offsets_read.push((m.partition(), m.offset()));
-                            new_payload
+                            offsets_read.insert(m.partition(), m.offset());
+                            batch.push(new_payload);
                         }
-                        Err(err) => {
+                        Ok(Err(err)) => {
                             error!("Error reading from Kafka {:?}", err);
-                            panic!("Error reading from Kafka {:?}", err)
+                            // Consider implementing a retry mechanism here
                         }
-                    })
-                    .collect()
-                    .await;
+                        Err(_) => {
+                            // Timeout reached
+                            break;
+                        }
+                    }
+                }
 
                 debug!("Batch size {}", batch.len());
 
-                let record_batch: RecordBatch =
-                    json_records_to_arrow_record_batch(batch, json_schema.clone());
+                if !batch.is_empty() {
+                    let record_batch: RecordBatch =
+                        json_records_to_arrow_record_batch(batch, json_schema.clone());
 
-                let ts_column = record_batch
-                    .column_by_name(timestamp_column.as_str())
-                    .map(|ts_col| {
-                        Arc::new(array_to_timestamp_array(ts_col, timestamp_unit.clone()))
-                    })
-                    .unwrap();
+                    let ts_column = record_batch
+                        .column_by_name(timestamp_column.as_str())
+                        .map(|ts_col| {
+                            Arc::new(array_to_timestamp_array(ts_col, timestamp_unit.clone()))
+                        })
+                        .unwrap();
 
-                let binary_vec = Vec::from_iter(
-                    std::iter::repeat(String::from("no_barrier")).take(ts_column.len()),
-                );
-                let barrier_batch_column = StringArray::from(binary_vec);
+                    let binary_vec = Vec::from_iter(
+                        std::iter::repeat(String::from("no_barrier")).take(ts_column.len()),
+                    );
+                    let barrier_batch_column = StringArray::from(binary_vec);
 
-                let ts_array = ts_column
-                    .as_any()
-                    .downcast_ref::<PrimitiveArray<TimestampMillisecondType>>()
-                    .unwrap();
+                    let ts_array = ts_column
+                        .as_any()
+                        .downcast_ref::<PrimitiveArray<TimestampMillisecondType>>()
+                        .unwrap();
 
-                let max_timestamp: Option<_> = max::<TimestampMillisecondType>(ts_array);
-                let min_timestamp: Option<_> = min::<TimestampMillisecondType>(ts_array);
-                debug!("min: {:?}, max: {:?}", min_timestamp, max_timestamp);
-                let mut columns: Vec<Arc<dyn Array>> = record_batch.columns().to_vec();
+                    let max_timestamp: Option<_> = max::<TimestampMillisecondType>(ts_array);
+                    let min_timestamp: Option<_> = min::<TimestampMillisecondType>(ts_array);
+                    debug!("min: {:?}, max: {:?}", min_timestamp, max_timestamp);
+                    let mut columns: Vec<Arc<dyn Array>> = record_batch.columns().to_vec();
 
-                let metadata_column = StructArray::from(vec![
-                    (
-                        Arc::new(Field::new("barrier_batch", DataType::Utf8, false)),
-                        Arc::new(barrier_batch_column) as ArrayRef,
-                    ),
-                    (
-                        Arc::new(Field::new(
-                            "canonical_timestamp",
-                            DataType::Timestamp(TimeUnit::Millisecond, None),
-                            true,
-                        )),
-                        ts_column as ArrayRef,
-                    ),
-                ]);
-                columns.push(Arc::new(metadata_column));
+                    let metadata_column = StructArray::from(vec![
+                        (
+                            Arc::new(Field::new("barrier_batch", DataType::Utf8, false)),
+                            Arc::new(barrier_batch_column) as ArrayRef,
+                        ),
+                        (
+                            Arc::new(Field::new(
+                                "canonical_timestamp",
+                                DataType::Timestamp(TimeUnit::Millisecond, None),
+                                true,
+                            )),
+                            ts_column as ArrayRef,
+                        ),
+                    ]);
+                    columns.push(Arc::new(metadata_column));
 
-                let timestamped_record_batch: RecordBatch =
-                    RecordBatch::try_new(canonical_schema.clone(), columns).unwrap();
-                let tx_result = tx.send(Ok(timestamped_record_batch)).await;
-                match tx_result {
-                    Ok(_) => {
-                        if should_checkpoint {
-                            let _ = state_backend.as_ref().map(|backend| {
-                                backend.put_state(
-                                    &state_namespace,
-                                    partition_tag.clone().into_bytes(),
-                                    BatchReadMetadata {
-                                        epoch,
-                                        min_timestamp,
-                                        max_timestamp,
-                                        offsets_read,
-                                    }
-                                    .to_bytes()
-                                    .unwrap(),
-                                )
-                            });
+                    let timestamped_record_batch: RecordBatch =
+                        RecordBatch::try_new(canonical_schema.clone(), columns).unwrap();
+                    let tx_result = tx.send(Ok(timestamped_record_batch)).await;
+                    match tx_result {
+                        Ok(_) => {
+                            if should_checkpoint {
+                                let _ = state_backend.as_ref().map(|backend| {
+                                    backend.put_state(
+                                        &state_namespace,
+                                        partition_tag.clone().into_bytes(),
+                                        BatchReadMetadata {
+                                            epoch,
+                                            min_timestamp,
+                                            max_timestamp,
+                                            offsets_read,
+                                        }
+                                        .to_bytes()
+                                        .unwrap(),
+                                    )
+                                });
+                            }
                         }
+                        Err(err) => error!("result err {:?}", err),
                     }
-                    Err(err) => error!("result err {:?}", err),
+                    epoch += 1;
                 }
-                epoch += 1;
             }
         });
         builder.build()
