@@ -5,7 +5,6 @@ use std::time::Duration;
 use arrow::datatypes::TimestampMillisecondType;
 use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, StructArray};
 use arrow_schema::{DataType, Field, SchemaRef, TimeUnit};
-use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{debug, error};
@@ -157,7 +156,7 @@ impl PartitionStream for KafkaStreamRead {
 
                 let mut offsets_read: HashMap<i32, i64> = HashMap::new();
                 let mut batch: Vec<serde_json::Value> = Vec::new();
-                let start_time = std::time::Instant::now();
+                let start_time = datafusion::common::instant::Instant::now();
 
                 while start_time.elapsed() < batch_timeout {
                     match tokio::time::timeout(
