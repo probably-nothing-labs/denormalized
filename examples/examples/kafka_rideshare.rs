@@ -70,20 +70,20 @@ async fn main() -> Result<()> {
         .await?;
 
     let ds = ctx.from_topic(source_topic).await?.window(
-        vec![], //vec![col("driver_id")],
+        vec![col("driver_id")],
         vec![
-            //max(col("imu_measurement").field("gps").field("speed")),
-            //min(col("imu_measurement").field("gps").field("altitude")),
+            max(col("imu_measurement").field("gps").field("speed")),
+            min(col("imu_measurement").field("gps").field("altitude")),
             count(col("imu_measurement")).alias("count"),
         ],
-        Duration::from_millis(5_000), // 5 second window
-        None,                         //Some(Duration::from_millis(1_000)), // 1 second slide
+        Duration::from_millis(5_000),       // 5 second window
+        Some(Duration::from_millis(1_000)), // 1 second slide
     )?;
 
-    ds.clone().print_stream().await?;
+    // ds.clone().print_stream().await?;
 
-    //ds.sink_kafka(bootstrap_servers.clone(), String::from("out_topic"))
-    //    .await?;
+    ds.sink_kafka(bootstrap_servers.clone(), String::from("out_topic"))
+        .await?;
 
     Ok(())
 }
