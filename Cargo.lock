@@ -797,7 +797,7 @@ dependencies = [
 [[package]]
 name = "datafusion"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "ahash",
  "arrow",
@@ -818,9 +818,11 @@ dependencies = [
  "datafusion-functions",
  "datafusion-functions-aggregate",
  "datafusion-functions-nested",
+ "datafusion-functions-window",
  "datafusion-optimizer",
  "datafusion-physical-expr",
  "datafusion-physical-expr-common",
+ "datafusion-physical-expr-functions-aggregate",
  "datafusion-physical-optimizer",
  "datafusion-physical-plan",
  "datafusion-sql",
@@ -852,7 +854,7 @@ dependencies = [
 [[package]]
 name = "datafusion-catalog"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "arrow-schema",
  "async-trait",
@@ -865,7 +867,7 @@ dependencies = [
 [[package]]
 name = "datafusion-common"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "ahash",
  "arrow",
@@ -883,6 +885,7 @@ dependencies = [
  "num_cpus",
  "object_store",
  "parquet",
+ "paste",
  "serde",
  "serde_json",
  "sqlparser",
@@ -891,7 +894,7 @@ dependencies = [
 [[package]]
 name = "datafusion-common-runtime"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "tokio",
 ]
@@ -899,7 +902,7 @@ dependencies = [
 [[package]]
 name = "datafusion-execution"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "arrow",
  "chrono",
@@ -919,7 +922,7 @@ dependencies = [
 [[package]]
 name = "datafusion-expr"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "ahash",
  "arrow",
@@ -927,6 +930,9 @@ dependencies = [
  "arrow-buffer",
  "chrono",
  "datafusion-common",
+ "datafusion-expr-common",
+ "datafusion-functions-aggregate-common",
+ "datafusion-physical-expr-common",
  "paste",
  "serde_json",
  "sqlparser",
@@ -935,9 +941,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "datafusion-expr-common"
+version = "41.0.0"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
+dependencies = [
+ "arrow",
+ "datafusion-common",
+ "paste",
+]
+
+[[package]]
 name = "datafusion-functions"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "arrow",
  "arrow-buffer",
@@ -963,7 +979,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-aggregate"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "ahash",
  "arrow",
@@ -971,16 +987,32 @@ dependencies = [
  "datafusion-common",
  "datafusion-execution",
  "datafusion-expr",
+ "datafusion-functions-aggregate-common",
+ "datafusion-physical-expr",
  "datafusion-physical-expr-common",
+ "half",
  "log",
  "paste",
  "sqlparser",
 ]
 
 [[package]]
+name = "datafusion-functions-aggregate-common"
+version = "41.0.0"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
+dependencies = [
+ "ahash",
+ "arrow",
+ "datafusion-common",
+ "datafusion-expr-common",
+ "datafusion-physical-expr-common",
+ "rand",
+]
+
+[[package]]
 name = "datafusion-functions-nested"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -999,9 +1031,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "datafusion-functions-window"
+version = "41.0.0"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
+dependencies = [
+ "datafusion-common",
+ "datafusion-expr",
+ "datafusion-physical-expr-common",
+ "log",
+]
+
+[[package]]
 name = "datafusion-optimizer"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1020,7 +1063,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-expr"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "ahash",
  "arrow",
@@ -1034,6 +1077,8 @@ dependencies = [
  "datafusion-common",
  "datafusion-execution",
  "datafusion-expr",
+ "datafusion-expr-common",
+ "datafusion-functions-aggregate-common",
  "datafusion-physical-expr-common",
  "half",
  "hashbrown",
@@ -1049,31 +1094,47 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-expr-common"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
+dependencies = [
+ "ahash",
+ "arrow",
+ "datafusion-common",
+ "datafusion-expr-common",
+ "hashbrown",
+ "rand",
+]
+
+[[package]]
+name = "datafusion-physical-expr-functions-aggregate"
+version = "41.0.0"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "ahash",
  "arrow",
  "datafusion-common",
  "datafusion-expr",
- "hashbrown",
+ "datafusion-expr-common",
+ "datafusion-functions-aggregate-common",
+ "datafusion-physical-expr-common",
  "rand",
 ]
 
 [[package]]
 name = "datafusion-physical-optimizer"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "datafusion-common",
  "datafusion-execution",
  "datafusion-physical-expr",
  "datafusion-physical-plan",
+ "itertools 0.12.1",
 ]
 
 [[package]]
 name = "datafusion-physical-plan"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "ahash",
  "arrow",
@@ -1088,8 +1149,10 @@ dependencies = [
  "datafusion-execution",
  "datafusion-expr",
  "datafusion-functions-aggregate",
+ "datafusion-functions-aggregate-common",
  "datafusion-physical-expr",
  "datafusion-physical-expr-common",
+ "datafusion-physical-expr-functions-aggregate",
  "futures",
  "half",
  "hashbrown",
@@ -1106,7 +1169,7 @@ dependencies = [
 [[package]]
 name = "datafusion-sql"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=fc67038#fc67038398c05f760b1bf910809444446d7348ba"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?rev=80874c4#80874c424814574697e29585663cc52376a5e4fb"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -2545,9 +2608,9 @@ dependencies = [
 
 [[package]]
 name = "sqlparser"
-version = "0.49.0"
+version = "0.50.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4a404d0e14905361b918cb8afdb73605e25c1d5029312bd9785142dcb3aa49e"
+checksum = "b2e5b515a2bd5168426033e9efbfd05500114833916f1d5c268f938b4ee130ac"
 dependencies = [
  "log",
  "sqlparser_derive",

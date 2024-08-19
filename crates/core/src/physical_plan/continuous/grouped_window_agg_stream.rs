@@ -98,7 +98,7 @@ impl GroupedWindowAggStream {
         };
 
         let group_by = exec_operator.group_by.clone();
-        let group_schema = group_schema(&agg_schema, group_by.expr.len());
+        let group_schema = group_schema(&agg_schema, group_by.expr().len());
         Ok(Self {
             schema: agg_schema,
             input,
@@ -461,7 +461,7 @@ pub(crate) fn evaluate_group_by(
     batch: &RecordBatch,
 ) -> Result<Vec<Vec<ArrayRef>>> {
     let exprs: Vec<ArrayRef> = group_by
-        .expr
+        .expr()
         .iter()
         .map(|(expr, _)| {
             let value = expr.evaluate(batch)?;
@@ -470,7 +470,7 @@ pub(crate) fn evaluate_group_by(
         .collect::<Result<Vec<_>>>()?;
 
     let null_exprs: Vec<ArrayRef> = group_by
-        .null_expr
+        .null_expr()
         .iter()
         .map(|(expr, _)| {
             let value = expr.evaluate(batch)?;
@@ -479,7 +479,7 @@ pub(crate) fn evaluate_group_by(
         .collect::<Result<Vec<_>>>()?;
 
     Ok(group_by
-        .groups
+        .groups()
         .iter()
         .map(|group| {
             group
