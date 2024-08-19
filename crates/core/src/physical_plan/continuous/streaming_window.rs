@@ -218,7 +218,7 @@ impl FranzStreamingWindowExec {
     ) -> Result<Self> {
         let schema = create_schema(
             &input.schema(),
-            &group_by.expr,
+            group_by.expr(),
             &aggr_expr,
             group_by.contains_null(),
             mode,
@@ -284,7 +284,7 @@ impl FranzStreamingWindowExec {
         };
 
         // construct a map from the input expression to the output expression of the Aggregation group by
-        let projection_mapping = ProjectionMapping::try_new(&group_by.expr, &input.schema())?;
+        let projection_mapping = ProjectionMapping::try_new(group_by.expr(), &input.schema())?;
 
         let cache = FranzStreamingWindowExec::compute_properties(
             &input,
@@ -437,9 +437,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
     fn statistics(&self) -> Result<Statistics> {
         let column_statistics = Statistics::unknown_column(&self.schema());
         match self.mode {
-            AggregateMode::Final | AggregateMode::FinalPartitioned
-                if self.group_by.expr.is_empty() =>
-            {
+            AggregateMode::Final | AggregateMode::FinalPartitioned if self.group_by.is_empty() => {
                 Ok(Statistics {
                     num_rows: Precision::Exact(1),
                     column_statistics,
@@ -495,7 +493,7 @@ impl DisplayAs for FranzStreamingWindowExec {
                 write!(f, "FranzStreamingWindowExec: mode={:?}", self.mode)?;
                 let g: Vec<String> = if self.group_by.is_single() {
                     self.group_by
-                        .expr
+                        .expr()
                         .iter()
                         .map(|(e, alias)| {
                             let e = e.to_string();
@@ -508,7 +506,7 @@ impl DisplayAs for FranzStreamingWindowExec {
                         .collect()
                 } else {
                     self.group_by
-                        .groups
+                        .groups()
                         .iter()
                         .map(|group| {
                             let terms = group
@@ -516,17 +514,17 @@ impl DisplayAs for FranzStreamingWindowExec {
                                 .enumerate()
                                 .map(|(idx, is_null)| {
                                     if *is_null {
-                                        let (e, alias) = &self.group_by.null_expr[idx];
+                                        let (e, alias) = &self.group_by.null_expr()[idx];
                                         let e = e.to_string();
-                                        if &e != alias {
+                                        if e != *alias {
                                             format!("{e} as {alias}")
                                         } else {
                                             e
                                         }
                                     } else {
-                                        let (e, alias) = &self.group_by.expr[idx];
+                                        let (e, alias) = &self.group_by.expr()[idx];
                                         let e = e.to_string();
-                                        if &e != alias {
+                                        if e != *alias {
                                             format!("{e} as {alias}")
                                         } else {
                                             e

@@ -33,18 +33,18 @@ impl StreamingLogicalPlanBuilder for LogicalPlanBuilder {
         window_length: Duration,
         slide: Option<Duration>,
     ) -> Result<Self> {
-        let group_expr = normalize_cols(group_expr, &self.plan)?;
-        let aggr_expr = normalize_cols(aggr_expr, &self.plan)?;
+        let group_expr = normalize_cols(group_expr, self.plan())?;
+        let aggr_expr = normalize_cols(aggr_expr, self.plan())?;
 
-        let group_expr = add_group_by_exprs_from_dependencies(group_expr, self.plan.schema())?;
+        let group_expr = add_group_by_exprs_from_dependencies(group_expr, self.schema())?;
         let window: StreamingWindowType = slide.map_or_else(
             || StreamingWindowType::Tumbling(window_length),
             |_slide| StreamingWindowType::Sliding(window_length, _slide),
         );
 
-        let plan = self.plan.clone();
+        let plan = self.plan().clone();
 
-        Aggregate::try_new(Arc::new(self.plan), group_expr, aggr_expr)
+        Aggregate::try_new(Arc::new(plan.clone()), group_expr, aggr_expr)
             .map(|new_aggr| {
                 LogicalPlan::Extension(Extension {
                     node: Arc::new(StreamingWindowPlanNode {

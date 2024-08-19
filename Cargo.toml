@@ -55,4 +55,4 @@ chrono = { version = "0.4.38", default-features = false }
 itertools = "0.13"
 
 [patch.crates-io]
-datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", rev="fc67038" }
+datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", rev = "80874c4" }
