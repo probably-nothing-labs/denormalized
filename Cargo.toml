@@ -17,7 +17,7 @@ description = "Embeddable stream processing engine"
 
 [workspace.dependencies]
 denormalized = { path = "crates/core" }
-datafusion = "41.0.0"
+datafusion = { git = "https://github.com/apache/datafusion", branch = "main" }
 
 arrow = { version = "52.0.0", features = ["prettyprint"] }
 arrow-array = { version = "52.0.0", default-features = false, features = [
@@ -55,4 +55,4 @@ chrono = { version = "0.4.38", default-features = false }
 itertools = "0.13"
 
 [patch.crates-io]
-datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+# datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
