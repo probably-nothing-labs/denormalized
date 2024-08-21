@@ -9,6 +9,7 @@ It currently supports kafka as a real-time source and a sink, windowed aggregati
 
 ## Quick Start
 
+
 ### Prerequisites
 
 - Docker
