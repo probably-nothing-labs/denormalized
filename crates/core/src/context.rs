@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::TableProvider;
@@ -16,7 +15,7 @@ use crate::utils::get_default_optimizer_rules;
 
 #[derive(Clone)]
 pub struct Context {
-    pub session_conext: Arc<RwLock<SessionContext>>,
+    pub session_conext: Arc<SessionContext>,
 }
 
 impl Context {
@@ -45,7 +44,7 @@ impl Context {
             .build();
 
         Ok(Self {
-            session_conext: Arc::new(RwLock::new(SessionContext::new_with_state(state))),
+            session_conext: Arc::new(SessionContext::new_with_state(state)),
         })
     }
 
@@ -55,12 +54,7 @@ impl Context {
         self.register_table(topic_name.clone(), Arc::new(topic))
             .await?;
 
-        let df = self
-            .session_conext
-            .read()
-            .await
-            .table(topic_name.as_str())
-            .await?;
+        let df = self.session_conext.table(topic_name.as_str()).await?;
 
         let ds = DataStream {
             df: Arc::new(df),
@@ -75,8 +69,6 @@ impl Context {
         table: Arc<impl TableProvider + 'static>,
     ) -> Result<(), DataFusionError> {
         self.session_conext
-            .write()
-            .await
             .register_table(name.as_str(), table.clone())?;
 
         Ok(())
