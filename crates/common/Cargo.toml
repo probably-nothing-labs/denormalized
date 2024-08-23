@@ -1,0 +1,10 @@
+[package]
+name = "denormalized-common"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+anyhow = "1.0.86"
+datafusion = { workspace = true }
+arrow = { workspace = true }
+thiserror = "1.0.63"

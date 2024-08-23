@@ -3,7 +3,6 @@ use itertools::multiunzip;
 use std::sync::Arc;
 
 use datafusion::common::{internal_err, DFSchema};
-use datafusion::error::Result;
 use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::Expr;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
@@ -20,6 +19,7 @@ use crate::logical_plan::streaming_window::{StreamingWindowPlanNode, StreamingWi
 use crate::physical_plan::continuous::streaming_window::{
     FranzStreamingWindowExec, FranzStreamingWindowType,
 };
+use datafusion::error::Result;
 
 /// Physical planner for TopK nodes
 pub struct StreamingWindowPlanner {}

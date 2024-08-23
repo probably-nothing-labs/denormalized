@@ -2,8 +2,8 @@ use datafusion::logical_expr::LogicalPlan;
 use futures::StreamExt;
 use std::{sync::Arc, time::Duration};
 
-use datafusion::common::{DFSchema, DataFusionError, Result};
-pub use datafusion::dataframe::DataFrame;
+use datafusion::common::DFSchema;
+use datafusion::dataframe::DataFrame;
 use datafusion::dataframe::DataFrameWriteOptions;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::logical_expr::{
@@ -15,6 +15,8 @@ use crate::context::Context;
 use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use crate::logical_plan::StreamingLogicalPlanBuilder;
 use crate::physical_plan::utils::time::TimestampUnit;
+
+use denormalized_common::error::Result;
 
 /// The primary interface for building a streaming job
 ///
@@ -28,7 +30,7 @@ pub struct DataStream {
 
 impl DataStream {
     // Select columns in the output stream
-    pub fn select(self, expr_list: Vec<Expr>) -> Result<Self, DataFusionError> {
+    pub fn select(self, expr_list: Vec<Expr>) -> Result<Self> {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
 
         let window_func_exprs = find_window_exprs(&expr_list);
@@ -63,7 +65,7 @@ impl DataStream {
         right: impl Joinable,
         join_type: JoinType,
         on_exprs: impl IntoIterator<Item = Expr>,
-    ) -> Result<Self, DataFusionError> {
+    ) -> Result<Self> {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
         let right_plan = right.get_plan();
 
@@ -86,7 +88,7 @@ impl DataStream {
         left_cols: &[&str],
         right_cols: &[&str],
         filter: Option<Expr>,
-    ) -> Result<Self, DataFusionError> {
+    ) -> Result<Self> {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
         let right_plan = right.get_plan();
 
@@ -112,7 +114,7 @@ impl DataStream {
         aggr_expr: Vec<Expr>,
         window_length: Duration,
         slide: Option<Duration>,
-    ) -> Result<Self, DataFusionError> {
+    ) -> Result<Self> {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
 
         let plan = LogicalPlanBuilder::from(plan)
@@ -126,7 +128,7 @@ impl DataStream {
 
     /// execute the stream and print the results to stdout.
     /// Mainly used for development and debugging
-    pub async fn print_stream(self) -> Result<(), DataFusionError> {
+    pub async fn print_stream(self) -> Result<()> {
         let mut stream: SendableRecordBatchStream =
             self.df.as_ref().clone().execute_stream().await?;
         loop {
@@ -143,7 +145,7 @@ impl DataStream {
                 }
                 Err(err) => {
                     log::error!("Error reading stream: {:?}", err);
-                    return Err(err);
+                    return Err(err.into());
                 }
             }
         }
@@ -156,21 +158,21 @@ impl DataStream {
 
     /// Prints the schema of the underlying dataframe
     /// Useful for debugging chained method calls.
-    pub fn print_schema(self) -> Result<Self, DataFusionError> {
+    pub fn print_schema(self) -> Result<Self> {
         println!("{}", self.df.schema());
         Ok(self)
     }
 
     /// Prints the underlying logical plan.
     /// Useful for debugging chained method calls.
-    pub fn print_plan(self) -> Result<Self, DataFusionError> {
+    pub fn print_plan(self) -> Result<Self> {
         println!("{}", self.df.logical_plan().display_indent());
         Ok(self)
     }
 
     /// Prints the underlying physical plan.
     /// Useful for debugging and development
-    pub async fn print_physical_plan(self) -> Result<Self, DataFusionError> {
+    pub async fn print_physical_plan(self) -> Result<Self> {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
         let physical_plan = self.df.as_ref().clone().create_physical_plan().await?;
         let displayable_plan = DisplayableExecutionPlan::new(physical_plan.as_ref());
@@ -184,11 +186,7 @@ impl DataStream {
     }
 
     /// execute the stream and write the results to a give kafka topic
-    pub async fn sink_kafka(
-        self,
-        bootstrap_servers: String,
-        topic: String,
-    ) -> Result<(), DataFusionError> {
+    pub async fn sink_kafka(self, bootstrap_servers: String, topic: String) -> Result<()> {
         let processed_schema = Arc::new(datafusion::common::arrow::datatypes::Schema::from(
             self.df.schema(),
         ));

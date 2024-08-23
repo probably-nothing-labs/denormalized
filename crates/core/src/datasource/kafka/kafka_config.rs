@@ -4,11 +4,11 @@ use std::{sync::Arc, time::Duration};
 
 use arrow_schema::{DataType, Field, Fields, Schema, SchemaRef, TimeUnit};
 
-use datafusion::common::{plan_err, DataFusionError, Result};
 use datafusion::logical_expr::Expr;
 
 use crate::physical_plan::utils::time::TimestampUnit;
 use crate::utils::arrow_helpers::infer_arrow_schema_from_json_value;
+use denormalized_common::error::{DenormalizedError, Result};
 
 use super::{TopicReader, TopicWriter};
 
@@ -135,7 +135,7 @@ impl KafkaTopicBuilder {
         self.infer_schema = false;
 
         let sample_value: serde_json::Value =
-            serde_json::from_str(json).map_err(|err| DataFusionError::External(err.into()))?;
+            serde_json::from_str(json).map_err(|err| DenormalizedError::Other(err.into()))?;
 
         let inferred_schema = infer_arrow_schema_from_json_value(&sample_value)?;
         let fields = inferred_schema.fields().to_vec();
@@ -164,7 +164,7 @@ impl KafkaTopicBuilder {
         let schema = self
             .schema
             .as_ref()
-            .ok_or_else(|| create_error("Schema required"))?
+            .ok_or_else(|| DenormalizedError::KafkaConfig("Schema required".to_string()))?
             .clone();
 
         let mut fields = schema.fields().to_vec();
@@ -194,13 +194,13 @@ impl KafkaTopicBuilder {
         let topic = self
             .topic
             .as_ref()
-            .ok_or_else(|| create_error("topic required"))?
+            .ok_or_else(|| DenormalizedError::KafkaConfig("topic required".to_string()))?
             .clone();
 
         let original_schema = self
             .schema
             .as_ref()
-            .ok_or_else(|| create_error("Schema required"))?
+            .ok_or_else(|| DenormalizedError::KafkaConfig("Schema required".to_string()))?
             .clone();
 
         let canonical_schema = self.create_canonical_schema()?;
@@ -208,18 +208,18 @@ impl KafkaTopicBuilder {
         let encoding = *self
             .encoding
             .as_ref()
-            .ok_or_else(|| create_error("encoding required"))?;
+            .ok_or_else(|| DenormalizedError::KafkaConfig("encoding required".to_string()))?;
 
         let timestamp_column = self
             .timestamp_column
             .as_ref()
-            .ok_or_else(|| create_error("timestamp_column required"))?
+            .ok_or_else(|| DenormalizedError::KafkaConfig("timestamp_column required".to_string()))?
             .clone();
 
         let timestamp_unit = self
             .timestamp_unit
             .as_ref()
-            .ok_or_else(|| create_error("timestamp_unit required"))?
+            .ok_or_else(|| DenormalizedError::KafkaConfig("timestamp_unit required".to_string()))?
             .clone();
 
         let mut kafka_connection_opts = ConnectionOpts::new();
@@ -256,30 +256,30 @@ impl KafkaTopicBuilder {
         let topic = self
             .topic
             .as_ref()
-            .ok_or_else(|| create_error("topic required"))?
+            .ok_or_else(|| DenormalizedError::KafkaConfig("topic required".to_string()))?
             .clone();
 
         let schema = self
             .schema
             .as_ref()
-            .ok_or_else(|| create_error("Schema required"))?
+            .ok_or_else(|| DenormalizedError::KafkaConfig("Schema required".to_string()))?
             .clone();
 
         let encoding = *self
             .encoding
             .as_ref()
-            .ok_or_else(|| create_error("encoding required"))?;
+            .ok_or_else(|| DenormalizedError::KafkaConfig("encoding required".to_string()))?;
 
         let timestamp_column = self
             .timestamp_column
             .as_ref()
-            .ok_or_else(|| create_error("timestamp_column required"))?
+            .ok_or_else(|| DenormalizedError::KafkaConfig("timestamp_column required".to_string()))?
             .clone();
 
         let timestamp_unit = self
             .timestamp_unit
             .as_ref()
-            .ok_or_else(|| create_error("timestamp_unit required"))?
+            .ok_or_else(|| DenormalizedError::KafkaConfig("timestamp_unit required".to_string()))?
             .clone();
 
         let mut kafka_connection_opts = ConnectionOpts::new();
@@ -315,22 +315,18 @@ pub enum StreamEncoding {
 }
 
 impl FromStr for StreamEncoding {
-    type Err = DataFusionError;
+    type Err = DenormalizedError;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_ascii_lowercase().as_str() {
             "avro" => Ok(Self::Avro),
             "json" => Ok(Self::Json),
-            _ => plan_err!("Unrecognised StreamEncoding {}", s),
+            _ => Err(Self::Err::KafkaConfig(format!(
+                "Unrecognised StreamEncoding {}",
+                s
+            ))),
         }
     }
-}
-
-fn create_error(msg: &str) -> DataFusionError {
-    DataFusionError::External(Box::new(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        msg,
-    )))
 }
 
 fn get_topic_partition_count(bootstrap_servers: String, topic: String) -> Result<i32> {

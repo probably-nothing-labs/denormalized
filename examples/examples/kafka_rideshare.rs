@@ -1,12 +1,10 @@
-use datafusion::error::Result;
 use datafusion::functions::core::expr_ext::FieldAccessor;
 use datafusion::functions_aggregate::count::count;
 use datafusion::functions_aggregate::expr_fn::{max, min};
 use datafusion::logical_expr::col;
 
-use denormalized::context::Context;
 use denormalized::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
-use denormalized::physical_plan::utils::time::TimestampUnit;
+use denormalized::prelude::*;
 
 use std::time::Duration;
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
