@@ -4,6 +4,8 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
+denormalized-common = { workspace = true }
+
 datafusion = { workspace = true }
 
 arrow = { workspace = true }
