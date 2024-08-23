@@ -3,7 +3,6 @@ use itertools::multiunzip;
 use std::sync::Arc;
 
 use datafusion::common::{internal_err, DFSchema};
-use datafusion::error::Result;
 use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::Expr;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
@@ -16,6 +15,7 @@ use datafusion::physical_planner::{
     create_aggregate_expr_and_maybe_filter, ExtensionPlanner, PhysicalPlanner,
 };
 
+use datafusion::error::Result;
 use crate::logical_plan::streaming_window::{StreamingWindowPlanNode, StreamingWindowType};
 use crate::physical_plan::continuous::streaming_window::{
     FranzStreamingWindowExec, FranzStreamingWindowType,

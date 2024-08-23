@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::TableProvider;
 use datafusion::execution::{
     config::SessionConfig, context::SessionContext, runtime_env::RuntimeEnv,
@@ -13,13 +12,15 @@ use crate::physical_optimizer::CoaslesceBeforeStreamingAggregate;
 use crate::query_planner::StreamingQueryPlanner;
 use crate::utils::get_default_optimizer_rules;
 
+use denormalized_common::error::{DenormalizedError, Result};
+
 #[derive(Clone)]
 pub struct Context {
     pub session_conext: Arc<SessionContext>,
 }
 
 impl Context {
-    pub fn new() -> Result<Self, DataFusionError> {
+    pub fn new() -> Result<Self, DenormalizedError> {
         let config = SessionConfig::new()
             .set(
                 "datafusion.execution.batch_size",
@@ -48,7 +49,7 @@ impl Context {
         })
     }
 
-    pub async fn from_topic(&self, topic: TopicReader) -> Result<DataStream, DataFusionError> {
+    pub async fn from_topic(&self, topic: TopicReader) -> Result<DataStream, DenormalizedError> {
         let topic_name = topic.0.topic.clone();
 
         self.register_table(topic_name.clone(), Arc::new(topic))
@@ -67,7 +68,7 @@ impl Context {
         &self,
         name: String,
         table: Arc<impl TableProvider + 'static>,
-    ) -> Result<(), DataFusionError> {
+    ) -> Result<(), DenormalizedError> {
         self.session_conext
             .register_table(name.as_str(), table.clone())?;
 
