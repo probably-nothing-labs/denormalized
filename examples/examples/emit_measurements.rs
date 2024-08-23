@@ -1,4 +1,3 @@
-use datafusion::error::Result;
 use rand::seq::SliceRandom;
 use rdkafka::producer::FutureProducer;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -6,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureRecord;
 
+use denormalized::prelude::*;
 use denormalized_examples::Measurment;
 
 /// This script emits test data to a kafka cluster

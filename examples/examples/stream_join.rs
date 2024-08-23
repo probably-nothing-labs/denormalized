@@ -1,13 +1,11 @@
 use std::time::Duration;
 
 use datafusion::common::JoinType;
-use datafusion::error::Result;
 use datafusion::functions_aggregate::average::avg;
 use datafusion::logical_expr::col;
 
-use denormalized::context::Context;
 use denormalized::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
-use denormalized::physical_plan::utils::time::TimestampUnit;
+use denormalized::prelude::*;
 
 use denormalized_examples::get_sample_json;
 

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "examples"]
+members = ["crates/*", "examples"]
 
 [workspace.package]
 authors = [
@@ -17,6 +17,8 @@ description = "Embeddable stream processing engine"
 
 [workspace.dependencies]
 denormalized = { path = "crates/core" }
+denormalized-common = { path = "crates/common" }
+
 datafusion = { git = "https://github.com/apache/datafusion", branch = "main" }
 
 arrow = { version = "52.0.0", features = ["prettyprint"] }
