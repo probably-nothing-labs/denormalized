@@ -5,8 +5,8 @@ use datafusion::functions_aggregate::count::count;
 use datafusion::functions_aggregate::expr_fn::{max, min};
 use datafusion::logical_expr::{col, lit};
 
-use denormalized::prelude::*;
 use denormalized::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
+use denormalized::prelude::*;
 
 use denormalized_examples::get_sample_json;
 

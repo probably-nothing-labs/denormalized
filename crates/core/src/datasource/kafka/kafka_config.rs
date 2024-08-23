@@ -321,7 +321,10 @@ impl FromStr for StreamEncoding {
         match s.to_ascii_lowercase().as_str() {
             "avro" => Ok(Self::Avro),
             "json" => Ok(Self::Json),
-            _ => Err(Self::Err::KafkaConfig(format!("Unrecognised StreamEncoding {}", s))),
+            _ => Err(Self::Err::KafkaConfig(format!(
+                "Unrecognised StreamEncoding {}",
+                s
+            ))),
         }
     }
 }

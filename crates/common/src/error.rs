@@ -1,8 +1,8 @@
 use std::result;
 use thiserror::Error;
 
-use datafusion::error::DataFusionError;
 use arrow::error::ArrowError;
+use datafusion::error::DataFusionError;
 
 /// Result type for operations that could result in a [DenormalizedError]
 pub type Result<T, E = DenormalizedError> = result::Result<T, E>;
