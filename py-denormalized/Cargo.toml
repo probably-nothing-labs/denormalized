@@ -1,0 +1,19 @@
+[package]
+name = "denormalized-python"
+version = "0.0.1"
+edition = "2021"
+homepage = "https://github.com/apache/datafusion-python"
+repository = "https://github.com/probably-nothing-labs/denormalized-python.git"
+
+[lib]
+name = "denormalized_python"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.21.2", features = ["experimental-async"] }
+denormalized = { workspace = true }
+datafusion = { workspace = true, features = [
+  "pyarrow",
+  "avro",
+  "unicode_expressions",
+] }
