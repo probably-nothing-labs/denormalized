@@ -3,8 +3,15 @@ name = "denormalized-common"
 version = { workspace = true }
 edition = { workspace = true }
 
+
+[features]
+python = ["dep:pyo3"]
+default = ["python"]
+
+
 [dependencies]
 anyhow = "1.0.86"
 datafusion = { workspace = true }
 arrow = { workspace = true }
 thiserror = "1.0.63"
+pyo3 = { workspace = true, optional = true }

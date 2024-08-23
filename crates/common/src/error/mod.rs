@@ -4,6 +4,9 @@ use thiserror::Error;
 use arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 
+#[cfg(feature = "python")]
+mod py_err;
+
 /// Result type for operations that could result in a [DenormalizedError]
 pub type Result<T, E = DenormalizedError> = result::Result<T, E>;
 
