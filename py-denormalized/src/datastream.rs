@@ -22,7 +22,7 @@ impl PyDataStream {
 #[pymethods]
 impl PyDataStream {
     fn __repr__(&self, _py: Python) -> PyResult<String> {
-        Ok(format!("PyDataStream"))
+        Ok("PyDataStream".to_string())
     }
 
     fn schema(&self) -> PyArrowType<Schema> {

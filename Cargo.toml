@@ -56,6 +56,3 @@ base64 = "0.22.1"
 chrono = { version = "0.4.38", default-features = false }
 itertools = "0.13"
 pyo3 = { version = "0.21.2", features = ["experimental-async"] }
-
-[patch.crates-io]
-# datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }

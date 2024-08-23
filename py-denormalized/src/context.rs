@@ -32,7 +32,7 @@ impl PyContext {
     }
 
     fn __repr__(&self, _py: Python) -> PyResult<String> {
-        Ok(format!("PyContext"))
+        Ok("PyContext".to_string())
     }
 
     #[pyo3(signature = (topic, sample_json, bootstrap_servers))]
