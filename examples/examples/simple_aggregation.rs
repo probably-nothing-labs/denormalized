@@ -20,16 +20,16 @@ async fn main() -> Result<()> {
 
     let sample_event = get_sample_json();
 
-    let bootstrap_servers = String::from("localhost:9092");
+    let bootstrap_servers = String::from("localhost:19092");
 
     let ctx = Context::new()?;
     let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers.clone());
 
     let source_topic = topic_builder
-        .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
-        .with_encoding("json")?
         .with_topic(String::from("temperature"))
         .infer_schema_from_json(sample_event.as_str())?
+        .with_encoding("json")?
+        .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
         .build_reader(ConnectionOpts::from([
             ("auto.offset.reset".to_string(), "latest".to_string()),
             ("group.id".to_string(), "sample_pipeline".to_string()),
@@ -51,7 +51,6 @@ async fn main() -> Result<()> {
             None,
         )?
         .filter(col("max").gt(lit(113)))?;
-
     ds.clone().print_stream().await?;
 
     Ok(())

@@ -218,12 +218,14 @@ impl DataStream {
 pub trait Joinable {
     fn get_plan(self) -> LogicalPlan;
 }
+
 impl Joinable for DataFrame {
     fn get_plan(self) -> LogicalPlan {
         let (_, plan) = self.into_parts();
         plan
     }
 }
+
 impl Joinable for DataStream {
     fn get_plan(self) -> LogicalPlan {
         let (_, plan) = self.df.as_ref().clone().into_parts();
