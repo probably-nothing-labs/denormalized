@@ -48,10 +48,29 @@ impl PhysicalOptimizerRule for CoaslesceBeforeStreamingAggregate {
                 if *partitions == 1 {
                     return Ok(Transformed::no(original));
                 }
-                let coalesce_exec = Arc::new(RepartitionExec::try_new(
-                    input.clone(),
-                    Partitioning::RoundRobinBatch(1),
-                )?);
+                let group_by = streaming_aggr_exec.group_by.expr();
+                // Make sure we dont have contiguous repartitions. TODO: Make this a separate rule.
+                let input_exec =
+                    if let Some(in_exec) = input.as_any().downcast_ref::<RepartitionExec>() {
+                        in_exec.input()
+                    } else {
+                        input
+                    };
+
+                let coalesce_exec = if streaming_aggr_exec.group_by.is_empty() {
+                    Arc::new(RepartitionExec::try_new(
+                        input_exec.clone(),
+                        Partitioning::RoundRobinBatch(1),
+                    )?)
+                } else {
+                    Arc::new(RepartitionExec::try_new(
+                        input_exec.clone(),
+                        Partitioning::Hash(
+                            streaming_aggr_exec.group_by.input_exprs(),
+                            input.output_partitioning().partition_count(),
+                        ),
+                    )?)
+                };
                 Ok(Transformed::yes(Arc::new(
                     FranzStreamingWindowExec::try_new(
                         streaming_aggr_exec.mode,
