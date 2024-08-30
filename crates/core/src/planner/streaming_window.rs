@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+use datafusion::physical_plan::repartition::RepartitionExec;
+use datafusion::physical_plan::Partitioning;
 use itertools::multiunzip;
 use std::sync::Arc;
 
@@ -15,7 +17,7 @@ use datafusion::physical_planner::{
     create_aggregate_expr_and_maybe_filter, ExtensionPlanner, PhysicalPlanner,
 };
 
-use crate::logical_plan::streaming_window::{StreamingWindowPlanNode, StreamingWindowType};
+use crate::logical_plan::streaming_window::{self, StreamingWindowPlanNode, StreamingWindowType};
 use crate::physical_plan::continuous::streaming_window::{
     FranzStreamingWindowExec, FranzStreamingWindowType,
 };
@@ -130,16 +132,41 @@ impl ExtensionPlanner for StreamingWindowPlanner {
                     StreamingWindowType::Session(..) => todo!(),
                 };
 
-                let initial_aggr = Arc::new(FranzStreamingWindowExec::try_new(
-                    AggregateMode::Single,
-                    groups.clone(),
-                    aggregates.clone(),
-                    filters.clone(),
-                    input_exec.clone(),
-                    physical_input_schema.clone(),
-                    franz_window_type,
-                )?);
-                Some(initial_aggr)
+                let final_aggr = if streaming_window_node.aggregrate.group_expr.len() == 0 {
+                    let partial_aggr = Arc::new(FranzStreamingWindowExec::try_new(
+                        AggregateMode::Partial,
+                        groups.clone(),
+                        aggregates.clone(),
+                        filters.clone(),
+                        input_exec.clone(),
+                        physical_input_schema.clone(),
+                        franz_window_type,
+                        None,
+                    )?);
+                    Arc::new(FranzStreamingWindowExec::try_new(
+                        AggregateMode::Final,
+                        groups.clone(),
+                        aggregates.clone(),
+                        filters.clone(),
+                        partial_aggr.clone(),
+                        physical_input_schema.clone(),
+                        franz_window_type,
+                        None,
+                    )?)
+                } else {
+                    Arc::new(FranzStreamingWindowExec::try_new(
+                        AggregateMode::Single,
+                        groups.clone(),
+                        aggregates.clone(),
+                        filters.clone(),
+                        input_exec.clone(),
+                        physical_input_schema.clone(),
+                        franz_window_type,
+                        None,
+                    )?)
+                };
+
+                Some(final_aggr)
             } else {
                 None
             },
