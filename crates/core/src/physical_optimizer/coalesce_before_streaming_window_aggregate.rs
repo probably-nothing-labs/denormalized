@@ -58,10 +58,7 @@ impl PhysicalOptimizerRule for CoaslesceBeforeStreamingAggregate {
                     };
 
                 let coalesce_exec = if streaming_aggr_exec.group_by.is_empty() {
-                    Arc::new(RepartitionExec::try_new(
-                        input_exec.clone(),
-                        Partitioning::RoundRobinBatch(1),
-                    )?)
+                    return Ok(Transformed::no(original));
                 } else {
                     Arc::new(RepartitionExec::try_new(
                         input_exec.clone(),
@@ -80,6 +77,7 @@ impl PhysicalOptimizerRule for CoaslesceBeforeStreamingAggregate {
                         coalesce_exec.clone(),
                         input.schema(),
                         streaming_aggr_exec.window_type,
+                        streaming_aggr_exec.upstream_partitioning,
                     )?,
                 )))
             } else {

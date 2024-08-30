@@ -15,12 +15,12 @@ use denormalized_examples::get_sample_json;
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Warn)
+        .filter_level(log::LevelFilter::Debug)
         .init();
 
     let sample_event = get_sample_json();
 
-    let bootstrap_servers = String::from("localhost:19092");
+    let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
 
     let ctx = Context::new()?;
     let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers.clone());
@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
         .from_topic(source_topic)
         .await?
         .window(
-            vec![col("sensor_name")],
+            vec![], //vec![col("sensor_name")],
             vec![
                 count(col("reading")).alias("count"),
                 min(col("reading")).alias("min"),
@@ -51,6 +51,7 @@ async fn main() -> Result<()> {
             None,
         )?
         .filter(col("max").gt(lit(113)))?;
+    ds.clone().print_physical_plan().await?;
     ds.clone().print_stream().await?;
 
     Ok(())
