@@ -1,5 +1,4 @@
 use std::{
-    alloc::System,
     any::Any,
     borrow::Cow,
     collections::BTreeMap,
@@ -40,20 +39,15 @@ use datafusion::{
 use futures::{Stream, StreamExt};
 use tracing::debug;
 
-use crate::{
-    accumulators,
-    physical_plan::{
-        continuous::grouped_window_agg_stream::GroupedWindowAggStream,
-        utils::{
-            accumulators::{create_accumulators, AccumulatorItem},
-            time::{system_time_from_epoch, RecordBatchWatermark},
-        },
+use crate::physical_plan::{
+    continuous::grouped_window_agg_stream::GroupedWindowAggStream,
+    utils::{
+        accumulators::{create_accumulators, AccumulatorItem},
+        time::{system_time_from_epoch, RecordBatchWatermark},
     },
 };
 
-type WatermarkMutex = Arc<Mutex<Option<SystemTime>>>;
-
-pub struct FranzWindowFrame {
+pub struct PartialWindowAggFrame {
     pub window_start_time: SystemTime,
     window_end_time: SystemTime,
     timestamp_column: String,
@@ -65,7 +59,7 @@ pub struct FranzWindowFrame {
     baseline_metrics: BaselineMetrics,
 }
 
-impl DisplayAs for FranzWindowFrame {
+impl DisplayAs for PartialWindowAggFrame {
     fn fmt_as(&self, t: DisplayFormatType, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match t {
             DisplayFormatType::Default | DisplayFormatType::Verbose => {
@@ -87,7 +81,7 @@ use datafusion::common::Result;
 
 use super::{add_window_columns_to_record_batch, add_window_columns_to_schema, batch_filter};
 
-impl FranzWindowFrame {
+impl PartialWindowAggFrame {
     pub fn new(
         window_start_time: SystemTime,
         window_end_time: SystemTime,
@@ -190,14 +184,14 @@ impl FranzWindowFrame {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum FranzStreamingWindowType {
+pub enum PhysicalStreamingWindowType {
     Session(Duration),
     Sliding(Duration, Duration),
     Tumbling(Duration),
 }
 
 #[derive(Debug)]
-pub struct FranzStreamingWindowExec {
+pub struct StreamingWindowExec {
     pub(crate) input: Arc<dyn ExecutionPlan>,
     pub aggregate_expressions: Vec<Arc<dyn AggregateExpr>>,
     pub filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
@@ -210,11 +204,11 @@ pub struct FranzStreamingWindowExec {
     pub(crate) metrics: ExecutionPlanMetricsSet,
     cache: PlanProperties,
     pub mode: AggregateMode,
-    pub window_type: FranzStreamingWindowType,
+    pub window_type: PhysicalStreamingWindowType,
     pub upstream_partitioning: Option<usize>,
 }
 
-impl FranzStreamingWindowExec {
+impl StreamingWindowExec {
     /// Create a new execution plan for window aggregates
     ///
     pub fn try_new(
@@ -224,7 +218,7 @@ impl FranzStreamingWindowExec {
         filter_expr: Vec<Option<Arc<dyn PhysicalExpr>>>,
         input: Arc<dyn ExecutionPlan>,
         input_schema: SchemaRef,
-        window_type: FranzStreamingWindowType,
+        window_type: PhysicalStreamingWindowType,
         upstream_partitioning: Option<usize>,
     ) -> Result<Self> {
         let schema = create_schema(
@@ -236,7 +230,7 @@ impl FranzStreamingWindowExec {
         )?;
 
         let schema = Arc::new(schema);
-        FranzStreamingWindowExec::try_new_with_schema(
+        StreamingWindowExec::try_new_with_schema(
             mode,
             group_by,
             aggr_expr,
@@ -257,7 +251,7 @@ impl FranzStreamingWindowExec {
         input: Arc<dyn ExecutionPlan>,
         input_schema: SchemaRef,
         schema: SchemaRef,
-        window_type: FranzStreamingWindowType,
+        window_type: PhysicalStreamingWindowType,
         upstream_partitioning: Option<usize>,
     ) -> Result<Self> {
         if aggr_expr.len() != filter_expr.len() {
@@ -299,7 +293,7 @@ impl FranzStreamingWindowExec {
         // construct a map from the input expression to the output expression of the Aggregation group by
         let projection_mapping = ProjectionMapping::try_new(group_by.expr(), &input.schema())?;
 
-        let cache = FranzStreamingWindowExec::compute_properties(
+        let cache = StreamingWindowExec::compute_properties(
             &input,
             Arc::new(add_window_columns_to_schema(schema.clone())),
             &projection_mapping,
@@ -379,9 +373,9 @@ impl FranzStreamingWindowExec {
     }
 }
 
-impl ExecutionPlan for FranzStreamingWindowExec {
+impl ExecutionPlan for StreamingWindowExec {
     fn name(&self) -> &'static str {
-        "FranzWindowExec"
+        "StreamingWindowExec"
     }
 
     /// Return a reference to Any that can be used for downcasting
@@ -405,7 +399,7 @@ impl ExecutionPlan for FranzStreamingWindowExec {
         self: Arc<Self>,
         children: Vec<Arc<dyn ExecutionPlan>>,
     ) -> Result<Arc<dyn ExecutionPlan>> {
-        Ok(Arc::new(FranzStreamingWindowExec::try_new(
+        Ok(Arc::new(StreamingWindowExec::try_new(
             self.mode,
             self.group_by.clone(),
             self.aggregate_expressions.clone(),
@@ -439,7 +433,6 @@ impl ExecutionPlan for FranzStreamingWindowExec {
                     context,
                     partition,
                     Duration::from_millis(100),
-                    self.upstream_partitioning,
                 )?))
             }
         } else {
@@ -518,11 +511,11 @@ impl ExecutionPlan for FranzStreamingWindowExec {
     }
 }
 
-impl DisplayAs for FranzStreamingWindowExec {
+impl DisplayAs for StreamingWindowExec {
     fn fmt_as(&self, t: DisplayFormatType, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match t {
             DisplayFormatType::Default | DisplayFormatType::Verbose => {
-                write!(f, "FranzStreamingWindowExec: mode={:?}", self.mode)?;
+                write!(f, "StreamingWindowExec: mode={:?}", self.mode)?;
                 let g: Vec<String> = if self.group_by.is_single() {
                     self.group_by
                         .expr()
@@ -600,19 +593,19 @@ pub struct WindowAggStream {
     aggregate_expressions: Vec<Vec<Arc<dyn PhysicalExpr>>>,
     filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     latest_watermark: Arc<Mutex<Option<SystemTime>>>,
-    window_frames: BTreeMap<SystemTime, FranzWindowFrame>,
-    window_type: FranzStreamingWindowType,
+    window_frames: BTreeMap<SystemTime, PartialWindowAggFrame>,
+    window_type: PhysicalStreamingWindowType,
     aggregation_mode: AggregateMode,
 }
 
 #[allow(dead_code)]
 impl WindowAggStream {
     pub fn new(
-        exec_operator: &FranzStreamingWindowExec,
+        exec_operator: &StreamingWindowExec,
         context: Arc<TaskContext>,
         partition: usize,
         watermark: Arc<Mutex<Option<SystemTime>>>,
-        window_type: FranzStreamingWindowType,
+        window_type: PhysicalStreamingWindowType,
         aggregation_mode: AggregateMode,
     ) -> Result<Self> {
         let agg_schema = Arc::clone(&exec_operator.schema);
@@ -698,9 +691,9 @@ impl WindowAggStream {
 
     fn get_window_length(&mut self) -> Duration {
         match self.window_type {
-            FranzStreamingWindowType::Session(duration) => duration,
-            FranzStreamingWindowType::Sliding(duration, _) => duration,
-            FranzStreamingWindowType::Tumbling(duration) => duration,
+            PhysicalStreamingWindowType::Session(duration) => duration,
+            PhysicalStreamingWindowType::Sliding(duration, _) => duration,
+            PhysicalStreamingWindowType::Tumbling(duration) => duration,
         }
     }
 
@@ -711,7 +704,7 @@ impl WindowAggStream {
         for (start_time, end_time) in ranges {
             self.window_frames.entry(*start_time).or_insert({
                 let accumulators = create_accumulators(&self.exec_aggregate_expressions)?;
-                FranzWindowFrame::new(
+                PartialWindowAggFrame::new(
                     *start_time,
                     *end_time,
                     "canonical_timestamp".to_string(),
@@ -789,7 +782,7 @@ struct FullWindowAggFrame {
     aggregate_expressions: Vec<Vec<Arc<dyn PhysicalExpr>>>,
     filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     schema: SchemaRef,
-    baseline_metrics: BaselineMetrics,
+    _baseline_metrics: BaselineMetrics,
     batches_accumulated: usize,
 }
 
@@ -812,7 +805,7 @@ impl FullWindowAggFrame {
             aggregate_expressions,
             filter_expressions,
             schema: schema.clone(),
-            baseline_metrics: baseline_metrics,
+            _baseline_metrics: baseline_metrics,
             batches_accumulated: 0,
         }
     }
@@ -829,39 +822,32 @@ impl FullWindowAggFrame {
     }
 
     fn evaluate(&mut self) -> Result<RecordBatch, DataFusionError> {
-        let result = finalize_aggregation(&mut self.accumulators, &AggregateMode::Final).and_then(
-            |columns| RecordBatch::try_new(self.schema.clone(), columns).map_err(Into::into),
-        );
-        result
+        finalize_aggregation(&mut self.accumulators, &AggregateMode::Final).and_then(|columns| {
+            RecordBatch::try_new(self.schema.clone(), columns).map_err(Into::into)
+        })
     }
 }
 struct FullWindowAggStream {
     pub schema: SchemaRef,
     input: SendableRecordBatchStream,
-    //exec_operator: FranzStreamingWindowExec,
     baseline_metrics: BaselineMetrics,
     exec_aggregate_expressions: Vec<Arc<dyn AggregateExpr>>,
     aggregate_expressions: Vec<Vec<Arc<dyn PhysicalExpr>>>,
     filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     cached_frames: BTreeMap<SystemTime, FullWindowAggFrame>,
     watermark: Option<SystemTime>, // This stream needs to be run with only one partition in the Exec operator.
-    upstream_partitions: usize,
-    lateness_threshold: Duration,
+    _lateness_threshold: Duration,
     seen_windows: std::collections::HashSet<SystemTime>,
 }
 
 impl FullWindowAggStream {
     pub fn try_new(
-        exec_operator: &FranzStreamingWindowExec,
+        exec_operator: &StreamingWindowExec,
         context: Arc<TaskContext>,
         partition: usize,
         lateness_threshold: Duration,
-        upstream_partitioning: Option<usize>,
     ) -> Result<Self> {
-        debug!(">>>>>> FullWindowAggStream for partition {}", partition);
         let agg_schema = Arc::clone(&exec_operator.schema);
-        let agg_filter_expr = exec_operator.filter_expressions.clone();
-
         let baseline_metrics = BaselineMetrics::new(&exec_operator.metrics, partition);
         let input = exec_operator
             .input
@@ -880,8 +866,7 @@ impl FullWindowAggStream {
             filter_expressions,
             cached_frames: BTreeMap::new(),
             watermark: None,
-            upstream_partitions: upstream_partitioning.map_or(1, |x| x),
-            lateness_threshold,
+            _lateness_threshold: lateness_threshold,
             seen_windows: std::collections::HashSet::<SystemTime>::new(),
         })
     }
@@ -966,7 +951,7 @@ impl FullWindowAggStream {
                         rb.remove_column(col_size - 1);
                         rb.remove_column(col_size - 2);
 
-                        let _ = frame.aggregate_batch(rb);
+                        frame.aggregate_batch(rb);
 
                         self.watermark = self
                             .watermark
@@ -1008,15 +993,15 @@ impl Stream for FullWindowAggStream {
 
 pub fn get_windows_for_watermark(
     watermark: &RecordBatchWatermark,
-    window_type: FranzStreamingWindowType,
+    window_type: PhysicalStreamingWindowType,
 ) -> Vec<(SystemTime, SystemTime)> {
     let start_time = watermark.min_timestamp;
     let end_time = watermark.max_timestamp;
     let mut window_ranges = Vec::new();
 
     match window_type {
-        FranzStreamingWindowType::Session(_) => todo!(),
-        FranzStreamingWindowType::Sliding(window_length, slide) => {
+        PhysicalStreamingWindowType::Session(_) => todo!(),
+        PhysicalStreamingWindowType::Sliding(window_length, slide) => {
             let mut current_start = snap_to_window_start(start_time - window_length, window_length);
             while current_start <= end_time {
                 let current_end = current_start + window_length;
@@ -1029,7 +1014,7 @@ pub fn get_windows_for_watermark(
                 current_start += slide;
             }
         }
-        FranzStreamingWindowType::Tumbling(window_length) => {
+        PhysicalStreamingWindowType::Tumbling(window_length) => {
             let mut current_start: SystemTime = snap_to_window_start(start_time, window_length);
             while current_start <= end_time {
                 let current_end = current_start + window_length;

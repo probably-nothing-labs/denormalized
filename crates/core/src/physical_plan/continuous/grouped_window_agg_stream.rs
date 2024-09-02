@@ -41,7 +41,7 @@ use crate::physical_plan::utils::time::RecordBatchWatermark;
 use super::{
     add_window_columns_to_record_batch, add_window_columns_to_schema, create_group_accumulator,
     streaming_window::{
-        get_windows_for_watermark, FranzStreamingWindowExec, FranzStreamingWindowType,
+        get_windows_for_watermark, PhysicalStreamingWindowType, StreamingWindowExec,
     },
     GroupsAccumulatorItem,
 };
@@ -56,7 +56,7 @@ pub struct GroupedWindowAggStream {
     filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     latest_watermark: Arc<Mutex<Option<SystemTime>>>,
     window_frames: BTreeMap<SystemTime, GroupedAggWindowFrame>,
-    window_type: FranzStreamingWindowType,
+    window_type: PhysicalStreamingWindowType,
     aggregation_mode: AggregateMode,
     group_by: PhysicalGroupBy,
     group_schema: Arc<Schema>,
@@ -71,11 +71,11 @@ fn group_schema(schema: &Schema, group_count: usize) -> SchemaRef {
 #[allow(dead_code)]
 impl GroupedWindowAggStream {
     pub fn new(
-        exec_operator: &FranzStreamingWindowExec,
+        exec_operator: &StreamingWindowExec,
         context: Arc<TaskContext>,
         partition: usize,
         watermark: Arc<Mutex<Option<SystemTime>>>,
-        window_type: FranzStreamingWindowType,
+        window_type: PhysicalStreamingWindowType,
         aggregation_mode: AggregateMode,
     ) -> Result<Self> {
         let agg_schema = Arc::clone(&exec_operator.schema);
@@ -165,9 +165,9 @@ impl GroupedWindowAggStream {
 
     fn get_window_length(&mut self) -> Duration {
         match self.window_type {
-            FranzStreamingWindowType::Session(duration) => duration,
-            FranzStreamingWindowType::Sliding(duration, _) => duration,
-            FranzStreamingWindowType::Tumbling(duration) => duration,
+            PhysicalStreamingWindowType::Session(duration) => duration,
+            PhysicalStreamingWindowType::Sliding(duration, _) => duration,
+            PhysicalStreamingWindowType::Tumbling(duration) => duration,
         }
     }
 

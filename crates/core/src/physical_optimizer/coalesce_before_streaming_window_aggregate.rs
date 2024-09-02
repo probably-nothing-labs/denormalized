@@ -8,7 +8,7 @@ use datafusion::physical_plan::ExecutionPlanProperties;
 use datafusion::common::tree_node::{Transformed, TransformedResult, TreeNode};
 use datafusion::error::Result;
 
-use crate::physical_plan::continuous::streaming_window::FranzStreamingWindowExec;
+use crate::physical_plan::continuous::streaming_window::StreamingWindowExec;
 
 pub struct CoaslesceBeforeStreamingAggregate {}
 
@@ -37,7 +37,7 @@ impl PhysicalOptimizerRule for CoaslesceBeforeStreamingAggregate {
     ) -> Result<Arc<dyn datafusion::physical_plan::ExecutionPlan>> {
         plan.transform(|original| {
             if let Some(streaming_aggr_exec) =
-                original.as_any().downcast_ref::<FranzStreamingWindowExec>()
+                original.as_any().downcast_ref::<StreamingWindowExec>()
             {
                 let input = streaming_aggr_exec.input();
                 let partitions = match input.output_partitioning() {
@@ -68,18 +68,16 @@ impl PhysicalOptimizerRule for CoaslesceBeforeStreamingAggregate {
                         ),
                     )?)
                 };
-                Ok(Transformed::yes(Arc::new(
-                    FranzStreamingWindowExec::try_new(
-                        streaming_aggr_exec.mode,
-                        streaming_aggr_exec.group_by.clone(),
-                        streaming_aggr_exec.aggregate_expressions.clone(),
-                        streaming_aggr_exec.filter_expressions.clone(),
-                        coalesce_exec.clone(),
-                        input.schema(),
-                        streaming_aggr_exec.window_type,
-                        streaming_aggr_exec.upstream_partitioning,
-                    )?,
-                )))
+                Ok(Transformed::yes(Arc::new(StreamingWindowExec::try_new(
+                    streaming_aggr_exec.mode,
+                    streaming_aggr_exec.group_by.clone(),
+                    streaming_aggr_exec.aggregate_expressions.clone(),
+                    streaming_aggr_exec.filter_expressions.clone(),
+                    coalesce_exec.clone(),
+                    input.schema(),
+                    streaming_aggr_exec.window_type,
+                    streaming_aggr_exec.upstream_partitioning,
+                )?)))
             } else {
                 Ok(Transformed::no(original))
             }
