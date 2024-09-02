@@ -1,6 +1,4 @@
 use async_trait::async_trait;
-use datafusion::physical_plan::repartition::RepartitionExec;
-use datafusion::physical_plan::Partitioning;
 use itertools::multiunzip;
 use std::sync::Arc;
 
@@ -17,9 +15,9 @@ use datafusion::physical_planner::{
     create_aggregate_expr_and_maybe_filter, ExtensionPlanner, PhysicalPlanner,
 };
 
-use crate::logical_plan::streaming_window::{self, StreamingWindowPlanNode, StreamingWindowType};
+use crate::logical_plan::streaming_window::{StreamingWindowPlanNode, StreamingWindowType};
 use crate::physical_plan::continuous::streaming_window::{
-    FranzStreamingWindowExec, FranzStreamingWindowType,
+    PhysicalStreamingWindowType, StreamingWindowExec,
 };
 use datafusion::error::Result;
 
@@ -124,16 +122,16 @@ impl ExtensionPlanner for StreamingWindowPlanner {
                     multiunzip(agg_filter);
                 let franz_window_type = match streaming_window_node.window_type {
                     StreamingWindowType::Tumbling(length) => {
-                        FranzStreamingWindowType::Tumbling(length)
+                        PhysicalStreamingWindowType::Tumbling(length)
                     }
                     StreamingWindowType::Sliding(length, slide) => {
-                        FranzStreamingWindowType::Sliding(length, slide)
+                        PhysicalStreamingWindowType::Sliding(length, slide)
                     }
                     StreamingWindowType::Session(..) => todo!(),
                 };
 
-                let final_aggr = if streaming_window_node.aggregrate.group_expr.len() == 0 {
-                    let partial_aggr = Arc::new(FranzStreamingWindowExec::try_new(
+                let final_aggr = if streaming_window_node.aggregrate.group_expr.is_empty() {
+                    let partial_aggr = Arc::new(StreamingWindowExec::try_new(
                         AggregateMode::Partial,
                         groups.clone(),
                         aggregates.clone(),
@@ -143,7 +141,7 @@ impl ExtensionPlanner for StreamingWindowPlanner {
                         franz_window_type,
                         None,
                     )?);
-                    Arc::new(FranzStreamingWindowExec::try_new(
+                    Arc::new(StreamingWindowExec::try_new(
                         AggregateMode::Final,
                         groups.clone(),
                         aggregates.clone(),
@@ -154,7 +152,7 @@ impl ExtensionPlanner for StreamingWindowPlanner {
                         None,
                     )?)
                 } else {
-                    Arc::new(FranzStreamingWindowExec::try_new(
+                    Arc::new(StreamingWindowExec::try_new(
                         AggregateMode::Single,
                         groups.clone(),
                         aggregates.clone(),
