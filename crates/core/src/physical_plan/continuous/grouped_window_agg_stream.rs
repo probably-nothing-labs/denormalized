@@ -41,7 +41,7 @@ use crate::physical_plan::utils::time::RecordBatchWatermark;
 use super::{
     add_window_columns_to_record_batch, add_window_columns_to_schema, create_group_accumulator,
     streaming_window::{
-        get_windows_for_watermark, StreamingWindowExec, PhysicalStreamingWindowType,
+        get_windows_for_watermark, PhysicalStreamingWindowType, StreamingWindowExec,
     },
     GroupsAccumulatorItem,
 };
