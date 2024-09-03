@@ -416,6 +416,13 @@ impl ExecutionPlan for StreamingWindowExec {
         partition: usize,
         context: Arc<TaskContext>,
     ) -> Result<SendableRecordBatchStream> {
+        let address = (self as *const Self) as usize;
+        debug!("StreamingWindowExec address is {}", address);
+        println!(
+            ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> StreamingWindowExec address is {}",
+            address
+        );
+
         if self.group_by.is_empty() {
             debug!("GROUP BY expression is empty creating a SimpleWindowAggStream");
             if self.mode == AggregateMode::Partial {

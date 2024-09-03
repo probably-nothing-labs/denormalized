@@ -1,5 +1,7 @@
 use datafusion::logical_expr::LogicalPlan;
+use datafusion::physical_plan::{execute_stream, ExecutionPlan};
 use futures::StreamExt;
+use std::collections::HashMap;
 use std::{sync::Arc, time::Duration};
 
 use datafusion::common::DFSchema;
@@ -15,6 +17,7 @@ use crate::context::Context;
 use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use crate::logical_plan::StreamingLogicalPlanBuilder;
 use crate::physical_plan::utils::time::TimestampUnit;
+use crate::utils::node_id::{annotate_node_id_for_execution_plan, NodeIdAnnotator};
 
 use denormalized_common::error::Result;
 
@@ -129,8 +132,15 @@ impl DataStream {
     /// execute the stream and print the results to stdout.
     /// Mainly used for development and debugging
     pub async fn print_stream(self) -> Result<()> {
-        let mut stream: SendableRecordBatchStream =
-            self.df.as_ref().clone().execute_stream().await?;
+        let plan = self.df.as_ref().clone().create_physical_plan().await?;
+        let mut node_id_map: HashMap<usize, usize> = HashMap::new();
+        let mut annotator = NodeIdAnnotator::new();
+        annotate_node_id_for_execution_plan(&plan, &mut annotator, &mut node_id_map);
+        for (key, value) in node_id_map.iter() {
+            println!("Node {}, Id {}", key, value);
+        }
+        let task_ctx = self.df.as_ref().clone().task_ctx();
+        let mut stream: SendableRecordBatchStream = execute_stream(plan, Arc::new(task_ctx))?;
         loop {
             match stream.next().await.transpose() {
                 Ok(Some(batch)) => {
