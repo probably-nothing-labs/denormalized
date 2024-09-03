@@ -20,10 +20,13 @@ jobs:
         with:
           toolchain: stable
           components: clippy
-      - uses: Swatinem/rust-cache@v2
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+      - name: Prepare Rust Env
+        uses: ./.github/actions/setup-builder
 
       - name: Build
-        run: cargo build --verbose
+        run: cargo check --verbose
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features
       - name: Run tests
