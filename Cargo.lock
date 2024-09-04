@@ -424,13 +424,13 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.81"
+version = "0.1.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e0c28dcc82d7c8ead5cb13beb15405b57b8546e93215673ff8ca0349a028107"
+checksum = "a27b8a3a6e1a44fa4c8baf1f653e4172e81486d4941f2237e20dc2d0cf4ddff1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -495,7 +495,7 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -749,6 +749,56 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1137cd7e7fc0fb5d3c5a8678be38ec56e819125d8d7907411fe24ccb943faca8"
+dependencies = [
+ "crossbeam-channel",
+ "crossbeam-deque",
+ "crossbeam-epoch",
+ "crossbeam-queue",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33480d6946193aa8033910124896ca395333cae7e2d1113d1fef6c3272217df2"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-deque"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "613f8cc01fe9cf1a3eb3d7f488fd2fa8388403e97039e2f73692932e291a770d"
+dependencies = [
+ "crossbeam-epoch",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-epoch"
+version = "0.9.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b82ac4a3c2ca9c3460964f020e1402edd5753411d7737aa39c3714ad1b5420e"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-queue"
+version = "0.3.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df0346b5d5e76ac2fe4e327c5fd1118d6be7c51dfb18f9b7922923f287471e35"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-utils"
 version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -814,7 +864,7 @@ dependencies = [
 [[package]]
 name = "datafusion"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "ahash",
  "apache-avro",
@@ -873,7 +923,7 @@ dependencies = [
 [[package]]
 name = "datafusion-catalog"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "arrow-schema",
  "async-trait",
@@ -886,7 +936,7 @@ dependencies = [
 [[package]]
 name = "datafusion-common"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "ahash",
  "apache-avro",
@@ -910,7 +960,7 @@ dependencies = [
 [[package]]
 name = "datafusion-common-runtime"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "tokio",
 ]
@@ -918,7 +968,7 @@ dependencies = [
 [[package]]
 name = "datafusion-execution"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "arrow",
  "chrono",
@@ -938,7 +988,7 @@ dependencies = [
 [[package]]
 name = "datafusion-expr"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "ahash",
  "arrow",
@@ -959,7 +1009,7 @@ dependencies = [
 [[package]]
 name = "datafusion-expr-common"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "arrow",
  "datafusion-common",
@@ -969,7 +1019,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "arrow",
  "arrow-buffer",
@@ -995,7 +1045,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-aggregate"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "ahash",
  "arrow",
@@ -1015,7 +1065,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-aggregate-common"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "ahash",
  "arrow",
@@ -1028,7 +1078,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-nested"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -1049,7 +1099,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-window"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "datafusion-common",
  "datafusion-expr",
@@ -1060,7 +1110,7 @@ dependencies = [
 [[package]]
 name = "datafusion-optimizer"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1079,7 +1129,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-expr"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "ahash",
  "arrow",
@@ -1110,7 +1160,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-expr-common"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "ahash",
  "arrow",
@@ -1123,7 +1173,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-expr-functions-aggregate"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "ahash",
  "arrow",
@@ -1138,7 +1188,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-optimizer"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "datafusion-common",
  "datafusion-execution",
@@ -1150,7 +1200,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-plan"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "ahash",
  "arrow",
@@ -1185,7 +1235,7 @@ dependencies = [
 [[package]]
 name = "datafusion-sql"
 version = "41.0.0"
-source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=main#14d9f85164d2b088656e3e79b20383d4e024cbec"
+source = "git+https://github.com/probably-nothing-labs/arrow-datafusion?branch=amey/patch-with-node-id#8ca759f18a606b91672ebc346192507d94202323"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -1206,7 +1256,7 @@ checksum = "4e018fccbeeb50ff26562ece792ed06659b9c2dae79ece77c4456bb10d9bf79b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -1226,6 +1276,7 @@ dependencies = [
  "chrono",
  "datafusion",
  "delegate",
+ "denormalized-channels",
  "denormalized-common",
  "futures",
  "half",
@@ -1238,6 +1289,19 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "denormalized-channels"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "crossbeam",
+ "datafusion",
+ "log",
+ "once_cell",
+ "parking_lot",
+ "tokio",
 ]
 
 [[package]]
@@ -1441,7 +1505,7 @@ checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -1593,9 +1657,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.4.0"
+version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93ead53efc7ea8ed3cfb0c79fc8023fbb782a5432b52830b6518941cebe6505c"
+checksum = "68b900aa2f7301e21c36462b170ee99994de34dff39a4a6a528e80e7376d07e5"
 dependencies = [
  "equivalent",
  "hashbrown",
@@ -2051,9 +2115,9 @@ dependencies = [
 
 [[package]]
 name = "object"
-version = "0.36.3"
+version = "0.36.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27b64972346851a39438c60b341ebc01bba47464ae329e55cf343eb93964efd9"
+checksum = "084f1a5821ac4c651660a94a7153d27ac9d8a53736203f58b31945ded098070a"
 dependencies = [
  "memchr",
 ]
@@ -2327,7 +2391,7 @@ dependencies = [
  "proc-macro2",
  "pyo3-macros-backend",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2340,7 +2404,7 @@ dependencies = [
  "proc-macro2",
  "pyo3-build-config",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2492,9 +2556,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc_version"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
+checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
  "semver",
 ]
@@ -2568,7 +2632,7 @@ checksum = "a5831b979fd7b5439637af1752d535ff49f4860c0f341d1baeb6faf0f4242170"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2676,7 +2740,7 @@ checksum = "01b2e185515564f15375f593fb966b5718bc624ba77fe49fa4616ad619690554"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2710,7 +2774,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2723,7 +2787,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2745,9 +2809,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.76"
+version = "2.0.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "578e081a14e0cefc3279b0472138c513f37b41a08d5a3cca9b6e4e8ceb6cd525"
+checksum = "9f35bcdf61fd8e7be6caf75f429fdca8beb3ed76584befb503b1569faee373ed"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2790,7 +2854,7 @@ checksum = "a4558b58466b9ad7ca0f102865eccc95938dca1a74a856f2b57b6629050da261"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2840,9 +2904,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.39.3"
+version = "1.40.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9babc99b9923bfa4804bd74722ff02c0381021eafa4db9949217e3be8e84fff5"
+checksum = "e2b070231665d27ad9ec9b8df639893f46727666c6767db40317fbe920a5d998"
 dependencies = [
  "backtrace",
  "bytes",
@@ -2859,7 +2923,7 @@ checksum = "693d596312e88961bc67d7f1f97af8a70227d9f90c31bba5806eec004978d752"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2911,7 +2975,7 @@ checksum = "34704c8d6ebcbc939824180af020566b01a7c01f80641264eba0999f6c2b6be7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2976,7 +3040,7 @@ checksum = "f03ca4cb38206e2bef0700092660bb74d696f808514dae47fa1467cbfe26e96e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -3107,7 +3171,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
  "wasm-bindgen-shared",
 ]
 
@@ -3129,7 +3193,7 @@ checksum = "afc340c74d9005395cf9dd098506f7f44e38f2b4a21c6aaacf9a105ea5e1e836"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -3308,7 +3372,7 @@ checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]

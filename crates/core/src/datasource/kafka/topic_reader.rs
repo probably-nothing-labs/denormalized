@@ -9,6 +9,8 @@ use datafusion::logical_expr::{Expr, TableType};
 use datafusion::physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
 use datafusion::physical_plan::{streaming::StreamingTableExec, ExecutionPlan};
 
+use crate::physical_plan::stream_table::DenormalizedStreamingTableExec;
+
 use super::{KafkaReadConfig, KafkaStreamRead};
 
 // Used to createa kafka source
@@ -37,11 +39,12 @@ impl TopicReader {
             let read_stream = Arc::new(KafkaStreamRead {
                 config: self.0.clone(),
                 assigned_partitions: vec![part],
+                exec_node_id: None,
             });
             partition_streams.push(read_stream as _);
         }
 
-        Ok(Arc::new(StreamingTableExec::try_new(
+        Ok(Arc::new(DenormalizedStreamingTableExec::try_new(
             self.0.schema.clone(),
             partition_streams,
             projection,

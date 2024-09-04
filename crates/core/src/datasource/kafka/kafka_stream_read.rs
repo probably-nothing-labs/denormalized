@@ -5,11 +5,14 @@ use std::time::Duration;
 use arrow::datatypes::TimestampMillisecondType;
 use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, StructArray};
 use arrow_schema::{DataType, Field, SchemaRef, TimeUnit};
+use denormalized_channels::channel_manager::{create_channel, get_sender};
+use log::{debug, error};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing::{debug, error};
+//use tracing::{debug, error};
 
 use crate::config_extensions::denormalized_config::DenormalizedConfig;
+use crate::physical_plan::stream_table::PartitionStreamExt;
 use crate::physical_plan::utils::time::array_to_timestamp_array;
 use crate::state_backend::rocksdb_backend::get_global_rocksdb;
 use crate::utils::arrow_helpers::json_records_to_arrow_record_batch;
@@ -24,9 +27,21 @@ use rdkafka::{ClientConfig, Message, Timestamp, TopicPartitionList};
 
 use super::KafkaReadConfig;
 
+#[derive(Clone)]
 pub struct KafkaStreamRead {
     pub config: Arc<KafkaReadConfig>,
     pub assigned_partitions: Vec<i32>,
+    pub exec_node_id: Option<usize>,
+}
+
+impl KafkaStreamRead {
+    pub fn with_node_id(self, node_id: Option<usize>) -> KafkaStreamRead {
+        Self {
+            config: self.config.clone(),
+            assigned_partitions: self.assigned_partitions.clone(),
+            exec_node_id: node_id,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -123,9 +138,25 @@ impl PartitionStream for KafkaStreamRead {
         let timestamp_unit = self.config.timestamp_unit.clone();
         let batch_timeout = Duration::from_millis(100);
 
+        let partition_tag = self
+            .assigned_partitions
+            .iter()
+            .map(|&num| num.to_string())
+            .collect::<Vec<String>>()
+            .join("_");
+
+        let node_id = self.exec_node_id.unwrap();
+        let channel_tag = format!("{}_{}", node_id, partition_tag);
+        create_channel(channel_tag.as_str(), 10);
         builder.spawn(async move {
             let mut epoch = 0;
+            let orchestrator_sender = get_sender("orchestrator");
             loop {
+                if epoch == 0 {
+                    let msg = format!("Registering {}", channel_tag);
+                    debug!("sending {} to orchestrator", msg);
+                    orchestrator_sender.as_ref().unwrap().send(msg).unwrap();
+                }
                 let mut last_offsets = HashMap::new();
                 if let Some(backend) = &state_backend {
                     if let Some(offsets) = backend
@@ -202,7 +233,7 @@ impl PartitionStream for KafkaStreamRead {
                     }
                 }
 
-                debug!("Batch size {}", batch.len());
+                //debug!("Batch size {}", batch.len());
 
                 if !batch.is_empty() {
                     let record_batch: RecordBatch =
@@ -275,5 +306,16 @@ impl PartitionStream for KafkaStreamRead {
             }
         });
         builder.build()
+    }
+}
+
+// Implement this for KafkaStreamRead
+impl PartitionStreamExt for KafkaStreamRead {
+    fn requires_node_id(&self) -> bool {
+        true
+    }
+
+    fn as_partition_with_node_id(&self) -> Option<&KafkaStreamRead> {
+        Some(self)
     }
 }

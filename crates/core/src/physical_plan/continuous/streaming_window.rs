@@ -509,6 +509,25 @@ impl ExecutionPlan for StreamingWindowExec {
     ) -> Result<Option<Arc<dyn ExecutionPlan>>> {
         Ok(None)
     }
+
+    fn with_node_id(self: Arc<Self>, _node_id: usize) -> Result<Option<Arc<dyn ExecutionPlan>>> {
+        let cache = self.properties().clone().with_node_id(_node_id);
+        let new_exec = StreamingWindowExec {
+            input: self.input.clone(),
+            aggregate_expressions: self.aggregate_expressions.clone(),
+            filter_expressions: self.filter_expressions.clone(),
+            group_by: self.group_by.clone(),
+            schema: self.schema.clone(),
+            input_schema: self.input_schema.clone(),
+            watermark: Arc::new(Mutex::new(None)),
+            metrics: ExecutionPlanMetricsSet::new(),
+            cache,
+            mode: self.mode,
+            window_type: self.window_type,
+            upstream_partitioning: self.upstream_partitioning,
+        };
+        Ok(Some(Arc::new(new_exec)))
+    }
 }
 
 impl DisplayAs for StreamingWindowExec {

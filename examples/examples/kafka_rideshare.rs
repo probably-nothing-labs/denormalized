@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
             }
         }"#;
 
-    let bootstrap_servers = String::from("localhost:9092");
+    let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
 
     let ctx = Context::new()?;
 
@@ -79,9 +79,10 @@ async fn main() -> Result<()> {
     )?;
 
     // ds.clone().print_stream().await?;
-
-    ds.sink_kafka(bootstrap_servers.clone(), String::from("out_topic"))
-        .await?;
+    //ds.clone().create_orchestrator_thread().await?;
+    ds.print_physical_plan().await?;
+    //ds.sink_kafka(bootstrap_servers.clone(), String::from("out_topic"))
+    //    .await?;
 
     Ok(())
 }

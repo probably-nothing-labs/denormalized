@@ -1,0 +1,13 @@
+[package]
+name = "denormalized-channels"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+anyhow = "1.0.86"
+crossbeam = "0.8.4"
+datafusion = { workspace = true }
+log.workspace = true
+once_cell = "1.19.0"
+parking_lot = "0.12.3"
+tokio.workspace = true
