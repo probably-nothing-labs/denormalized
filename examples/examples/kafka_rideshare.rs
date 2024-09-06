@@ -79,10 +79,8 @@ async fn main() -> Result<()> {
     )?;
 
     // ds.clone().print_stream().await?;
-    //ds.clone().create_orchestrator_thread().await?;
-    ds.print_physical_plan().await?;
-    //ds.sink_kafka(bootstrap_servers.clone(), String::from("out_topic"))
-    //    .await?;
+    ds.sink_kafka(bootstrap_servers.clone(), String::from("out_topic"))
+        .await?;
 
     Ok(())
 }
