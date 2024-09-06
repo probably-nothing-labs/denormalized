@@ -1,7 +1,8 @@
+use datafusion::common::runtime::SpawnedTask;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_plan::ExecutionPlanProperties;
-use denormalized_channels::channel_manager::take_receiver;
+use denormalized_orchestrator::orchestrator;
 use futures::StreamExt;
 use std::{sync::Arc, time::Duration};
 
@@ -17,11 +18,9 @@ use datafusion::physical_plan::display::DisplayableExecutionPlan;
 use crate::context::Context;
 use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use crate::logical_plan::StreamingLogicalPlanBuilder;
-use crate::orchestrator;
-use crate::orchestrator::orchestrator::Orchestrator;
 use crate::physical_plan::utils::time::TimestampUnit;
+use denormalized_orchestrator::orchestrator::Orchestrator;
 
-use denormalized_channels::channel_manager::create_channel;
 use denormalized_common::error::Result;
 
 /// The primary interface for building a streaming job
@@ -135,18 +134,17 @@ impl DataStream {
     /// execute the stream and print the results to stdout.
     /// Mainly used for development and debugging
     pub async fn print_stream(&self) -> Result<()> {
-        println!("entered print stream.");
+        if orchestrator::SHOULD_CHECKPOINT {
+            let plan = self.df.as_ref().clone().create_physical_plan().await?;
+            let node_ids = extract_node_ids_and_partitions(&plan);
+            let max_buffer_size = node_ids
+                .iter()
+                .map(|x| x.1)
+                .fold(0, |sum, partition_count| sum + partition_count);
+            let mut orchestrator = Orchestrator::default();
+            SpawnedTask::spawn_blocking(move || orchestrator.run(max_buffer_size));
+        }
 
-        let plan = self.df.as_ref().clone().create_physical_plan().await?;
-        let node_ids = extract_node_ids_and_partitions(&plan);
-        let max_buffer_size = node_ids
-            .iter()
-            .map(|x| x.1)
-            .fold(0, |sum, partition_count| sum + partition_count);
-        println!("creating orchestrator channel");
-        let orchestrator = Orchestrator {};
-        tokio::task::spawn_blocking(move || orchestrator.run(max_buffer_size));
-        println!("started the orchestrator");
         let mut stream: SendableRecordBatchStream =
             self.df.as_ref().clone().execute_stream().await?;
         loop {

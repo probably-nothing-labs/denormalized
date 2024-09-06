@@ -4,7 +4,6 @@ pub mod context;
 pub mod datasource;
 pub mod datastream;
 pub mod logical_plan;
-pub mod orchestrator;
 pub mod physical_optimizer;
 pub mod physical_plan;
 pub mod planner;

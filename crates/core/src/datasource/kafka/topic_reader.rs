@@ -7,7 +7,7 @@ use datafusion::common::{not_impl_err, plan_err, Result};
 use datafusion::datasource::TableProvider;
 use datafusion::logical_expr::{Expr, TableType};
 use datafusion::physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
-use datafusion::physical_plan::{streaming::StreamingTableExec, ExecutionPlan};
+use datafusion::physical_plan::ExecutionPlan;
 
 use crate::physical_plan::stream_table::DenormalizedStreamingTableExec;
 

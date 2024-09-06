@@ -1276,8 +1276,8 @@ dependencies = [
  "chrono",
  "datafusion",
  "delegate",
- "denormalized-channels",
  "denormalized-common",
+ "denormalized-orchestrator",
  "futures",
  "half",
  "hashbrown",
@@ -1289,19 +1289,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "denormalized-channels"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "crossbeam",
- "datafusion",
- "log",
- "once_cell",
- "parking_lot",
- "tokio",
 ]
 
 [[package]]
@@ -1335,6 +1322,19 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "denormalized-orchestrator"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "crossbeam",
+ "datafusion",
+ "log",
+ "once_cell",
+ "parking_lot",
+ "tokio",
 ]
 
 [[package]]

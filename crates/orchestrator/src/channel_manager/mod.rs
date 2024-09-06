@@ -5,11 +5,11 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-type Message = String;
+use crate::orchestrator::OrchestrationMessage;
 
 struct ChannelPair {
-    sender: channel::Sender<Message>,
-    receiver: Option<channel::Receiver<Message>>,
+    sender: channel::Sender<OrchestrationMessage>,
+    receiver: Option<channel::Receiver<OrchestrationMessage>>,
 }
 
 struct Channels {
@@ -37,12 +37,12 @@ pub fn create_channel(id: &str, buffer: usize) {
     );
 }
 
-pub fn get_sender(id: &str) -> Option<channel::Sender<Message>> {
+pub fn get_sender(id: &str) -> Option<channel::Sender<OrchestrationMessage>> {
     let channels = GLOBAL_CHANNELS.read();
     channels.channels.get(id).map(|pair| pair.sender.clone())
 }
 
-pub fn take_receiver(id: &str) -> Option<channel::Receiver<Message>> {
+pub fn take_receiver(id: &str) -> Option<channel::Receiver<OrchestrationMessage>> {
     let mut channels = GLOBAL_CHANNELS.write();
     channels
         .channels

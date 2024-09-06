@@ -5,7 +5,8 @@ use std::time::Duration;
 use arrow::datatypes::TimestampMillisecondType;
 use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, StructArray};
 use arrow_schema::{DataType, Field, SchemaRef, TimeUnit};
-use denormalized_channels::channel_manager::{create_channel, get_sender};
+use denormalized_orchestrator::channel_manager::{create_channel, get_sender};
+use denormalized_orchestrator::orchestrator::{self, OrchestrationMessage};
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -137,26 +138,20 @@ impl PartitionStream for KafkaStreamRead {
         let timestamp_column: String = self.config.timestamp_column.clone();
         let timestamp_unit = self.config.timestamp_unit.clone();
         let batch_timeout = Duration::from_millis(100);
-
-        let partition_tag = self
-            .assigned_partitions
-            .iter()
-            .map(|&num| num.to_string())
-            .collect::<Vec<String>>()
-            .join("_");
-
-        let node_id = self.exec_node_id.unwrap();
-        let channel_tag = format!("{}_{}", node_id, partition_tag);
-        create_channel(channel_tag.as_str(), 10);
+        let mut channel_tag = String::from("");
+        if orchestrator::SHOULD_CHECKPOINT {
+            let node_id = self.exec_node_id.unwrap();
+            channel_tag = format!("{}_{}", node_id, partition_tag);
+            create_channel(channel_tag.as_str(), 10);
+        }
         builder.spawn(async move {
             let mut epoch = 0;
-            let orchestrator_sender = get_sender("orchestrator");
+            if orchestrator::SHOULD_CHECKPOINT {
+                let orchestrator_sender = get_sender("orchestrator");
+                let msg = OrchestrationMessage::RegisterStream(channel_tag.clone());
+                orchestrator_sender.as_ref().unwrap().send(msg).unwrap();
+            }
             loop {
-                if epoch == 0 {
-                    let msg = format!("Registering {}", channel_tag);
-                    debug!("sending {} to orchestrator", msg);
-                    orchestrator_sender.as_ref().unwrap().send(msg).unwrap();
-                }
                 let mut last_offsets = HashMap::new();
                 if let Some(backend) = &state_backend {
                     if let Some(offsets) = backend
