@@ -140,7 +140,7 @@ impl DataStream {
             let max_buffer_size = node_ids
                 .iter()
                 .map(|x| x.1)
-                .fold(0, |sum, partition_count| sum + partition_count);
+                .sum::<usize>();
             let mut orchestrator = Orchestrator::default();
             SpawnedTask::spawn_blocking(move || orchestrator.run(max_buffer_size));
         }

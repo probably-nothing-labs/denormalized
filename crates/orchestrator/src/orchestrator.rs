@@ -11,6 +11,7 @@ pub enum OrchestrationMessage {
     CheckpointComplete(String),
 }
 
+#[derive(Default)]
 pub struct Orchestrator {
     senders: HashMap<String, channel::Sender<OrchestrationMessage>>,
 }
@@ -18,12 +19,6 @@ pub struct Orchestrator {
 pub const SHOULD_CHECKPOINT: bool = false; // THIS WILL BE MOVED INTO CONFIG
 
 impl Orchestrator {
-    pub fn default() -> Self {
-        Self {
-            senders: HashMap::new(),
-        }
-    }
-
     pub fn run(&mut self, managed_tasks: usize) {
         info!("Orchestrator started.");
         create_channel("orchestrator", managed_tasks);
