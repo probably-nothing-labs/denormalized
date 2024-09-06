@@ -1,4 +1,8 @@
+use datafusion::common::runtime::SpawnedTask;
 use datafusion::logical_expr::LogicalPlan;
+use datafusion::physical_plan::ExecutionPlan;
+use datafusion::physical_plan::ExecutionPlanProperties;
+use denormalized_orchestrator::orchestrator;
 use futures::StreamExt;
 use std::{sync::Arc, time::Duration};
 
@@ -15,6 +19,7 @@ use crate::context::Context;
 use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use crate::logical_plan::StreamingLogicalPlanBuilder;
 use crate::physical_plan::utils::time::TimestampUnit;
+use denormalized_orchestrator::orchestrator::Orchestrator;
 
 use denormalized_common::error::Result;
 
@@ -128,7 +133,15 @@ impl DataStream {
 
     /// execute the stream and print the results to stdout.
     /// Mainly used for development and debugging
-    pub async fn print_stream(self) -> Result<()> {
+    pub async fn print_stream(&self) -> Result<()> {
+        if orchestrator::SHOULD_CHECKPOINT {
+            let plan = self.df.as_ref().clone().create_physical_plan().await?;
+            let node_ids = extract_node_ids_and_partitions(&plan);
+            let max_buffer_size = node_ids.iter().map(|x| x.1).sum::<usize>();
+            let mut orchestrator = Orchestrator::default();
+            SpawnedTask::spawn_blocking(move || orchestrator.run(max_buffer_size));
+        }
+
         let mut stream: SendableRecordBatchStream =
             self.df.as_ref().clone().execute_stream().await?;
         loop {
@@ -231,4 +244,17 @@ impl Joinable for DataStream {
         let (_, plan) = self.df.as_ref().clone().into_parts();
         plan
     }
+}
+
+fn extract_node_ids_and_partitions(plan: &Arc<dyn ExecutionPlan>) -> Vec<(Option<usize>, usize)> {
+    let node_id = plan.node_id();
+    let partitions = plan.output_partitioning().partition_count();
+    let mut traversals: Vec<(Option<usize>, usize)> = vec![];
+
+    for child in plan.children() {
+        let mut traversal = extract_node_ids_and_partitions(child);
+        traversals.append(&mut traversal);
+    }
+    traversals.push((node_id, partitions));
+    traversals
 }

@@ -18,6 +18,7 @@ description = "Embeddable stream processing engine"
 [workspace.dependencies]
 denormalized = { path = "crates/core" }
 denormalized-common = { path = "crates/common" }
+denormalized-orchestrator = { path = "crates/orchestrator" }
 
 datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
 
