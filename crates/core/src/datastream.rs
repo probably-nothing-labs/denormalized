@@ -137,10 +137,7 @@ impl DataStream {
         if orchestrator::SHOULD_CHECKPOINT {
             let plan = self.df.as_ref().clone().create_physical_plan().await?;
             let node_ids = extract_node_ids_and_partitions(&plan);
-            let max_buffer_size = node_ids
-                .iter()
-                .map(|x| x.1)
-                .sum::<usize>();
+            let max_buffer_size = node_ids.iter().map(|x| x.1).sum::<usize>();
             let mut orchestrator = Orchestrator::default();
             SpawnedTask::spawn_blocking(move || orchestrator.run(max_buffer_size));
         }
