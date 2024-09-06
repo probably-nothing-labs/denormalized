@@ -4,7 +4,6 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-anyhow = "1.0.86"
 crossbeam = "0.8.4"
 datafusion = { workspace = true }
 log.workspace = true
