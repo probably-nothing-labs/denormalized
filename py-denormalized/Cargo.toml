@@ -10,7 +10,7 @@ name = "denormalized_python"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.21.2", features = ["experimental-async"] }
+pyo3 = { workspace = true }
 denormalized = { workspace = true }
 datafusion = { workspace = true, features = [
   "pyarrow",

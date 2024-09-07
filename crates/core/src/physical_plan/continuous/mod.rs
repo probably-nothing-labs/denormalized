@@ -17,13 +17,13 @@ use datafusion::{
 pub mod grouped_window_agg_stream;
 pub mod streaming_window;
 
-use datafusion::physical_expr::AggregateExpr;
+use datafusion::physical_expr::aggregate::AggregateFunctionExpr;
 use log::debug;
 
 pub(crate) type GroupsAccumulatorItem = Box<dyn GroupsAccumulator>;
 
 pub(crate) fn create_group_accumulator(
-    agg_expr: &Arc<dyn AggregateExpr>,
+    agg_expr: &Arc<AggregateFunctionExpr>,
 ) -> Result<Box<dyn GroupsAccumulator>> {
     if agg_expr.groups_accumulator_supported() {
         agg_expr.create_groups_accumulator()

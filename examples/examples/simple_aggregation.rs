@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
 
     let sample_event = get_sample_json();
 
-    let bootstrap_servers = String::from("localhost:9092");
+    let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
 
     let ctx = Context::new()?;
     let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers.clone());
