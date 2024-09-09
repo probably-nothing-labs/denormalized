@@ -15,6 +15,7 @@ use arrow::{
 use arrow_array::{ArrayRef, PrimitiveArray, RecordBatch, StructArray, TimestampMillisecondArray};
 use arrow_ord::cmp;
 use arrow_schema::{Schema, SchemaRef};
+use datafusion::physical_expr::aggregate::AggregateFunctionExpr;
 use datafusion::{
     common::{utils::proxy::VecAllocExt, DataFusionError, Result},
     execution::memory_pool::{MemoryConsumer, MemoryReservation},
@@ -31,9 +32,9 @@ use datafusion::{
             AggregateMode,
         },
         metrics::BaselineMetrics,
-        AggregateExpr,
     },
 };
+
 use futures::{Stream, StreamExt};
 
 use crate::physical_plan::utils::time::RecordBatchWatermark;
@@ -51,7 +52,7 @@ pub struct GroupedWindowAggStream {
     pub schema: SchemaRef,
     input: SendableRecordBatchStream,
     baseline_metrics: BaselineMetrics,
-    exec_aggregate_expressions: Vec<Arc<dyn AggregateExpr>>,
+    exec_aggregate_expressions: Vec<Arc<AggregateFunctionExpr>>,
     aggregate_expressions: Vec<Vec<Arc<dyn PhysicalExpr>>>,
     filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     latest_watermark: Arc<Mutex<Option<SystemTime>>>,

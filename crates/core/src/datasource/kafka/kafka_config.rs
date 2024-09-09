@@ -4,7 +4,7 @@ use std::{sync::Arc, time::Duration};
 
 use arrow_schema::{DataType, Field, Fields, Schema, SchemaRef, TimeUnit};
 
-use datafusion::logical_expr::Expr;
+use datafusion::logical_expr::SortExpr;
 
 use crate::physical_plan::utils::time::TimestampUnit;
 use crate::utils::arrow_helpers::infer_arrow_schema_from_json_value;
@@ -29,7 +29,7 @@ pub struct KafkaReadConfig {
     pub schema: SchemaRef,
 
     pub encoding: StreamEncoding,
-    pub order: Vec<Vec<Expr>>,
+    pub order: Vec<Vec<SortExpr>>,
     pub partition_count: i32,
     pub timestamp_column: String,
     pub timestamp_unit: TimestampUnit,

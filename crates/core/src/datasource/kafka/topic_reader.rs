@@ -5,7 +5,7 @@ use arrow_schema::{Schema, SchemaRef, SortOptions};
 use datafusion::catalog::Session;
 use datafusion::common::{not_impl_err, plan_err, Result};
 use datafusion::datasource::TableProvider;
-use datafusion::logical_expr::{Expr, TableType};
+use datafusion::logical_expr::{Expr, SortExpr, TableType};
 use datafusion::physical_expr::{expressions, LexOrdering, PhysicalSortExpr};
 use datafusion::physical_plan::ExecutionPlan;
 
@@ -89,36 +89,33 @@ impl TableProvider for TopicReader {
     }
 }
 
-fn create_ordering(schema: &Schema, sort_order: &[Vec<Expr>]) -> Result<Vec<LexOrdering>> {
+fn create_ordering(schema: &Schema, sort_order: &[Vec<SortExpr>]) -> Result<Vec<LexOrdering>> {
     let mut all_sort_orders = vec![];
 
     for exprs in sort_order {
         // Construct PhysicalSortExpr objects from Expr objects:
         let mut sort_exprs = vec![];
-        for expr in exprs {
-            match expr {
-                Expr::Sort(sort) => match sort.expr.as_ref() {
-                    Expr::Column(col) => match expressions::col(&col.name, schema) {
-                        Ok(expr) => {
-                            sort_exprs.push(PhysicalSortExpr {
-                                expr,
-                                options: SortOptions {
-                                    descending: !sort.asc,
-                                    nulls_first: sort.nulls_first,
-                                },
-                            });
-                        }
-                        // Cannot find expression in the projected_schema, stop iterating
-                        // since rest of the orderings are violated
-                        Err(_) => break,
-                    },
-                    expr => {
-                        return plan_err!(
-                            "Expected single column references in output_ordering, got {expr}"
-                        )
+        for sort in exprs {
+            match &sort.expr {
+                Expr::Column(col) => match expressions::col(&col.name, schema) {
+                    Ok(expr) => {
+                        sort_exprs.push(PhysicalSortExpr {
+                            expr,
+                            options: SortOptions {
+                                descending: !sort.asc,
+                                nulls_first: sort.nulls_first,
+                            },
+                        });
                     }
+                    // Cannot find expression in the projected_schema, stop iterating
+                    // since rest of the orderings are violated
+                    Err(_) => break,
                 },
-                expr => return plan_err!("Expected Expr::Sort in output_ordering, but got {expr}"),
+                expr => {
+                    return plan_err!(
+                        "Expected single column references in output_ordering, got {expr}"
+                    )
+                }
             }
         }
         if !sort_exprs.is_empty() {

@@ -17,10 +17,11 @@ use arrow_ord::cmp;
 use arrow_schema::{Field, Schema, SchemaRef};
 
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
+use datafusion::physical_expr::aggregate::AggregateFunctionExpr;
 use datafusion::physical_expr::{
     equivalence::{collapse_lex_req, ProjectionMapping},
     expressions::UnKnownColumn,
-    AggregateExpr, Partitioning, PhysicalExpr, PhysicalSortRequirement,
+    Partitioning, PhysicalExpr, PhysicalSortRequirement,
 };
 use datafusion::physical_plan::{
     aggregates::{
@@ -32,6 +33,7 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, ExecutionPlanProperties,
     InputOrderMode, PlanProperties,
 };
+
 use datafusion::{
     common::{internal_err, stats::Precision, DataFusionError, Statistics},
     physical_plan::Distribution,
@@ -193,7 +195,7 @@ pub enum PhysicalStreamingWindowType {
 #[derive(Debug)]
 pub struct StreamingWindowExec {
     pub(crate) input: Arc<dyn ExecutionPlan>,
-    pub aggregate_expressions: Vec<Arc<dyn AggregateExpr>>,
+    pub aggregate_expressions: Vec<Arc<AggregateFunctionExpr>>,
     pub filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     /// Schema after the window is run
     pub group_by: PhysicalGroupBy,
@@ -214,7 +216,7 @@ impl StreamingWindowExec {
     pub fn try_new(
         mode: AggregateMode,
         group_by: PhysicalGroupBy,
-        aggr_expr: Vec<Arc<dyn AggregateExpr>>,
+        aggr_expr: Vec<Arc<AggregateFunctionExpr>>,
         filter_expr: Vec<Option<Arc<dyn PhysicalExpr>>>,
         input: Arc<dyn ExecutionPlan>,
         input_schema: SchemaRef,
@@ -225,7 +227,7 @@ impl StreamingWindowExec {
             &input.schema(),
             group_by.expr(),
             &aggr_expr,
-            group_by.contains_null(),
+            false, //group_by.contains_null(),
             mode,
         )?;
 
@@ -246,7 +248,7 @@ impl StreamingWindowExec {
     pub fn try_new_with_schema(
         mode: AggregateMode,
         group_by: PhysicalGroupBy,
-        mut aggr_expr: Vec<Arc<dyn AggregateExpr>>,
+        mut aggr_expr: Vec<Arc<AggregateFunctionExpr>>,
         filter_expr: Vec<Option<Arc<dyn PhysicalExpr>>>,
         input: Arc<dyn ExecutionPlan>,
         input_schema: SchemaRef,
@@ -363,7 +365,7 @@ impl StreamingWindowExec {
         PlanProperties::new(eq_properties, output_partitioning, ExecutionMode::Unbounded)
     }
     /// Aggregate expressions
-    pub fn aggr_expr(&self) -> &[Arc<dyn AggregateExpr>] {
+    pub fn aggr_expr(&self) -> &[Arc<AggregateFunctionExpr>] {
         &self.aggregate_expressions
     }
 
@@ -608,7 +610,7 @@ pub struct WindowAggStream {
     pub schema: SchemaRef,
     input: SendableRecordBatchStream,
     baseline_metrics: BaselineMetrics,
-    exec_aggregate_expressions: Vec<Arc<dyn AggregateExpr>>,
+    exec_aggregate_expressions: Vec<Arc<AggregateFunctionExpr>>,
     aggregate_expressions: Vec<Vec<Arc<dyn PhysicalExpr>>>,
     filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     latest_watermark: Arc<Mutex<Option<SystemTime>>>,
@@ -809,7 +811,7 @@ impl FullWindowAggFrame {
     pub fn new(
         start_time: SystemTime,
         end_time: SystemTime,
-        exec_aggregate_expressions: &[Arc<dyn AggregateExpr>],
+        exec_aggregate_expressions: &[Arc<AggregateFunctionExpr>],
         aggregate_expressions: Vec<Vec<Arc<dyn PhysicalExpr>>>,
         filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
 
@@ -850,7 +852,7 @@ struct FullWindowAggStream {
     pub schema: SchemaRef,
     input: SendableRecordBatchStream,
     baseline_metrics: BaselineMetrics,
-    exec_aggregate_expressions: Vec<Arc<dyn AggregateExpr>>,
+    exec_aggregate_expressions: Vec<Arc<AggregateFunctionExpr>>,
     aggregate_expressions: Vec<Vec<Arc<dyn PhysicalExpr>>>,
     filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     cached_frames: BTreeMap<SystemTime, FullWindowAggFrame>,
@@ -1056,7 +1058,7 @@ fn snap_to_window_start(timestamp: SystemTime, window_length: Duration) -> Syste
 fn create_schema(
     input_schema: &Schema,
     group_expr: &[(Arc<dyn PhysicalExpr>, String)],
-    aggr_expr: &[Arc<dyn AggregateExpr>],
+    aggr_expr: &[Arc<AggregateFunctionExpr>],
     contains_null_expr: bool,
     mode: AggregateMode,
 ) -> Result<Schema> {
@@ -1085,7 +1087,7 @@ fn create_schema(
         | AggregateMode::SinglePartitioned => {
             // in final mode, the field with the final result of the accumulator
             for expr in aggr_expr {
-                fields.push(expr.field()?)
+                fields.push(expr.field())
             }
         }
     }

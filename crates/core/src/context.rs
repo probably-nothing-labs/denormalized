@@ -24,13 +24,13 @@ impl Context {
         let config = SessionConfig::new()
             .set(
                 "datafusion.execution.batch_size",
-                datafusion::common::ScalarValue::UInt64(Some(32)),
+                &datafusion::common::ScalarValue::UInt64(Some(32)),
             )
             // coalesce_batches slows down the pipeline and increases latency as it tries to concat
             // small batches together so we disable it.
             .set(
                 "datafusion.execution.coalesce_batches",
-                datafusion::common::ScalarValue::Boolean(Some(false)),
+                &datafusion::common::ScalarValue::Boolean(Some(false)),
             );
 
         let runtime = Arc::new(RuntimeEnv::default());
