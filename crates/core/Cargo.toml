@@ -5,6 +5,7 @@ edition = { workspace = true }
 
 [dependencies]
 denormalized-common = { workspace = true }
+denormalized-orchestrator = { workspace = true }
 
 datafusion = { workspace = true }
 
