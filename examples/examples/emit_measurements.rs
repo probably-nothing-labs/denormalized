@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
     let mut tasks = tokio::task::JoinSet::new();
 
     let producer: FutureProducer = ClientConfig::new()
-        .set("bootstrap.servers", String::from("localhost:19092,localhost:29092,localhost:39092"))
+        .set("bootstrap.servers", String::from("localhost:9092"))
         .set("message.timeout.ms", "100")
         .create()
         .expect("Producer creation error");
