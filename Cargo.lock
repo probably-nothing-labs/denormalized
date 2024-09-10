@@ -1280,6 +1280,7 @@ dependencies = [
  "arrow",
  "datafusion",
  "pyo3",
+ "serde_json",
  "thiserror",
 ]
 

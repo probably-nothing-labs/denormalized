@@ -42,7 +42,7 @@ pub fn json_records_to_arrow_record_batch(
     if records.is_empty() {
         return RecordBatch::new_empty(schema);
     }
-    let string_stream: Vec<String> = records.iter().map(|r| r.to_string()).collect();
+    let string_stream: Vec<String> = records.iter().map(|r: &JValue| r.to_string()).collect();
     let cursor: Cursor<String> = Cursor::new(string_stream.join("\n"));
 
     let mut reader = ReaderBuilder::new(schema).build(cursor).unwrap();

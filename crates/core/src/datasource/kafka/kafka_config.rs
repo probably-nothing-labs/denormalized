@@ -6,6 +6,7 @@ use arrow_schema::{DataType, Field, Fields, Schema, SchemaRef, TimeUnit};
 
 use datafusion::logical_expr::SortExpr;
 
+use crate::formats::StreamEncoding;
 use crate::physical_plan::utils::time::TimestampUnit;
 use crate::utils::arrow_helpers::infer_arrow_schema_from_json_value;
 use denormalized_common::error::{DenormalizedError, Result};
@@ -304,28 +305,6 @@ impl KafkaTopicBuilder {
         };
 
         Ok(TopicWriter(Arc::new(config)))
-    }
-}
-
-/// The data encoding for [`StreamTable`]
-#[derive(Debug, Clone, Copy)]
-pub enum StreamEncoding {
-    Avro,
-    Json,
-}
-
-impl FromStr for StreamEncoding {
-    type Err = DenormalizedError;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_str() {
-            "avro" => Ok(Self::Avro),
-            "json" => Ok(Self::Json),
-            _ => Err(Self::Err::KafkaConfig(format!(
-                "Unrecognised StreamEncoding {}",
-                s
-            ))),
-        }
     }
 }
 

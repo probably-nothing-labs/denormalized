@@ -9,14 +9,13 @@ use denormalized_orchestrator::channel_manager::{create_channel, get_sender};
 use denormalized_orchestrator::orchestrator::{self, OrchestrationMessage};
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-//use tracing::{debug, error};
 
 use crate::config_extensions::denormalized_config::DenormalizedConfig;
+use crate::formats::decoders::json::JsonDecoder;
+use crate::formats::decoders::Decoder;
 use crate::physical_plan::stream_table::PartitionStreamExt;
 use crate::physical_plan::utils::time::array_to_timestamp_array;
 use crate::state_backend::rocksdb_backend::get_global_rocksdb;
-use crate::utils::arrow_helpers::json_records_to_arrow_record_batch;
 
 use arrow::compute::{max, min};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
@@ -24,7 +23,7 @@ use datafusion::physical_plan::stream::RecordBatchReceiverStreamBuilder;
 use datafusion::physical_plan::streaming::PartitionStream;
 
 use rdkafka::consumer::{Consumer, StreamConsumer};
-use rdkafka::{ClientConfig, Message, Timestamp, TopicPartitionList};
+use rdkafka::{ClientConfig, Message, TopicPartitionList};
 
 use super::KafkaReadConfig;
 
@@ -134,11 +133,11 @@ impl PartitionStream for KafkaStreamRead {
         let mut builder = RecordBatchReceiverStreamBuilder::new(self.config.schema.clone(), 1);
         let tx = builder.tx();
         let canonical_schema = self.config.schema.clone();
-        let json_schema = self.config.original_schema.clone();
+        let arrow_schema = self.config.original_schema.clone();
         let timestamp_column: String = self.config.timestamp_column.clone();
         let timestamp_unit = self.config.timestamp_unit.clone();
         let batch_timeout = Duration::from_millis(100);
-        let mut channel_tag = String::from("");
+        let mut channel_tag: String = String::from("");
         if orchestrator::SHOULD_CHECKPOINT {
             let node_id = self.exec_node_id.unwrap();
             channel_tag = format!("{}_{}", node_id, partition_tag);
@@ -151,6 +150,7 @@ impl PartitionStream for KafkaStreamRead {
                 let msg = OrchestrationMessage::RegisterStream(channel_tag.clone());
                 orchestrator_sender.as_ref().unwrap().send(msg).unwrap();
             }
+            let mut json_decoder: JsonDecoder = JsonDecoder::new(arrow_schema.clone());
             loop {
                 let mut last_offsets = HashMap::new();
                 if let Some(backend) = &state_backend {
@@ -181,7 +181,6 @@ impl PartitionStream for KafkaStreamRead {
                 }
 
                 let mut offsets_read: HashMap<i32, i64> = HashMap::new();
-                let mut batch: Vec<serde_json::Value> = Vec::new();
                 let start_time = datafusion::common::instant::Instant::now();
 
                 while start_time.elapsed() < batch_timeout {
@@ -192,30 +191,9 @@ impl PartitionStream for KafkaStreamRead {
                     .await
                     {
                         Ok(Ok(m)) => {
-                            let timestamp = match m.timestamp() {
-                                Timestamp::NotAvailable => -1_i64,
-                                Timestamp::CreateTime(ts) => ts,
-                                Timestamp::LogAppendTime(ts) => ts,
-                            };
-                            let key = m.key();
-
                             let payload = m.payload().expect("Message payload is empty");
-                            let mut deserialized_record: HashMap<String, Value> =
-                                serde_json::from_slice(payload).unwrap();
-                            deserialized_record
-                                .insert("kafka_timestamp".to_string(), Value::from(timestamp));
-                            if let Some(key) = key {
-                                deserialized_record.insert(
-                                    "kafka_key".to_string(),
-                                    Value::from(String::from_utf8_lossy(key)),
-                                );
-                            } else {
-                                deserialized_record
-                                    .insert("kafka_key".to_string(), Value::from(String::from("")));
-                            }
-                            let new_payload = serde_json::to_value(deserialized_record).unwrap();
+                            json_decoder.push_to_buffer(payload.to_owned());
                             offsets_read.insert(m.partition(), m.offset());
-                            batch.push(new_payload);
                         }
                         Ok(Err(err)) => {
                             error!("Error reading from Kafka {:?}", err);
@@ -228,12 +206,8 @@ impl PartitionStream for KafkaStreamRead {
                     }
                 }
 
-                //debug!("Batch size {}", batch.len());
-
-                if !batch.is_empty() {
-                    let record_batch: RecordBatch =
-                        json_records_to_arrow_record_batch(batch, json_schema.clone());
-
+                if !offsets_read.is_empty() {
+                    let record_batch = json_decoder.to_record_batch().unwrap();
                     let ts_column = record_batch
                         .column_by_name(timestamp_column.as_str())
                         .map(|ts_col| {

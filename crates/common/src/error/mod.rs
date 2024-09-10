@@ -3,7 +3,7 @@ use thiserror::Error;
 
 use arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
-
+use serde_json::Error as JsonError;
 #[cfg(feature = "python")]
 mod py_err;
 
@@ -22,6 +22,8 @@ pub enum DenormalizedError {
     KafkaConfig(String),
     #[error("Arrow Error")]
     Arrow(#[from] ArrowError),
+    #[error("Json Error")]
+    Json(#[from] JsonError),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
