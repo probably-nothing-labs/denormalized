@@ -15,3 +15,4 @@ datafusion = { workspace = true }
 arrow = { workspace = true }
 thiserror = "1.0.63"
 pyo3 = { workspace = true, optional = true }
+serde_json.workspace = true
