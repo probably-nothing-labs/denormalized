@@ -2,8 +2,8 @@
 name = "denormalized-python"
 version = "0.0.1"
 edition = "2021"
-homepage = "https://github.com/apache/datafusion-python"
-repository = "https://github.com/probably-nothing-labs/denormalized-python.git"
+homepage = "https://github.com/probably-nothing-labs/denormalized.git"
+repository = "https://github.com/probably-nothing-labs/denormalized.git"
 
 [lib]
 name = "denormalized_python"
@@ -17,3 +17,20 @@ datafusion = { workspace = true, features = [
   "avro",
   "unicode_expressions",
 ] }
+datafusion-python = { git = "https://github.com/apache/datafusion-python", branch = "main" }
+
+[patch.crates-io]
+datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+datafusion-common = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+datafusion-expr = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+datafusion-functions = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+datafusion-functions-aggregate = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+datafusion-optimizer = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+datafusion-physical-expr = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+datafusion-physical-plan = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+datafusion-physical-optimizer = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+datafusion-sql = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+datafusion-execution = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+
+[patch."https://github.com/probably-nothing-labs/datafusion-python"]
+datafusion-python = { path = "../datafusion-python" }
