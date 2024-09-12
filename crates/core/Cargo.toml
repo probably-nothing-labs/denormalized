@@ -3,6 +3,10 @@ name = "denormalized"
 version = { workspace = true }
 edition = { workspace = true }
 
+[features]
+default = []
+python = []
+
 [dependencies]
 denormalized-common = { workspace = true }
 denormalized-orchestrator = { workspace = true }

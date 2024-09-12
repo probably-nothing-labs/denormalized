@@ -10,12 +10,13 @@ name = "denormalized_python"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { workspace = true, features = ["experimental-async", "chrono"] }
+pyo3 = { workspace = true, features = ["extension-module", "abi3", "abi3-py311"] }
 chrono = { workspace = true }
-denormalized = { workspace = true }
+denormalized = { workspace = true, features = ["python"] }
 datafusion = { workspace = true, features = [
   "pyarrow",
   "avro",
   "unicode_expressions",
 ] }
 datafusion-python = { path = "../../datafusion-python/" }
+tokio = { workspace = true }

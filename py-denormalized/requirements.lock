@@ -10,7 +10,12 @@
 #   universal: false
 
 -e file:.
+datafusion==40.1.0
+    # via denormalized
 numpy==2.1.0
     # via pyarrow
 pyarrow==17.0.0
+    # via datafusion
     # via denormalized
+typing-extensions==4.12.2
+    # via datafusion

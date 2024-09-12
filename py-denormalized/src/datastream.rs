@@ -8,6 +8,7 @@ use datafusion::prelude::Expr;
 
 use denormalized::datastream::DataStream;
 
+use crate::errors::py_denormalized_err;
 use datafusion::arrow::pyarrow::PyArrowType;
 use datafusion_python::expr::{join::PyJoinType, PyExpr};
 
@@ -27,7 +28,11 @@ impl PyDataStream {
 #[pymethods]
 impl PyDataStream {
     fn __repr__(&self, _py: Python) -> PyResult<String> {
-        Ok("PyDataStream".to_string())
+        Ok("__repr__ PyDataStream".to_string())
+    }
+
+    fn __str__(&self, _py: Python) -> PyResult<String> {
+        Ok("__str__ PyDataStream".to_string())
     }
 
     fn schema(&self) -> PyArrowType<Schema> {
@@ -36,12 +41,8 @@ impl PyDataStream {
 
     pub fn select(&self, expr_list: Vec<PyExpr>) -> PyResult<Self> {
         let expr_list: Vec<_> = expr_list.into_iter().map(|e: PyExpr| e.expr).collect();
-        let ds = self
-            .ds
-            .as_ref()
-            .clone()
-            .select(expr_list)
-            .map_err(PyErr::from)?;
+
+        let ds = self.ds.as_ref().clone().select(expr_list)?;
         Ok(Self::new(ds))
     }
 
@@ -71,6 +72,9 @@ impl PyDataStream {
         let right_ds = right.ds.as_ref().clone();
 
         let filter = filter.map(|f| f.into());
+
+        let left_cols = left_cols.iter().map(|s| s.as_ref()).collect::<Vec<&str>>();
+        let right_cols = right_cols.iter().map(|s| s.as_ref()).collect::<Vec<&str>>();
 
         let ds = self.ds.as_ref().clone().join(
             right_ds,
@@ -113,7 +117,11 @@ impl PyDataStream {
         Ok(Self::new(ds))
     }
 
-    pub async fn print_stream(&self) -> PyResult<()> {
+    pub fn print_expr(&self, expr: PyExpr) -> () {
+        println!("{:?}", expr);
+    }
+
+    pub fn print_stream(&self) -> PyResult<()> {
         // Implement the method using the original Rust code
         todo!()
     }
@@ -128,12 +136,12 @@ impl PyDataStream {
         todo!()
     }
 
-    pub async fn print_physical_plan(&self) -> PyResult<Self> {
+    pub fn print_physical_plan(&self) -> PyResult<Self> {
         // Implement the method using the original Rust code
         todo!()
     }
 
-    pub async fn sink_kafka(&self, bootstrap_servers: String, topic: String) -> PyResult<()> {
+    pub fn sink_kafka(&self, bootstrap_servers: String, topic: String) -> PyResult<()> {
         // Implement the method using the original Rust code
         todo!()
     }

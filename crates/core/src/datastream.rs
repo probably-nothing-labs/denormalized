@@ -90,8 +90,8 @@ impl DataStream {
         self,
         right: impl Joinable,
         join_type: JoinType,
-        left_cols: &[String],
-        right_cols: &[String],
+        left_cols: &[&str],
+        right_cols: &[&str],
         filter: Option<Expr>,
     ) -> Result<Self> {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
