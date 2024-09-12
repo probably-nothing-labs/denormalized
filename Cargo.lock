@@ -1277,6 +1277,7 @@ name = "denormalized-common"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "apache-avro",
  "arrow",
  "datafusion",
  "pyo3",

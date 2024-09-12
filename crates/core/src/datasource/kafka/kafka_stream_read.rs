@@ -11,8 +11,6 @@ use log::{debug, error};
 use serde::{Deserialize, Serialize};
 
 use crate::config_extensions::denormalized_config::DenormalizedConfig;
-use crate::formats::decoders::json::JsonDecoder;
-use crate::formats::decoders::Decoder;
 use crate::physical_plan::stream_table::PartitionStreamExt;
 use crate::physical_plan::utils::time::array_to_timestamp_array;
 use crate::state_backend::rocksdb_backend::get_global_rocksdb;
@@ -133,7 +131,6 @@ impl PartitionStream for KafkaStreamRead {
         let mut builder = RecordBatchReceiverStreamBuilder::new(self.config.schema.clone(), 1);
         let tx = builder.tx();
         let canonical_schema = self.config.schema.clone();
-        let arrow_schema = self.config.original_schema.clone();
         let timestamp_column: String = self.config.timestamp_column.clone();
         let timestamp_unit = self.config.timestamp_unit.clone();
         let batch_timeout = Duration::from_millis(100);
@@ -143,6 +140,8 @@ impl PartitionStream for KafkaStreamRead {
             channel_tag = format!("{}_{}", node_id, partition_tag);
             create_channel(channel_tag.as_str(), 10);
         }
+        let mut decoder = self.config.build_decoder();
+
         builder.spawn(async move {
             let mut epoch = 0;
             if orchestrator::SHOULD_CHECKPOINT {
@@ -150,7 +149,6 @@ impl PartitionStream for KafkaStreamRead {
                 let msg = OrchestrationMessage::RegisterStream(channel_tag.clone());
                 orchestrator_sender.as_ref().unwrap().send(msg).unwrap();
             }
-            let mut json_decoder: JsonDecoder = JsonDecoder::new(arrow_schema.clone());
             loop {
                 let mut last_offsets = HashMap::new();
                 if let Some(backend) = &state_backend {
@@ -192,7 +190,7 @@ impl PartitionStream for KafkaStreamRead {
                     {
                         Ok(Ok(m)) => {
                             let payload = m.payload().expect("Message payload is empty");
-                            json_decoder.push_to_buffer(payload.to_owned());
+                            decoder.push_to_buffer(payload.to_owned());
                             offsets_read.insert(m.partition(), m.offset());
                         }
                         Ok(Err(err)) => {
@@ -207,7 +205,7 @@ impl PartitionStream for KafkaStreamRead {
                 }
 
                 if !offsets_read.is_empty() {
-                    let record_batch = json_decoder.to_record_batch().unwrap();
+                    let record_batch = decoder.to_record_batch().unwrap();
                     let ts_column = record_batch
                         .column_by_name(timestamp_column.as_str())
                         .map(|ts_col| {

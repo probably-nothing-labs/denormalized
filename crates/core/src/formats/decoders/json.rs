@@ -7,6 +7,7 @@ use crate::utils::arrow_helpers::json_records_to_arrow_record_batch;
 
 use super::Decoder;
 
+#[derive(Clone)]
 pub struct JsonDecoder {
     schema: Arc<Schema>,
     cache: Vec<Vec<u8>>,

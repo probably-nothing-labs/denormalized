@@ -1,6 +1,7 @@
 use std::result;
 use thiserror::Error;
 
+use apache_avro::Error as AvroError;
 use arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 use serde_json::Error as JsonError;
@@ -22,6 +23,8 @@ pub enum DenormalizedError {
     KafkaConfig(String),
     #[error("Arrow Error")]
     Arrow(#[from] ArrowError),
+    #[error("Avro Error")]
+    AvroError(#[from] AvroError),
     #[error("Json Error")]
     Json(#[from] JsonError),
     #[error(transparent)]

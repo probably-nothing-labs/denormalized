@@ -2,10 +2,15 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::{sync::Arc, time::Duration};
 
+use apache_avro::Schema as AvroSchema;
 use arrow_schema::{DataType, Field, Fields, Schema, SchemaRef, TimeUnit};
 
 use datafusion::logical_expr::SortExpr;
 
+use crate::formats::decoders::avro::AvroDecoder;
+use crate::formats::decoders::json::JsonDecoder;
+use crate::formats::decoders::utils::to_arrow_schema;
+use crate::formats::decoders::Decoder;
 use crate::formats::StreamEncoding;
 use crate::physical_plan::utils::time::TimestampUnit;
 use crate::utils::arrow_helpers::infer_arrow_schema_from_json_value;
@@ -52,6 +57,13 @@ impl KafkaReadConfig {
 
         let consumer: StreamConsumer = client_config.create().expect("Consumer creation failed");
         Ok(consumer)
+    }
+
+    pub fn build_decoder(&self) -> Box<dyn Decoder> {
+        match self.encoding {
+            StreamEncoding::Avro => Box::new(AvroDecoder::new(self.original_schema.clone())),
+            StreamEncoding::Json => Box::new(JsonDecoder::new(self.original_schema.clone())),
+        }
     }
 }
 
@@ -143,6 +155,15 @@ impl KafkaTopicBuilder {
 
         self.schema = Some(Arc::new(Schema::new(fields)));
 
+        Ok(self)
+    }
+
+    pub fn infer_schema_from_avro(&mut self, avro_schema_str: &str) -> Result<&mut Self> {
+        self.infer_schema = false;
+        let avro_schema: AvroSchema =
+            AvroSchema::parse_str(avro_schema_str).expect("Invalid schema!");
+        let arrow_schema = to_arrow_schema(&avro_schema)?;
+        self.schema = Some(Arc::new(arrow_schema));
         Ok(self)
     }
 
