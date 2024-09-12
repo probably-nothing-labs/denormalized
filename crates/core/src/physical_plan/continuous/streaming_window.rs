@@ -195,7 +195,7 @@ pub enum PhysicalStreamingWindowType {
 #[derive(Debug)]
 pub struct StreamingWindowExec {
     pub(crate) input: Arc<dyn ExecutionPlan>,
-    pub aggregate_expressions: Vec<Arc<AggregateFunctionExpr>>,
+    pub aggregate_expressions: Vec<AggregateFunctionExpr>,
     pub filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     /// Schema after the window is run
     pub group_by: PhysicalGroupBy,
@@ -216,7 +216,7 @@ impl StreamingWindowExec {
     pub fn try_new(
         mode: AggregateMode,
         group_by: PhysicalGroupBy,
-        aggr_expr: Vec<Arc<AggregateFunctionExpr>>,
+        aggr_expr: Vec<AggregateFunctionExpr>,
         filter_expr: Vec<Option<Arc<dyn PhysicalExpr>>>,
         input: Arc<dyn ExecutionPlan>,
         input_schema: SchemaRef,
@@ -248,7 +248,7 @@ impl StreamingWindowExec {
     pub fn try_new_with_schema(
         mode: AggregateMode,
         group_by: PhysicalGroupBy,
-        mut aggr_expr: Vec<Arc<AggregateFunctionExpr>>,
+        mut aggr_expr: Vec<AggregateFunctionExpr>,
         filter_expr: Vec<Option<Arc<dyn PhysicalExpr>>>,
         input: Arc<dyn ExecutionPlan>,
         input_schema: SchemaRef,
@@ -365,7 +365,7 @@ impl StreamingWindowExec {
         PlanProperties::new(eq_properties, output_partitioning, ExecutionMode::Unbounded)
     }
     /// Aggregate expressions
-    pub fn aggr_expr(&self) -> &[Arc<AggregateFunctionExpr>] {
+    pub fn aggr_expr(&self) -> &[AggregateFunctionExpr] {
         &self.aggregate_expressions
     }
 
@@ -610,7 +610,7 @@ pub struct WindowAggStream {
     pub schema: SchemaRef,
     input: SendableRecordBatchStream,
     baseline_metrics: BaselineMetrics,
-    exec_aggregate_expressions: Vec<Arc<AggregateFunctionExpr>>,
+    exec_aggregate_expressions: Vec<AggregateFunctionExpr>,
     aggregate_expressions: Vec<Vec<Arc<dyn PhysicalExpr>>>,
     filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     latest_watermark: Arc<Mutex<Option<SystemTime>>>,
@@ -811,7 +811,7 @@ impl FullWindowAggFrame {
     pub fn new(
         start_time: SystemTime,
         end_time: SystemTime,
-        exec_aggregate_expressions: &[Arc<AggregateFunctionExpr>],
+        exec_aggregate_expressions: &[AggregateFunctionExpr],
         aggregate_expressions: Vec<Vec<Arc<dyn PhysicalExpr>>>,
         filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
 
@@ -852,7 +852,7 @@ struct FullWindowAggStream {
     pub schema: SchemaRef,
     input: SendableRecordBatchStream,
     baseline_metrics: BaselineMetrics,
-    exec_aggregate_expressions: Vec<Arc<AggregateFunctionExpr>>,
+    exec_aggregate_expressions: Vec<AggregateFunctionExpr>,
     aggregate_expressions: Vec<Vec<Arc<dyn PhysicalExpr>>>,
     filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     cached_frames: BTreeMap<SystemTime, FullWindowAggFrame>,
@@ -1058,7 +1058,7 @@ fn snap_to_window_start(timestamp: SystemTime, window_length: Duration) -> Syste
 fn create_schema(
     input_schema: &Schema,
     group_expr: &[(Arc<dyn PhysicalExpr>, String)],
-    aggr_expr: &[Arc<AggregateFunctionExpr>],
+    aggr_expr: &[AggregateFunctionExpr],
     contains_null_expr: bool,
     mode: AggregateMode,
 ) -> Result<Schema> {

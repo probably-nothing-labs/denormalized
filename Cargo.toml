@@ -20,7 +20,7 @@ denormalized = { path = "crates/core" }
 denormalized-common = { path = "crates/common" }
 denormalized-orchestrator = { path = "crates/orchestrator" }
 
-# datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", branch = "main" }
+# datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", rev = "e1558c0856cb84a823680ff2b53097b9372b798b" }
 datafusion = { path = "../arrow-datafusion/datafusion/core" }
 
 arrow = { version = "53.0.0", features = ["prettyprint"] }
