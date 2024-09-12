@@ -52,7 +52,7 @@ pub struct GroupedWindowAggStream {
     pub schema: SchemaRef,
     input: SendableRecordBatchStream,
     baseline_metrics: BaselineMetrics,
-    exec_aggregate_expressions: Vec<Arc<AggregateFunctionExpr>>,
+    exec_aggregate_expressions: Vec<AggregateFunctionExpr>,
     aggregate_expressions: Vec<Vec<Arc<dyn PhysicalExpr>>>,
     filter_expressions: Vec<Option<Arc<dyn PhysicalExpr>>>,
     latest_watermark: Arc<Mutex<Option<SystemTime>>>,
@@ -87,8 +87,12 @@ impl GroupedWindowAggStream {
             .input
             .execute(partition, Arc::clone(&context))?;
 
-        let aggregate_expressions =
-            aggregate_expressions(&exec_operator.aggregate_expressions, &exec_operator.mode, 0)?;
+        let aggregate_expressions = aggregate_expressions(
+            exec_operator.aggregate_expressions.as_slice(),
+            &exec_operator.mode,
+            0,
+        )?;
+
         let filter_expressions = match exec_operator.mode {
             AggregateMode::Partial | AggregateMode::Single | AggregateMode::SinglePartitioned => {
                 agg_filter_expr
@@ -181,7 +185,7 @@ impl GroupedWindowAggStream {
                 let accumulators: Vec<_> = self
                     .exec_aggregate_expressions
                     .iter()
-                    .map(create_group_accumulator)
+                    .map(|i| create_group_accumulator(&Arc::new(i.to_owned())))
                     .collect::<Result<_>>()?;
                 let elapsed = start_time.elapsed().unwrap().as_millis();
                 let name = format!("GroupedHashAggregateStream WindowStart[{elapsed}]");
