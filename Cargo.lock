@@ -635,8 +635,10 @@ checksum = "a21f936df1771bf62b77f047b726c4625ff2e8aa607c01ec06e5a05bd8463401"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
  "serde",
+ "wasm-bindgen",
  "windows-targets",
 ]
 
@@ -1345,6 +1347,7 @@ dependencies = [
 name = "denormalized-python"
 version = "0.0.1"
 dependencies = [
+ "chrono",
  "datafusion",
  "datafusion-python",
  "denormalized",
@@ -2575,6 +2578,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "831e8e819a138c36e212f3af3fd9eeffed6bf1510a805af35b0edee5ffa59433"
 dependencies = [
  "cfg-if",
+ "chrono",
  "indoc",
  "libc",
  "memoffset",
