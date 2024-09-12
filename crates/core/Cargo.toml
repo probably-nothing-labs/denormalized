@@ -7,7 +7,7 @@ edition = { workspace = true }
 denormalized-common = { workspace = true }
 denormalized-orchestrator = { workspace = true }
 
-datafusion = { workspace = true }
+datafusion = { workspace = true, features = ["avro"] }
 
 arrow = { workspace = true }
 arrow-schema = { workspace = true }
