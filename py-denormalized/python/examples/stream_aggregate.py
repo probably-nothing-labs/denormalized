@@ -10,16 +10,17 @@ sample_event = {
 }
 
 ctx = Context()
+print('here')
 print(ctx)
-# ds = ctx.from_topic("temperature", json.dumps(sample_event), "localhost:9092")
+ds = ctx.from_topic("temperature", json.dumps(sample_event), "localhost:9092")
 
-# expr = Expr.literal(4)
-# print(expr)
+expr = Expr.literal(4)
+print(expr)
 
-# print(ds.schema())
+print(ds.schema())
 
 
-from denormalized._internal import PyContext
-
+# from denormalized._internal import PyContext
+#
 # ctx_internal = PyContext()
 # ctx_internal.foo()

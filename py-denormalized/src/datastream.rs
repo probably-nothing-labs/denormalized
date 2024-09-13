@@ -4,11 +4,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use datafusion::arrow::datatypes::Schema;
-use datafusion::prelude::Expr;
 
 use denormalized::datastream::DataStream;
 
-use crate::errors::py_denormalized_err;
 use datafusion::arrow::pyarrow::PyArrowType;
 use datafusion_python::expr::{join::PyJoinType, PyExpr};
 
