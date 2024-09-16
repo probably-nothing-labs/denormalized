@@ -5,8 +5,8 @@ use std::error::Error;
 use std::fmt::Debug;
 
 use datafusion::arrow::error::ArrowError;
-use pyo3::{exceptions::PyException, PyErr};
 use denormalized::common::error::DenormalizedError as InnerDenormalizedError;
+use pyo3::{exceptions::PyException, PyErr};
 
 pub type Result<T> = std::result::Result<T, DenormalizedError>;
 

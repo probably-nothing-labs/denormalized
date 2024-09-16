@@ -36,7 +36,6 @@ impl PyContext {
         Ok("foo wtf".to_string())
     }
 
-
     fn __repr__(&self, _py: Python) -> PyResult<String> {
         Ok("__repr__ PyContext".to_string())
     }

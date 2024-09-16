@@ -15,7 +15,7 @@ use denormalized_examples::get_sample_json;
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_level(log::LevelFilter::Info)
         .init();
 
     let sample_event = get_sample_json();

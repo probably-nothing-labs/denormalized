@@ -3,12 +3,16 @@ use pyo3::prelude::*;
 use std::sync::Arc;
 use std::time::Duration;
 
+use tokio::task::JoinHandle;
+
 use datafusion::arrow::datatypes::Schema;
+use datafusion::arrow::pyarrow::PyArrowType;
+use datafusion_python::expr::{join::PyJoinType, PyExpr};
 
 use denormalized::datastream::DataStream;
 
-use datafusion::arrow::pyarrow::PyArrowType;
-use datafusion_python::expr::{join::PyJoinType, PyExpr};
+use crate::errors::py_denormalized_err;
+use crate::utils::{get_tokio_runtime, wait_for_future};
 
 #[pyclass(name = "PyDataStream", module = "denormalized", subclass)]
 #[derive(Clone)]
@@ -119,9 +123,16 @@ impl PyDataStream {
         println!("{:?}", expr);
     }
 
-    pub fn print_stream(&self) -> PyResult<()> {
+    pub fn print_stream(&self, py: Python) -> PyResult<()> {
         // Implement the method using the original Rust code
-        todo!()
+        let ds = self.ds.clone();
+        let rt = &get_tokio_runtime(py).0;
+        let fut: JoinHandle<denormalized::common::error::Result<()>> =
+            rt.spawn(async move { ds.print_stream().await });
+
+        let _ = wait_for_future(py, fut).map_err(py_denormalized_err)??;
+
+        Ok(())
     }
 
     pub fn print_schema(&self) -> PyResult<Self> {
@@ -139,7 +150,7 @@ impl PyDataStream {
         todo!()
     }
 
-    pub fn sink_kafka(&self, bootstrap_servers: String, topic: String) -> PyResult<()> {
+    pub fn sink_kafka(&self, _bootstrap_servers: String, _topic: String) -> PyResult<()> {
         // Implement the method using the original Rust code
         todo!()
     }
