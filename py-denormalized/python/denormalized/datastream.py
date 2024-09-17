@@ -39,14 +39,6 @@ class DataStream:
         """
         return self.ds.schema()
 
-    def print_expr(self, expr: Expr):
-        """Print the given expression.
-
-        Args:
-            expr (Expr): The expression to print.
-        """
-        self.ds.print_expr(expr)
-
     def select(self, expr_list: list[Expr]) -> "DataStream":
         """Select specific columns or expressions from the DataStream.
 

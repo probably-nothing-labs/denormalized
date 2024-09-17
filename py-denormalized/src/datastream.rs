@@ -7,6 +7,7 @@ use tokio::task::JoinHandle;
 
 use datafusion::arrow::datatypes::Schema;
 use datafusion::arrow::pyarrow::PyArrowType;
+use datafusion::physical_plan::display::DisplayableExecutionPlan;
 use datafusion_python::expr::{join::PyJoinType, PyExpr};
 
 use denormalized::datastream::DataStream;
@@ -24,6 +25,30 @@ impl PyDataStream {
     /// creates a new PyDataFrame
     pub fn new(ds: DataStream) -> Self {
         Self { ds: Arc::new(ds) }
+    }
+}
+
+impl From<DataStream> for PyDataStream {
+    fn from(ds: DataStream) -> Self {
+        PyDataStream { ds: Arc::new(ds) }
+    }
+}
+
+impl From<PyDataStream> for DataStream {
+    fn from(py_ds: PyDataStream) -> Self {
+        Arc::try_unwrap(py_ds.ds).unwrap_or_else(|arc| (*arc).clone())
+    }
+}
+
+impl From<Arc<DataStream>> for PyDataStream {
+    fn from(ds: Arc<DataStream>) -> Self {
+        PyDataStream { ds }
+    }
+}
+
+impl From<PyDataStream> for Arc<DataStream> {
+    fn from(py_ds: PyDataStream) -> Self {
+        py_ds.ds
     }
 }
 
@@ -119,10 +144,6 @@ impl PyDataStream {
         Ok(Self::new(ds))
     }
 
-    pub fn print_expr(&self, expr: PyExpr) -> () {
-        println!("{:?}", expr);
-    }
-
     pub fn print_stream(&self, py: Python) -> PyResult<()> {
         // Implement the method using the original Rust code
         let ds = self.ds.clone();
@@ -135,23 +156,48 @@ impl PyDataStream {
         Ok(())
     }
 
-    pub fn print_schema(&self) -> PyResult<Self> {
-        // Implement the method using the original Rust code
-        todo!()
+    pub fn print_schema(&self, py: Python) -> PyResult<Self> {
+        let schema = format!("{}", self.ds.schema());
+        python_print(py, schema)?;
+
+        Ok(self.to_owned())
     }
 
-    pub fn print_plan(&self) -> PyResult<Self> {
-        // Implement the method using the original Rust code
-        todo!()
+    pub fn print_plan(&self, py: Python) -> PyResult<Self> {
+        let plan_str = format!("{}", self.ds.df.logical_plan().display_indent());
+        python_print(py, plan_str)?;
+
+        Ok(self.to_owned())
     }
 
-    pub fn print_physical_plan(&self) -> PyResult<Self> {
-        // Implement the method using the original Rust code
-        todo!()
+    pub fn print_physical_plan(&self, py: Python) -> PyResult<Self> {
+        let ds = self.ds.clone();
+        let rt = &get_tokio_runtime(py).0;
+        let fut: JoinHandle<denormalized::common::error::Result<String>> =
+            rt.spawn(async move {
+                let physical_plan = ds.df.as_ref().clone().create_physical_plan().await?;
+                let displayable_plan = DisplayableExecutionPlan::new(physical_plan.as_ref());
+
+                Ok(format!("{}", displayable_plan.indent(true)))
+            });
+
+        let str = wait_for_future(py, fut).map_err(py_denormalized_err)??;
+        python_print(py, str)?;
+
+        Ok(self.to_owned())
     }
 
     pub fn sink_kafka(&self, _bootstrap_servers: String, _topic: String) -> PyResult<()> {
         // Implement the method using the original Rust code
         todo!()
     }
+}
+
+
+fn python_print(py: Python, str: String) -> PyResult<()> {
+    // Import the Python 'builtins' module to access the print function
+    // Note that println! does not print to the Python debug console and is not visible in notebooks for instance
+    let print = py.import_bound("builtins")?.getattr("print")?;
+    print.call1((str,))?;
+    Ok(())
 }

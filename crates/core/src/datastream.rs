@@ -171,16 +171,16 @@ impl DataStream {
 
     /// Prints the schema of the underlying dataframe
     /// Useful for debugging chained method calls.
-    pub fn print_schema(self) -> Result<Self> {
+    pub fn print_schema(&self) -> &Self {
         println!("{}", self.df.schema());
-        Ok(self)
+        self
     }
 
     /// Prints the underlying logical plan.
     /// Useful for debugging chained method calls.
-    pub fn print_plan(self) -> Result<Self> {
+    pub fn print_plan(&self) -> &Self {
         println!("{}", self.df.logical_plan().display_indent());
-        Ok(self)
+        self
     }
 
     /// Prints the underlying physical plan.

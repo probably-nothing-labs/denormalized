@@ -1,11 +1,8 @@
 import json
-
 import pyarrow as pa
 from denormalized import Context, DataStream
 from denormalized._internal import expr
 from denormalized._internal import functions as f
-
-# from denormalized._internal import expr as expr_internal
 
 sample_event = {
     "occurred_at_ms": 100,
@@ -29,4 +26,6 @@ ds.window(
     ],
     1000,
     None,
-).filter(expr.Expr.column("max") > (expr.Expr.literal(pa.scalar(113)))).print_stream()
+).filter(
+    expr.Expr.column("max") > (expr.Expr.literal(pa.scalar(113)))
+).print_physical_plan().print_plan().print_schema()
