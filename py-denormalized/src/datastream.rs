@@ -198,4 +198,8 @@ impl PyDataStream {
 
         Ok(())
     }
+
+    pub fn sink_python(&self, _py: Python) -> PyResult<()> {
+        todo!("Iterate over the datastream and call a python function for each record batch")
+    }
 }
