@@ -167,7 +167,7 @@ impl DataStream {
 
     /// execute the stream and print the results to stdout.
     /// Mainly used for development and debugging
-    pub async fn print_stream(&self) -> Result<()> {
+    pub async fn print_stream(self) -> Result<()> {
         if orchestrator::SHOULD_CHECKPOINT {
             let plan = self.df.as_ref().clone().create_physical_plan().await?;
             let node_ids = extract_node_ids_and_partitions(&plan);

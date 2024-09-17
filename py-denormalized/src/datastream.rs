@@ -13,7 +13,7 @@ use datafusion_python::expr::{join::PyJoinType, PyExpr};
 use denormalized::datastream::DataStream;
 
 use crate::errors::py_denormalized_err;
-use crate::utils::{get_tokio_runtime, wait_for_future, python_print};
+use crate::utils::{get_tokio_runtime, python_print, wait_for_future};
 
 #[pyclass(name = "PyDataStream", module = "denormalized", subclass)]
 #[derive(Clone)]
@@ -161,13 +161,12 @@ impl PyDataStream {
     pub fn print_physical_plan(&self, py: Python) -> PyResult<Self> {
         let ds = self.ds.clone();
         let rt = &get_tokio_runtime(py).0;
-        let fut: JoinHandle<denormalized::common::error::Result<String>> =
-            rt.spawn(async move {
-                let physical_plan = ds.df.as_ref().clone().create_physical_plan().await?;
-                let displayable_plan = DisplayableExecutionPlan::new(physical_plan.as_ref());
+        let fut: JoinHandle<denormalized::common::error::Result<String>> = rt.spawn(async move {
+            let physical_plan = ds.df.as_ref().clone().create_physical_plan().await?;
+            let displayable_plan = DisplayableExecutionPlan::new(physical_plan.as_ref());
 
-                Ok(format!("{}", displayable_plan.indent(true)))
-            });
+            Ok(format!("{}", displayable_plan.indent(true)))
+        });
 
         let str = wait_for_future(py, fut).map_err(py_denormalized_err)??;
         python_print(py, str)?;
@@ -176,8 +175,7 @@ impl PyDataStream {
     }
 
     pub fn print_stream(&self, py: Python) -> PyResult<()> {
-        // Implement the method using the original Rust code
-        let ds = self.ds.clone();
+        let ds = self.ds.as_ref().clone();
         let rt = &get_tokio_runtime(py).0;
         let fut: JoinHandle<denormalized::common::error::Result<()>> =
             rt.spawn(async move { ds.print_stream().await });
@@ -187,8 +185,17 @@ impl PyDataStream {
         Ok(())
     }
 
-    pub fn sink_kafka(&self, _bootstrap_servers: String, _topic: String) -> PyResult<()> {
-        // Implement the method using the original Rust code
-        todo!()
+    pub fn sink_kafka(&self, bootstrap_servers: String, topic: String, py: Python) -> PyResult<()> {
+        let ds = self.ds.as_ref().clone();
+        // let bootstrap_servers = bootstrap_servers.clone();
+        // let topic = topic.clone();
+
+        let rt = &get_tokio_runtime(py).0;
+        let fut: JoinHandle<denormalized::common::error::Result<()>> =
+            rt.spawn(async move { ds.sink_kafka(bootstrap_servers, topic).await });
+
+        let _ = wait_for_future(py, fut).map_err(py_denormalized_err)??;
+
+        Ok(())
     }
 }

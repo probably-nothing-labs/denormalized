@@ -6,6 +6,8 @@ from denormalized import Context
 from denormalized._internal import expr
 from denormalized._internal import functions as f
 
+bootstrap_server = "localhost:9092"
+
 sample_event = {
     "occurred_at_ms": 100,
     "sensor_name": "foo",
@@ -13,7 +15,7 @@ sample_event = {
 }
 
 ctx = Context()
-ds = ctx.from_topic("temperature", json.dumps(sample_event), "localhost:9092")
+ds = ctx.from_topic("temperature", json.dumps(sample_event), bootstrap_server)
 
 
 ds.window(
@@ -30,4 +32,4 @@ ds.window(
     None,
 ).filter(
     expr.Expr.column("max") > (expr.Expr.literal(pa.scalar(113)))
-).print_physical_plan().print_plan().print_schema()
+).sink_kafka(bootstrap_server, "out_py_topic")
