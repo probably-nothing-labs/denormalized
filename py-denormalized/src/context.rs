@@ -21,6 +21,32 @@ pub struct PyContext {
 
 impl PyContext {}
 
+impl From<Context> for PyContext {
+    fn from(context: Context) -> Self {
+        PyContext {
+            context: Arc::new(context),
+        }
+    }
+}
+
+impl From<PyContext> for Context {
+    fn from(py_context: PyContext) -> Self {
+        Arc::try_unwrap(py_context.context).unwrap_or_else(|arc| (*arc).clone())
+    }
+}
+
+impl From<Arc<Context>> for PyContext {
+    fn from(context: Arc<Context>) -> Self {
+        PyContext { context }
+    }
+}
+
+impl From<PyContext> for Arc<Context> {
+    fn from(py_context: PyContext) -> Self {
+        py_context.context
+    }
+}
+
 #[pymethods]
 impl PyContext {
     /// creates a new PyDataFrame

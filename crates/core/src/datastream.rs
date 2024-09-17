@@ -131,39 +131,6 @@ impl DataStream {
         })
     }
 
-    /// execute the stream and print the results to stdout.
-    /// Mainly used for development and debugging
-    pub async fn print_stream(&self) -> Result<()> {
-        if orchestrator::SHOULD_CHECKPOINT {
-            let plan = self.df.as_ref().clone().create_physical_plan().await?;
-            let node_ids = extract_node_ids_and_partitions(&plan);
-            let max_buffer_size = node_ids.iter().map(|x| x.1).sum::<usize>();
-            let mut orchestrator = Orchestrator::default();
-            SpawnedTask::spawn_blocking(move || orchestrator.run(max_buffer_size));
-        }
-
-        let mut stream: SendableRecordBatchStream =
-            self.df.as_ref().clone().execute_stream().await?;
-        loop {
-            match stream.next().await.transpose() {
-                Ok(Some(batch)) => {
-                    println!(
-                        "{}",
-                        datafusion::common::arrow::util::pretty::pretty_format_batches(&[batch])
-                            .unwrap()
-                    );
-                }
-                Ok(None) => {
-                    log::warn!("No RecordBatch in stream");
-                }
-                Err(err) => {
-                    log::error!("Error reading stream: {:?}", err);
-                    return Err(err.into());
-                }
-            }
-        }
-    }
-
     /// Return the schema of DataFrame that backs the DataStream
     pub fn schema(&self) -> &DFSchema {
         self.df.schema()
@@ -196,6 +163,39 @@ impl DataStream {
             df: Arc::new(DataFrame::new(session_state, plan)),
             context: self.context.clone(),
         })
+    }
+
+    /// execute the stream and print the results to stdout.
+    /// Mainly used for development and debugging
+    pub async fn print_stream(&self) -> Result<()> {
+        if orchestrator::SHOULD_CHECKPOINT {
+            let plan = self.df.as_ref().clone().create_physical_plan().await?;
+            let node_ids = extract_node_ids_and_partitions(&plan);
+            let max_buffer_size = node_ids.iter().map(|x| x.1).sum::<usize>();
+            let mut orchestrator = Orchestrator::default();
+            SpawnedTask::spawn_blocking(move || orchestrator.run(max_buffer_size));
+        }
+
+        let mut stream: SendableRecordBatchStream =
+            self.df.as_ref().clone().execute_stream().await?;
+        loop {
+            match stream.next().await.transpose() {
+                Ok(Some(batch)) => {
+                    println!(
+                        "{}",
+                        datafusion::common::arrow::util::pretty::pretty_format_batches(&[batch])
+                            .unwrap()
+                    );
+                }
+                Ok(None) => {
+                    log::warn!("No RecordBatch in stream");
+                }
+                Err(err) => {
+                    log::error!("Error reading stream: {:?}", err);
+                    return Err(err.into());
+                }
+            }
+        }
     }
 
     /// execute the stream and write the results to a give kafka topic

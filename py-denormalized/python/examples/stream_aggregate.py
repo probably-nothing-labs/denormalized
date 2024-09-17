@@ -1,6 +1,8 @@
+"""stream_aggregate example."""
 import json
+
 import pyarrow as pa
-from denormalized import Context, DataStream
+from denormalized import Context
 from denormalized._internal import expr
 from denormalized._internal import functions as f
 

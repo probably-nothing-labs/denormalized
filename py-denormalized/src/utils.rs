@@ -29,6 +29,16 @@ where
     py.allow_threads(|| runtime.block_on(f))
 }
 
+
+/// Print a string to the python console
+pub fn python_print(py: Python, str: String) -> PyResult<()> {
+    // Import the Python 'builtins' module to access the print function
+    // Note that println! does not print to the Python debug console and is not visible in notebooks for instance
+    let print = py.import_bound("builtins")?.getattr("print")?;
+    print.call1((str,))?;
+    Ok(())
+}
+
 // pub(crate) fn parse_volatility(value: &str) -> Result<Volatility, DataFusionError> {
 //     Ok(match value {
 //         "immutable" => Volatility::Immutable,

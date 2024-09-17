@@ -13,7 +13,7 @@ use datafusion_python::expr::{join::PyJoinType, PyExpr};
 use denormalized::datastream::DataStream;
 
 use crate::errors::py_denormalized_err;
-use crate::utils::{get_tokio_runtime, wait_for_future};
+use crate::utils::{get_tokio_runtime, wait_for_future, python_print};
 
 #[pyclass(name = "PyDataStream", module = "denormalized", subclass)]
 #[derive(Clone)]
@@ -144,18 +144,6 @@ impl PyDataStream {
         Ok(Self::new(ds))
     }
 
-    pub fn print_stream(&self, py: Python) -> PyResult<()> {
-        // Implement the method using the original Rust code
-        let ds = self.ds.clone();
-        let rt = &get_tokio_runtime(py).0;
-        let fut: JoinHandle<denormalized::common::error::Result<()>> =
-            rt.spawn(async move { ds.print_stream().await });
-
-        let _ = wait_for_future(py, fut).map_err(py_denormalized_err)??;
-
-        Ok(())
-    }
-
     pub fn print_schema(&self, py: Python) -> PyResult<Self> {
         let schema = format!("{}", self.ds.schema());
         python_print(py, schema)?;
@@ -187,17 +175,20 @@ impl PyDataStream {
         Ok(self.to_owned())
     }
 
+    pub fn print_stream(&self, py: Python) -> PyResult<()> {
+        // Implement the method using the original Rust code
+        let ds = self.ds.clone();
+        let rt = &get_tokio_runtime(py).0;
+        let fut: JoinHandle<denormalized::common::error::Result<()>> =
+            rt.spawn(async move { ds.print_stream().await });
+
+        let _ = wait_for_future(py, fut).map_err(py_denormalized_err)??;
+
+        Ok(())
+    }
+
     pub fn sink_kafka(&self, _bootstrap_servers: String, _topic: String) -> PyResult<()> {
         // Implement the method using the original Rust code
         todo!()
     }
-}
-
-
-fn python_print(py: Python, str: String) -> PyResult<()> {
-    // Import the Python 'builtins' module to access the print function
-    // Note that println! does not print to the Python debug console and is not visible in notebooks for instance
-    let print = py.import_bound("builtins")?.getattr("print")?;
-    print.call1((str,))?;
-    Ok(())
 }
