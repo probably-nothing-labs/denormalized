@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 
+use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -7,6 +8,7 @@ use tokio::task::JoinHandle;
 
 use datafusion::arrow::datatypes::Schema;
 use datafusion::arrow::pyarrow::PyArrowType;
+use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::display::DisplayableExecutionPlan;
 use datafusion_python::expr::{join::PyJoinType, PyExpr};
 
@@ -187,19 +189,52 @@ impl PyDataStream {
 
     pub fn sink_kafka(&self, bootstrap_servers: String, topic: String, py: Python) -> PyResult<()> {
         let ds = self.ds.as_ref().clone();
-        // let bootstrap_servers = bootstrap_servers.clone();
-        // let topic = topic.clone();
-
         let rt = &get_tokio_runtime(py).0;
+
         let fut: JoinHandle<denormalized::common::error::Result<()>> =
             rt.spawn(async move { ds.sink_kafka(bootstrap_servers, topic).await });
-
         let _ = wait_for_future(py, fut).map_err(py_denormalized_err)??;
 
         Ok(())
     }
 
-    pub fn sink_python(&self, _py: Python) -> PyResult<()> {
-        todo!("Iterate over the datastream and call a python function for each record batch")
+    pub fn sink_python(&self, py: Python) -> PyResult<()> {
+        let ds = self.ds.as_ref().clone();
+        let rt = &get_tokio_runtime(py).0;
+
+        let fut: JoinHandle<denormalized::common::error::Result<()>> = rt.spawn(async move {
+            let mut stream: SendableRecordBatchStream =
+                ds.df.as_ref().clone().execute_stream().await?;
+
+            loop {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => break, // Explicitly check for ctrl-c and exit
+                                                          // loop if it occurs
+                    message = stream.next() => {
+                        match message.transpose(){
+                            Ok(Some(batch)) => {
+                                println!(
+                                    "{}",
+                                    datafusion::common::arrow::util::pretty::pretty_format_batches(&[
+                                        batch
+                                    ])
+                                    .unwrap()
+                                );
+                            },
+                            Ok(None) => {},
+                            Err(err) => {
+                                return Err(err.into());
+                            },
+                        }
+                    }
+                }
+            }
+
+            Ok(())
+        });
+
+        let _ = wait_for_future(py, fut).map_err(py_denormalized_err)??;
+
+        Ok(())
     }
 }

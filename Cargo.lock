@@ -1352,6 +1352,7 @@ dependencies = [
  "datafusion",
  "datafusion-python",
  "denormalized",
+ "futures",
  "pyo3",
  "tokio",
 ]

@@ -8,3 +8,9 @@ impl From<DenormalizedError> for PyErr {
         PyRuntimeError::new_err(format!("{:?}", error))
     }
 }
+
+impl From<PyErr> for DenormalizedError {
+    fn from(error: PyErr) -> Self {
+        DenormalizedError::Other(error.into())
+    }
+}

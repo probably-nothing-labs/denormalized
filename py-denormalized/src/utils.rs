@@ -1,4 +1,3 @@
-// use crate::errors::DataFusionError;
 use crate::TokioRuntime;
 // use datafusion::logical_expr::Volatility;
 use pyo3::prelude::*;
@@ -26,9 +25,9 @@ where
     F::Output: Send,
 {
     let runtime: &Runtime = &get_tokio_runtime(py).0;
+    // allow_threads explicitly releases the GIL until the future returns
     py.allow_threads(|| runtime.block_on(f))
 }
-
 
 /// Print a string to the python console
 pub fn python_print(py: Python, str: String) -> PyResult<()> {

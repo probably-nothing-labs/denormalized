@@ -159,3 +159,7 @@ class DataStream:
             topic (str): The Kafka topic to sink the data to.
         """
         self.ds.sink_kafka(bootstrap_servers, topic)
+
+    def sink_python(self) -> None:
+        """Sink the DataStream to a Python function."""
+        self.ds.sink_python()

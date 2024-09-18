@@ -6,6 +6,15 @@ from denormalized import Context
 from denormalized._internal import expr
 from denormalized._internal import functions as f
 
+import signal
+import sys
+
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C!')
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+
 bootstrap_server = "localhost:9092"
 
 sample_event = {
@@ -32,4 +41,4 @@ ds.window(
     None,
 ).filter(
     expr.Expr.column("max") > (expr.Expr.literal(pa.scalar(113)))
-).sink_kafka(bootstrap_server, "out_py_topic")
+).sink_python()
