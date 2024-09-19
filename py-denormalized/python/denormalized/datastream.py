@@ -105,7 +105,7 @@ class DataStream:
         group_expr: list[Expr],
         aggr_expr: list[Expr],
         window_length_millis: int,
-        slide_millis: int = None,
+        slide_millis: int | None = None,
     ) -> "DataStream":
         """Apply a windowing operation to the DataStream.
 
