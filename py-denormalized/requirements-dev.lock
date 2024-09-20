@@ -12,6 +12,8 @@
 -e file:.
 asttokens==2.4.1
     # via stack-data
+datafusion==40.1.0
+    # via denormalized
 decorator==5.1.1
     # via ipython
 executing==2.0.1
@@ -41,6 +43,7 @@ ptyprocess==0.7.0
 pure-eval==0.2.3
     # via stack-data
 pyarrow==17.0.0
+    # via datafusion
     # via denormalized
 pygments==2.18.0
     # via ipython
@@ -52,5 +55,7 @@ stack-data==0.6.3
 traitlets==5.14.3
     # via ipython
     # via matplotlib-inline
+typing-extensions==4.12.2
+    # via datafusion
 wcwidth==0.2.13
     # via prompt-toolkit

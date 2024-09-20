@@ -20,7 +20,8 @@ denormalized = { path = "crates/core" }
 denormalized-common = { path = "crates/common" }
 denormalized-orchestrator = { path = "crates/orchestrator" }
 
-datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", rev = "e1558c0856cb84a823680ff2b53097b9372b798b" }
+# datafusion = { path = "../arrow-datafusion/datafusion/core" }
+datafusion = { git = "https://github.com/probably-nothing-labs/arrow-datafusion", rev = "d812edc349f1500dc74df1967feb53156e78b462" }
 
 arrow = { version = "53.0.0", features = ["prettyprint"] }
 arrow-array = { version = "53.0.0", default-features = false, features = [
@@ -54,6 +55,6 @@ log = "^0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22.1"
-chrono = { version = "0.4.38", default-features = false }
+chrono = { version = "0.4.38" }
 itertools = "0.13"
-pyo3 = { version = "0.22.2", features = ["experimental-async"] }
+pyo3 = { version = "0.22.2" }

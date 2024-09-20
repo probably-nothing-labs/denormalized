@@ -3,6 +3,10 @@ name = "denormalized"
 version = { workspace = true }
 edition = { workspace = true }
 
+[features]
+default = []
+python = []
+
 [dependencies]
 denormalized-common = { workspace = true }
 denormalized-orchestrator = { workspace = true }
@@ -22,7 +26,7 @@ futures = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["signal"] }
 log = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }

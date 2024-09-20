@@ -4,7 +4,7 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-crossbeam = "0.8.4"
+crossbeam = { version = "0.8.4" }
 datafusion = { workspace = true }
 log.workspace = true
 once_cell = "1.19.0"

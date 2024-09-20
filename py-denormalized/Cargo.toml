@@ -2,18 +2,32 @@
 name = "denormalized-python"
 version = "0.0.1"
 edition = "2021"
-homepage = "https://github.com/apache/datafusion-python"
-repository = "https://github.com/probably-nothing-labs/denormalized-python.git"
+homepage = "https://github.com/probably-nothing-labs/denormalized.git"
+repository = "https://github.com/probably-nothing-labs/denormalized.git"
 
 [lib]
 name = "denormalized_python"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { workspace = true }
-denormalized = { workspace = true }
+pyo3 = { workspace = true, features = [
+  "extension-module",
+  "abi3",
+  "abi3-py311",
+] }
+chrono = { workspace = true }
+denormalized = { workspace = true, features = ["python"] }
 datafusion = { workspace = true, features = [
   "pyarrow",
   "avro",
   "unicode_expressions",
 ] }
+# datafusion-python = { path = "../../datafusion-python/" }
+datafusion-python = { git = "https://github.com/probably-nothing-labs/datafusion-python", branch = "denormalized-tweaks" }
+tokio = { workspace = true, features = [
+  "macros",
+  "rt",
+  "rt-multi-thread",
+  "sync",
+] }
+futures = { workspace = true }

@@ -131,9 +131,43 @@ impl DataStream {
         })
     }
 
+    /// Return the schema of DataFrame that backs the DataStream
+    pub fn schema(&self) -> &DFSchema {
+        self.df.schema()
+    }
+
+    /// Prints the schema of the underlying dataframe
+    /// Useful for debugging chained method calls.
+    pub fn print_schema(&self) -> &Self {
+        println!("{}", self.df.schema());
+        self
+    }
+
+    /// Prints the underlying logical plan.
+    /// Useful for debugging chained method calls.
+    pub fn print_plan(&self) -> &Self {
+        println!("{}", self.df.logical_plan().display_indent());
+        self
+    }
+
+    /// Prints the underlying physical plan.
+    /// Useful for debugging and development
+    pub async fn print_physical_plan(self) -> Result<Self> {
+        let (session_state, plan) = self.df.as_ref().clone().into_parts();
+        let physical_plan = self.df.as_ref().clone().create_physical_plan().await?;
+        let displayable_plan = DisplayableExecutionPlan::new(physical_plan.as_ref());
+
+        println!("{}", displayable_plan.indent(true));
+
+        Ok(Self {
+            df: Arc::new(DataFrame::new(session_state, plan)),
+            context: self.context.clone(),
+        })
+    }
+
     /// execute the stream and print the results to stdout.
     /// Mainly used for development and debugging
-    pub async fn print_stream(&self) -> Result<()> {
+    pub async fn print_stream(self) -> Result<()> {
         if orchestrator::SHOULD_CHECKPOINT {
             let plan = self.df.as_ref().clone().create_physical_plan().await?;
             let node_ids = extract_node_ids_and_partitions(&plan);
@@ -162,40 +196,6 @@ impl DataStream {
                 }
             }
         }
-    }
-
-    /// Return the schema of DataFrame that backs the DataStream
-    pub fn schema(&self) -> &DFSchema {
-        self.df.schema()
-    }
-
-    /// Prints the schema of the underlying dataframe
-    /// Useful for debugging chained method calls.
-    pub fn print_schema(self) -> Result<Self> {
-        println!("{}", self.df.schema());
-        Ok(self)
-    }
-
-    /// Prints the underlying logical plan.
-    /// Useful for debugging chained method calls.
-    pub fn print_plan(self) -> Result<Self> {
-        println!("{}", self.df.logical_plan().display_indent());
-        Ok(self)
-    }
-
-    /// Prints the underlying physical plan.
-    /// Useful for debugging and development
-    pub async fn print_physical_plan(self) -> Result<Self> {
-        let (session_state, plan) = self.df.as_ref().clone().into_parts();
-        let physical_plan = self.df.as_ref().clone().create_physical_plan().await?;
-        let displayable_plan = DisplayableExecutionPlan::new(physical_plan.as_ref());
-
-        println!("{}", displayable_plan.indent(true));
-
-        Ok(Self {
-            df: Arc::new(DataFrame::new(session_state, plan)),
-            context: self.context.clone(),
-        })
     }
 
     /// execute the stream and write the results to a give kafka topic
