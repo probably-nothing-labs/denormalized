@@ -9,8 +9,9 @@ denormalized = { workspace = true }
 
 datafusion = { workspace = true }
 
-arrow = { workspace = true }
+arrow = { workspace = true, features = ["prettyprint"]  }
 arrow-schema = { workspace = true }
+arrow-array = { workspace = true }
 tracing = { workspace = true }
 futures = { workspace = true }
 tracing-log = { workspace = true }
