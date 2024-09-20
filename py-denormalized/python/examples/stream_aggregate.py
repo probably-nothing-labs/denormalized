@@ -23,6 +23,10 @@ sample_event = {
     "reading": 0.0,
 }
 
+def sample_func(rb):
+    print("hello world2!")
+    print(len(rb))
+
 ctx = Context()
 ds = ctx.from_topic("temperature", json.dumps(sample_event), bootstrap_server)
 
@@ -41,4 +45,4 @@ ds.window(
     None,
 ).filter(
     expr.Expr.column("max") > (expr.Expr.literal(pa.scalar(113)))
-).sink_python()
+).sink_python(sample_func)

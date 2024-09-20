@@ -5,6 +5,7 @@ use std::error::Error;
 use std::fmt::Debug;
 
 use datafusion::arrow::error::ArrowError;
+use datafusion::error::DataFusionError;
 use denormalized::common::error::DenormalizedError as InnerDenormalizedError;
 use pyo3::{exceptions::PyException, PyErr};
 
@@ -16,6 +17,7 @@ pub enum DenormalizedError {
     ArrowError(ArrowError),
     Common(String),
     PythonError(PyErr),
+    DataFusionError(DataFusionError),
 }
 
 impl fmt::Display for DenormalizedError {
@@ -25,6 +27,7 @@ impl fmt::Display for DenormalizedError {
             DenormalizedError::ArrowError(e) => write!(f, "Arrow error: {e:?}"),
             DenormalizedError::PythonError(e) => write!(f, "Python error {e:?}"),
             DenormalizedError::Common(e) => write!(f, "{e}"),
+            DenormalizedError::DataFusionError(e) => write!(f, "DataFusionError{e}"),
         }
     }
 }
@@ -53,6 +56,12 @@ impl From<DenormalizedError> for PyErr {
             DenormalizedError::PythonError(py_err) => py_err,
             _ => PyException::new_err(err.to_string()),
         }
+    }
+}
+
+impl From<DataFusionError> for DenormalizedError {
+    fn from(err: DataFusionError) -> DenormalizedError {
+        DenormalizedError::DataFusionError(err)
     }
 }
 

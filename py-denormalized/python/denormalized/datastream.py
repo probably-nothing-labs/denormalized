@@ -160,6 +160,6 @@ class DataStream:
         """
         self.ds.sink_kafka(bootstrap_servers, topic)
 
-    def sink_python(self) -> None:
+    def sink_python(self, func) -> None:
         """Sink the DataStream to a Python function."""
-        self.ds.sink_python()
+        self.ds.sink_python(func)

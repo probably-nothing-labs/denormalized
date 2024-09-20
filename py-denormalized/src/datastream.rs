@@ -8,13 +8,14 @@ use tokio::task::JoinHandle;
 
 use datafusion::arrow::datatypes::Schema;
 use datafusion::arrow::pyarrow::PyArrowType;
+use datafusion::arrow::pyarrow::ToPyArrow;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::display::DisplayableExecutionPlan;
 use datafusion_python::expr::{join::PyJoinType, PyExpr};
 
 use denormalized::datastream::DataStream;
 
-use crate::errors::py_denormalized_err;
+use crate::errors::{py_denormalized_err, Result};
 use crate::utils::{get_tokio_runtime, python_print, wait_for_future};
 
 #[pyclass(name = "PyDataStream", module = "denormalized", subclass)]
@@ -198,11 +199,12 @@ impl PyDataStream {
         Ok(())
     }
 
-    pub fn sink_python(&self, py: Python) -> PyResult<()> {
+    /// Execute the dataframe and pass the resulting recordbatch to a python function
+    pub fn sink_python(&self, func: PyObject, py: Python) -> PyResult<()> {
         let ds = self.ds.as_ref().clone();
         let rt = &get_tokio_runtime(py).0;
 
-        let fut: JoinHandle<denormalized::common::error::Result<()>> = rt.spawn(async move {
+        let fut: JoinHandle<Result<()>> = rt.spawn(async move {
             let mut stream: SendableRecordBatchStream =
                 ds.df.as_ref().clone().execute_stream().await?;
 
@@ -211,15 +213,13 @@ impl PyDataStream {
                     _ = tokio::signal::ctrl_c() => break, // Explicitly check for ctrl-c and exit
                                                           // loop if it occurs
                     message = stream.next() => {
-                        match message.transpose(){
+                        match message.transpose() {
                             Ok(Some(batch)) => {
-                                println!(
-                                    "{}",
-                                    datafusion::common::arrow::util::pretty::pretty_format_batches(&[
-                                        batch
-                                    ])
-                                    .unwrap()
-                                );
+                                Python::with_gil(|py| -> PyResult<()> {
+                                    let batch = batch.clone().to_pyarrow(py)?;
+                                    func.call1(py, (batch,))?;
+                                    Ok(())
+                                })?;
                             },
                             Ok(None) => {},
                             Err(err) => {
@@ -233,6 +233,7 @@ impl PyDataStream {
             Ok(())
         });
 
+        // rt.block_on(fut).map_err(py_denormalized_err)??;
         let _ = wait_for_future(py, fut).map_err(py_denormalized_err)??;
 
         Ok(())
