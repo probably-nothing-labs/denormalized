@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use datafusion::common::cast::as_float64_array;
-use datafusion::common::{internal_err, ScalarValue};
 use datafusion::functions_aggregate::average::avg;
 use datafusion::functions_aggregate::count::count;
 use datafusion::functions_aggregate::expr_fn::{max, min};
@@ -15,10 +14,8 @@ use datafusion::logical_expr::{ColumnarValue, ScalarUDF, ScalarUDFImpl, Signatur
 use denormalized::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use denormalized::prelude::*;
 
-use arrow::array::{new_null_array, Array, ArrayRef, AsArray, Float32Array, Float64Array};
-use arrow::compute;
-use arrow::datatypes::{DataType, Float64Type};
-use arrow::record_batch::RecordBatch;
+use arrow::array::{ArrayRef, Float64Array};
+use arrow::datatypes::DataType;
 
 use denormalized_examples::get_sample_json;
 
@@ -132,7 +129,7 @@ impl ScalarUDFImpl for SampleUdf {
             .iter()
             .map(|v| match v {
                 Some(f) => {
-                    let value = f + 20 as f64;
+                    let value = f + 20_f64;
                     Some(value)
                 }
                 _ => None,

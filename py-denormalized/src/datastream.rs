@@ -136,7 +136,7 @@ impl PyDataStream {
         // Use u64 for durations since using PyDelta type requires non-Py_LIMITED_API to be
         // enabled
         let window_length_duration = Duration::from_millis(window_length_millis);
-        let window_slide_duration = slide_millis.map(|d| Duration::from_millis(d));
+        let window_slide_duration = slide_millis.map(Duration::from_millis);
 
         let ds = self.ds.as_ref().clone().window(
             groups,
@@ -183,7 +183,7 @@ impl PyDataStream {
         let fut: JoinHandle<denormalized::common::error::Result<()>> =
             rt.spawn(async move { ds.print_stream().await });
 
-        let _ = wait_for_future(py, fut).map_err(py_denormalized_err)??;
+        wait_for_future(py, fut).map_err(py_denormalized_err)??;
 
         Ok(())
     }
@@ -194,7 +194,7 @@ impl PyDataStream {
 
         let fut: JoinHandle<denormalized::common::error::Result<()>> =
             rt.spawn(async move { ds.sink_kafka(bootstrap_servers, topic).await });
-        let _ = wait_for_future(py, fut).map_err(py_denormalized_err)??;
+        wait_for_future(py, fut).map_err(py_denormalized_err)??;
 
         Ok(())
     }
@@ -234,7 +234,7 @@ impl PyDataStream {
         });
 
         // rt.block_on(fut).map_err(py_denormalized_err)??;
-        let _ = wait_for_future(py, fut).map_err(py_denormalized_err)??;
+        wait_for_future(py, fut).map_err(py_denormalized_err)??;
 
         Ok(())
     }
