@@ -76,13 +76,7 @@ struct SampleUdf {
 impl SampleUdf {
     fn new() -> Self {
         Self {
-            signature: Signature::exact(
-                // this function will always take two arguments of type f64
-                vec![DataType::Float64],
-                // this function is deterministic and will always return the same
-                // result for the same input
-                Volatility::Immutable,
-            ),
+            signature: Signature::exact(vec![DataType::Float64], Volatility::Immutable),
         }
     }
 }
@@ -100,24 +94,11 @@ impl ScalarUDFImpl for SampleUdf {
         &self.signature
     }
 
-    /// What is the type of value that will be returned by this function? In
-    /// this case it will always be a constant value, but it could also be a
-    /// function of the input types.
     fn return_type(&self, _arg_types: &[DataType]) -> datafusion::error::Result<DataType> {
         Ok(DataType::Float64)
     }
 
-    /// This is the function that actually calculates the results.
-    ///
-    /// This is the same way that functions built into DataFusion are invoked,
-    /// which permits important special cases when one or both of the arguments
-    /// are single values (constants). For example `pow(a, 2)`
-    ///
-    /// However, it also means the implementation is more complex than when
-    /// using `create_udf`.
     fn invoke(&self, args: &[ColumnarValue]) -> datafusion::error::Result<ColumnarValue> {
-        // DataFusion has arranged for the correct inputs to be passed to this
-        // function, but we check again to make sure
         assert_eq!(args.len(), 1);
         let value = &args[0];
         assert_eq!(value.data_type(), DataType::Float64);
@@ -143,7 +124,6 @@ impl ScalarUDFImpl for SampleUdf {
         &self,
         input: &[ExprProperties],
     ) -> datafusion::error::Result<SortProperties> {
-        // The POW function preserves the order of its argument.
         Ok(input[0].sort_properties)
     }
 }
