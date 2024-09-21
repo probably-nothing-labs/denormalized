@@ -64,6 +64,13 @@ impl DataStream {
         })
     }
 
+    pub fn with_column(self, name: &str, expr: Expr) -> Result<Self> {
+        Ok(Self {
+            df: Arc::new(self.df.as_ref().clone().with_column(name, expr)?),
+            context: self.context.clone(),
+        })
+    }
+
     // Join two streams using the specified expression
     pub fn join_on(
         self,

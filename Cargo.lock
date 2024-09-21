@@ -1334,6 +1334,7 @@ name = "denormalized-examples"
 version = "0.0.1"
 dependencies = [
  "arrow",
+ "arrow-array",
  "arrow-schema",
  "datafusion",
  "denormalized",
