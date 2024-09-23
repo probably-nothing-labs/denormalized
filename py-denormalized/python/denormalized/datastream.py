@@ -61,6 +61,18 @@ class DataStream:
         """
         return DataStream(self.ds.filter(to_internal_expr(predicate)))
 
+    def with_column(self, name: str, predicate: Expr) -> "DataStream":
+        """Add a new column to the DataStream.
+
+        Args:
+            name (str): The name of the new column.
+            predicate (Expr): The expression that defines the column's values.
+
+        Returns:
+            DataStream: A new DataStream with the additional column.
+        """
+        return DataStream(self.ds.with_column(name, to_internal_expr(predicate)))
+
     def join_on(
         self, right: "DataStream", join_type: str, on_exprs: list[Expr]
     ) -> "DataStream":

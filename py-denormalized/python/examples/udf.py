@@ -1,16 +1,18 @@
 """stream_aggregate example."""
+
 import json
-
-import pyarrow as pa
-from denormalized import Context
-from denormalized.datafusion import lit, col
-from denormalized.datafusion import functions as f
-
 import signal
 import sys
 
+import pyarrow as pa
+import pyarrow.compute as pc
+from denormalized import Context
+from denormalized.datafusion import col
+from denormalized.datafusion import functions as f
+from denormalized.datafusion import lit, udf
+
+
 def signal_handler(sig, frame):
-    print('You pressed Ctrl+C!')
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -23,25 +25,40 @@ sample_event = {
     "reading": 0.0,
 }
 
-def sample_sink_func(rb):
+
+def gt(array: pa.Scalar, v: pa.Array) -> pa.Array:
+    return pc.greater(array, v)
+
+
+greater_than_udf = udf(gt, [pa.float64(), pa.float64()], pa.bool_(), "stable")
+
+
+def sample_sink_func(rb: pa.RecordBatch):
+    if not len(rb):
+        return
+    print("==")
     print(rb)
+
 
 ctx = Context()
 ds = ctx.from_topic("temperature", json.dumps(sample_event), bootstrap_server)
 
-
 ds.window(
     [col("sensor_name")],
     [
-        f.count(col("reading"), distinct=False, filter=None).alias(
-            "count"
-        ),
+        f.count(col("reading"), distinct=False, filter=None).alias("count"),
         f.min(col("reading")).alias("min"),
         f.max(col("reading")).alias("max"),
         f.avg(col("reading")).alias("average"),
     ],
     1000,
     None,
-).filter(
-    col("max") > (lit(113))
-).sink_python(sample_sink_func)
+).with_column(
+    "greater_than",
+    greater_than_udf(
+        col("count"),
+        lit(1400.0),
+    ),
+).sink_python(
+    sample_sink_func
+)
