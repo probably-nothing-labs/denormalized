@@ -1236,6 +1236,7 @@ dependencies = [
 [[package]]
 name = "datafusion-python"
 version = "41.0.0"
+source = "git+https://github.com/probably-nothing-labs/datafusion-python?branch=denormalized-tweaks#eeec789a0f44d2a1782d126b5e4a38857a478198"
 dependencies = [
  "arrow",
  "async-trait",
