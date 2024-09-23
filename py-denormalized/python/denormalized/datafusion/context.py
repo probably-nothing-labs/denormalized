@@ -19,18 +19,18 @@
 
 from __future__ import annotations
 
-from denormalized._internal.datafusion import SessionConfig as SessionConfigInternal
-from denormalized._internal.datafusion import RuntimeConfig as RuntimeConfigInternal
-from denormalized._internal.datafusion import SQLOptions as SQLOptionsInternal
-from denormalized._internal.datafusion import SessionContext as SessionContextInternal
-from denormalized._internal.datafusion import LogicalPlan, ExecutionPlan
+from denormalized._internal import SessionConfig as SessionConfigInternal
+from denormalized._internal import RuntimeConfig as RuntimeConfigInternal
+from denormalized._internal import SQLOptions as SQLOptionsInternal
+from denormalized._internal import SessionContext as SessionContextInternal
+from denormalized._internal import LogicalPlan, ExecutionPlan
 
-from from denormalized._internal.datafusion import AggregateUDF
-from datafusion.catalog import Catalog, Table
-from datafusion.dataframe import DataFrame
-from datafusion.expr import Expr, SortExpr, sort_list_to_raw_sort_list
-from datafusion.record_batch import RecordBatchStream
-from datafusion.udf import ScalarUDF
+from denormalized._internal import AggregateUDF
+from denormalized.datafusion.catalog import Catalog, Table
+from denormalized.datafusion.dataframe import DataFrame
+from denormalized.datafusion.expr import Expr, SortExpr, sort_list_to_raw_sort_list
+from denormalized.datafusion.record_batch import RecordBatchStream
+from denormalized.datafusion.udf import ScalarUDF
 
 from typing import Any, TYPE_CHECKING
 from typing_extensions import deprecated

@@ -1,6 +1,5 @@
 from denormalized._internal import PyContext
-
-from denormalized.datastream import DataStream as DataStream
+from .datastream import DataStream
 
 class Context:
     """Context."""

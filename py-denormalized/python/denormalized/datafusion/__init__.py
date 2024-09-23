@@ -36,7 +36,7 @@ from .context import (
 from .catalog import Catalog, Database, Table
 
 # The following imports are okay to remain as opaque to the user.
-from denormalized._internal.datafusion import Config, LogicalPlan, ExecutionPlan, runtime
+from denormalized._internal import Config, LogicalPlan, ExecutionPlan, runtime
 
 from .record_batch import RecordBatchStream, RecordBatch
 
@@ -53,9 +53,7 @@ from .expr import (
     WindowFrame,
 )
 
-from . import functions, object_store, substrait
-
-__version__ = importlib_metadata.version(__name__)
+from . import functions, object_store
 
 __all__ = [
     "Accumulator",
@@ -86,7 +84,6 @@ __all__ = [
     "expr",
     "functions",
     "object_store",
-    "substrait",
 ]
 
 

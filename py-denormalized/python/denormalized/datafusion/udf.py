@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-import from denormalized._internal.datafusion as df_internal
+import denormalized._internal as df_internal
 from datafusion.expr import Expr
 from typing import Callable, TYPE_CHECKING, TypeVar
 from abc import ABCMeta, abstractmethod
