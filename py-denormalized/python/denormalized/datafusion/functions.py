@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from datafusion._internal import functions as f
+from from denormalized._internal.datafusion import functions as f
 from datafusion.expr import (
     CaseBuilder,
     Expr,

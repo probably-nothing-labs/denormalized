@@ -28,9 +28,9 @@ import pyarrow as pa
 from datafusion.common import DataTypeMap, NullTreatment, RexType
 from typing_extensions import deprecated
 
-from ._internal import LogicalPlan
-from ._internal import expr as expr_internal
-from ._internal import functions as functions_internal
+from denormalized._internal.datafusion import LogicalPlan
+from denormalized._internal.datafusion import expr as expr_internal
+from denormalized._internal.datafusion import functions as functions_internal
 
 # The following are imported from the internal representation. We may choose to
 # give these all proper wrappers, or to simply leave as is. These were added

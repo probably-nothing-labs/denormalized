@@ -32,9 +32,9 @@ if TYPE_CHECKING:
     import pathlib
     from typing import Callable
 
-from datafusion._internal import DataFrame as DataFrameInternal
+from from denormalized._internal.datafusion import DataFrame as DataFrameInternal
 from datafusion.expr import Expr, SortExpr, sort_or_default
-from datafusion._internal import (
+from from denormalized._internal.datafusion import (
     LogicalPlan,
     ExecutionPlan,
 )

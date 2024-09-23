@@ -23,7 +23,7 @@ information about substrait.
 
 from __future__ import annotations
 
-from ._internal import substrait as substrait_internal
+from denormalized._internal.datafusion import substrait as substrait_internal
 
 from typing import TYPE_CHECKING
 from typing_extensions import deprecated
@@ -31,7 +31,7 @@ import pathlib
 
 if TYPE_CHECKING:
     from datafusion.context import SessionContext
-    from datafusion._internal import LogicalPlan
+    from from denormalized._internal.datafusion import LogicalPlan
 
 __all__ = [
     "Plan",

@@ -36,7 +36,7 @@ from .context import (
 from .catalog import Catalog, Database, Table
 
 # The following imports are okay to remain as opaque to the user.
-from ._internal import Config, LogicalPlan, ExecutionPlan, runtime
+from denormalized._internal.datafusion import Config, LogicalPlan, ExecutionPlan, runtime
 
 from .record_batch import RecordBatchStream, RecordBatch
 
