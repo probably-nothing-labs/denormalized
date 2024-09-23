@@ -25,18 +25,14 @@ sample_event = {
     "reading": 0.0,
 }
 
-
-def gt(array: pa.Scalar, v: pa.Array) -> pa.Array:
-    return pc.greater(array, v)
-
+def gt(lhs: pa.Array, rhs: pa.Scalar) -> pa.Array:
+    return pc.greater(lhs, rhs)
 
 greater_than_udf = udf(gt, [pa.float64(), pa.float64()], pa.bool_(), "stable")
-
 
 def sample_sink_func(rb: pa.RecordBatch):
     if not len(rb):
         return
-    print("==")
     print(rb)
 
 
