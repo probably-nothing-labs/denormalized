@@ -22,8 +22,8 @@ datafusion = { workspace = true, features = [
   "avro",
   "unicode_expressions",
 ] }
-# datafusion-python = { path = "../../datafusion-python/" }
-datafusion-python = { git = "https://github.com/probably-nothing-labs/datafusion-python", branch = "denormalized-tweaks" }
+datafusion-python = { path = "../../datafusion-python/" }
+# datafusion-python = { git = "https://github.com/probably-nothing-labs/datafusion-python", branch = "denormalized-tweaks" }
 tokio = { workspace = true, features = [
   "macros",
   "rt",
