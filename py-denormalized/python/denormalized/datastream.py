@@ -1,7 +1,7 @@
 import pyarrow as pa
-from datafusion import Expr
 from denormalized._internal import PyDataStream
-from denormalized._internal import expr as internal_expr
+from denormalized.datafusion import Expr
+from denormalized.utils import to_internal_expr, to_internal_exprs
 
 
 class DataStream:
@@ -48,7 +48,7 @@ class DataStream:
         Returns:
             DataStream: A new DataStream with the selected columns/expressions.
         """
-        return DataStream(self.ds.select(expr_list))
+        return DataStream(self.ds.select(to_internal_exprs(expr_list)))
 
     def filter(self, predicate: Expr) -> "DataStream":
         """Filter the DataStream based on a predicate.
@@ -59,7 +59,19 @@ class DataStream:
         Returns:
             DataStream: A new DataStream with the filter applied.
         """
-        return DataStream(self.ds.filter(predicate))
+        return DataStream(self.ds.filter(to_internal_expr(predicate)))
+
+    def with_column(self, name: str, predicate: Expr) -> "DataStream":
+        """Add a new column to the DataStream.
+
+        Args:
+            name (str): The name of the new column.
+            predicate (Expr): The expression that defines the column's values.
+
+        Returns:
+            DataStream: A new DataStream with the additional column.
+        """
+        return DataStream(self.ds.with_column(name, to_internal_expr(predicate)))
 
     def join_on(
         self, right: "DataStream", join_type: str, on_exprs: list[Expr]
@@ -82,7 +94,7 @@ class DataStream:
         join_type: str,
         left_cols: list[str],
         right_cols: list[str],
-        filter: Expr = None,
+        filter: Expr | None = None,
     ) -> "DataStream":
         """Join this DataStream with another one based on column names.
 
@@ -102,16 +114,16 @@ class DataStream:
 
     def window(
         self,
-        group_expr: list[Expr],
-        aggr_expr: list[Expr],
+        group_exprs: list[Expr],
+        aggr_exprs: list[Expr],
         window_length_millis: int,
         slide_millis: int | None = None,
     ) -> "DataStream":
         """Apply a windowing operation to the DataStream.
 
         Args:
-            group_expr (list[Expr]): The expressions to group by.
-            aggr_expr (list[Expr]): The aggregation expressions to apply.
+            group_exprs (list[Expr]): The expressions to group by.
+            aggr_exprs (list[Expr]): The aggregation expressions to apply.
             window_length_millis (int): The length of the window in milliseconds.
             slide_millis (int, optional): The slide interval of the window in
                 milliseconds.
@@ -120,7 +132,12 @@ class DataStream:
             DataStream: A new DataStream with the windowing operation applied.
         """
         return DataStream(
-            self.ds.window(group_expr, aggr_expr, window_length_millis, slide_millis)
+            self.ds.window(
+                to_internal_exprs(group_exprs),
+                to_internal_exprs(aggr_exprs),
+                window_length_millis,
+                slide_millis,
+            )
         )
 
     def print_stream(self) -> None:

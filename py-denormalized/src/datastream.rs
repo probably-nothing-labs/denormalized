@@ -81,6 +81,11 @@ impl PyDataStream {
         Ok(Self::new(ds))
     }
 
+    pub fn with_column(&self, name: &str, expr: PyExpr) -> Result<Self> {
+        let ds = self.ds.as_ref().clone().with_column(name, expr.into())?;
+        Ok(Self::new(ds))
+    }
+
     pub fn join_on(
         &self,
         _right: PyDataStream,
