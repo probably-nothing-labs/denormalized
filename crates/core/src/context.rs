@@ -8,7 +8,7 @@ use datafusion::execution::{
 
 use crate::datasource::kafka::TopicReader;
 use crate::datastream::DataStream;
-use crate::physical_optimizer::CoaslesceBeforeStreamingAggregate;
+use crate::physical_optimizer::EnsureHashPartititionOnGroupByForStreamingAggregates;
 use crate::query_planner::StreamingQueryPlanner;
 use crate::utils::get_default_optimizer_rules;
 
@@ -41,7 +41,9 @@ impl Context {
             .with_runtime_env(runtime)
             .with_query_planner(Arc::new(StreamingQueryPlanner {}))
             .with_optimizer_rules(get_default_optimizer_rules())
-            .with_physical_optimizer_rule(Arc::new(CoaslesceBeforeStreamingAggregate::new()))
+            .with_physical_optimizer_rule(Arc::new(
+                EnsureHashPartititionOnGroupByForStreamingAggregates::new(),
+            ))
             .build();
 
         Ok(Self {

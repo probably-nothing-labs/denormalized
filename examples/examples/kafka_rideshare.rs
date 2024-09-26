@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
             }
         }"#;
 
-    let bootstrap_servers = String::from("localhost:9092");
+    let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
 
     let ctx = Context::new()?;
 

@@ -1303,6 +1303,7 @@ dependencies = [
  "delegate",
  "denormalized-common",
  "denormalized-orchestrator",
+ "flatbuffers",
  "futures",
  "half",
  "hashbrown",
