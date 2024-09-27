@@ -197,6 +197,62 @@ fn deserialize_array_data(
     .map_err(|e| e.into())
 }
 
+#[derive(Clone)]
+pub struct ArrayContainer {
+    pub arrays: Vec<ArrayRef>,
+}
+
+impl ArrayContainer {
+    fn new(arrays: Vec<ArrayRef>) -> Self {
+        Self { arrays }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct SerializedArrayContainer {
+    serialized_arrays: Vec<Vec<u8>>,
+}
+
+impl From<&ArrayContainer> for SerializedArrayContainer {
+    fn from(container: &ArrayContainer) -> Self {
+        let serialized_arrays = container
+            .arrays
+            .iter()
+            .map(|arr| serialize_array(arr).expect("Failed to serialize array"))
+            .collect();
+
+        SerializedArrayContainer { serialized_arrays }
+    }
+}
+
+impl TryFrom<SerializedArrayContainer> for ArrayContainer {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(serialized: SerializedArrayContainer) -> Result<Self, Self::Error> {
+        let arrays = serialized
+            .serialized_arrays
+            .into_iter()
+            .map(|bytes| deserialize_array(&bytes))
+            .collect::<Result<Vec<ArrayRef>, _>>()?;
+
+        Ok(ArrayContainer::new(arrays))
+    }
+}
+
+pub fn serialize_array_container(
+    container: &ArrayContainer,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let serialized = SerializedArrayContainer::from(container);
+    bincode::serialize(&serialized).map_err(|e| e.into())
+}
+
+pub fn deserialize_array_container(
+    bytes: &[u8],
+) -> Result<ArrayContainer, Box<dyn std::error::Error>> {
+    let serialized: SerializedArrayContainer = bincode::deserialize(bytes)?;
+    ArrayContainer::try_from(serialized)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,6 +268,10 @@ mod tests {
         ListArray, StringArray, StructArray,
     };
     use arrow_schema::{Field, Fields};
+    use datafusion::{
+        functions_aggregate::average::AvgAccumulator, logical_expr::Accumulator,
+        scalar::ScalarValue,
+    };
     use std::sync::Arc;
 
     fn test_roundtrip<A: Array + Clone + 'static>(array: A) {
@@ -260,6 +320,11 @@ mod tests {
             DataType::Int32 => {
                 let l = left.as_primitive::<Int32Type>();
                 let r = right.as_primitive::<Int32Type>();
+                assert_eq!(l.value(index), r.value(index));
+            }
+            DataType::UInt64 => {
+                let l = left.as_primitive::<UInt64Type>();
+                let r = right.as_primitive::<UInt64Type>();
                 assert_eq!(l.value(index), r.value(index));
             }
             DataType::Float64 => {
@@ -437,5 +502,30 @@ mod tests {
     fn test_error_handling() {
         let invalid_bytes = vec![0, 1, 2, 3];
         assert!(deserialize_array(&invalid_bytes).is_err());
+    }
+
+    #[test]
+    fn test_avg_accumulator_serialization() {
+        let mut accumulator = Box::new(AvgAccumulator::default());
+
+        let float_array = Float64Array::from_value(56.0, 56);
+        let array = Arc::new(float_array) as ArrayRef;
+
+        accumulator.update_batch(&[array]).unwrap();
+        let state = accumulator.state().unwrap();
+        let arrays: Vec<ArrayRef> = state
+            .into_iter()
+            .map(|sv| sv.to_array().unwrap())
+            .collect::<Vec<ArrayRef>>();
+
+        let array_container = ArrayContainer { arrays };
+        let serialized = serialize_array_container(&array_container).unwrap();
+
+        let deserialized = deserialize_array_container(&serialized).unwrap();
+        accumulator = Box::new(AvgAccumulator::default());
+        let _ = accumulator.merge_batch(&deserialized.arrays);
+
+        let result = accumulator.evaluate().unwrap();
+        assert_eq!(result, ScalarValue::Float64(Some(56.0)));
     }
 }
