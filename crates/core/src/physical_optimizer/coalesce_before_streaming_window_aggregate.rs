@@ -10,15 +10,15 @@ use datafusion::error::Result;
 
 use crate::physical_plan::continuous::streaming_window::StreamingWindowExec;
 
-pub struct CoaslesceBeforeStreamingAggregate {}
+pub struct EnsureHashPartititionOnGroupByForStreamingAggregates {}
 
-impl Default for CoaslesceBeforeStreamingAggregate {
+impl Default for EnsureHashPartititionOnGroupByForStreamingAggregates {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl CoaslesceBeforeStreamingAggregate {
+impl EnsureHashPartititionOnGroupByForStreamingAggregates {
     #[allow(missing_docs)]
     pub fn new() -> Self {
         Self {}
@@ -29,7 +29,7 @@ impl CoaslesceBeforeStreamingAggregate {
 // Franz optimizer rule, added to ensure coalescing of partitions before a global aggregate
 // window. This rule may be removed once we have support for two stage partial and final
 // aggregates a la vanilla Datafusion.
-impl PhysicalOptimizerRule for CoaslesceBeforeStreamingAggregate {
+impl PhysicalOptimizerRule for EnsureHashPartititionOnGroupByForStreamingAggregates {
     fn optimize(
         &self,
         plan: Arc<dyn datafusion::physical_plan::ExecutionPlan>,
