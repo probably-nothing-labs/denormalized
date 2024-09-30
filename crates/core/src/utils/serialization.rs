@@ -149,7 +149,7 @@ fn serialize_array_data(
         child_data: array_data
             .child_data()
             .iter()
-            .map(|c| serialize_array_data(c))
+            .map(serialize_array_data)
             .collect::<Result<Vec<_>, _>>()?,
     })
 }
@@ -178,7 +178,7 @@ fn deserialize_array_data(
     let child_data: Vec<ArrayData> = serialized
         .child_data
         .iter()
-        .map(|c| deserialize_array_data(c))
+        .map(deserialize_array_data)
         .collect::<Result<Vec<_>, _>>()?;
 
     let null_buffer = serialized
