@@ -356,7 +356,7 @@ mod tests {
                 let l = left.as_struct();
                 let r = right.as_struct();
                 for j in 0..l.num_columns() {
-                    compare_arrays(&l.column(j), &r.column(j));
+                    compare_arrays(l.column(j), r.column(j));
                 }
             }
             DataType::Dictionary(key_type, _) => match key_type.as_ref() {
