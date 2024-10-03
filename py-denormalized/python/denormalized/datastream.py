@@ -3,6 +3,7 @@ from denormalized._internal import PyDataStream
 from denormalized.datafusion import Expr
 from denormalized.utils import to_internal_expr, to_internal_exprs
 
+from typing import Callable
 
 class DataStream:
     """Represents a stream of data that can be manipulated using various operations."""
@@ -177,6 +178,6 @@ class DataStream:
         """
         self.ds.sink_kafka(bootstrap_servers, topic)
 
-    def sink_python(self, func) -> None:
+    def sink(self, func: Callable[[pa.RecordBatch], None]) -> None:
         """Sink the DataStream to a Python function."""
         self.ds.sink_python(func)
