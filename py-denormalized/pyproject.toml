@@ -5,12 +5,9 @@ build-backend = "maturin"
 [project]
 name = "denormalized"
 requires-python = ">=3.12"
-classifiers = [
-  "Programming Language :: Rust",
-  "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy",
-]
-dynamic = ["version"]
+classifiers = [ ]
+dynamic = ["version"] # Version specified in py-denormalized/Cargo.toml
+description = ""
 dependencies = [
     "pyarrow>=17.0.0",
     "datafusion>=40.1.0",

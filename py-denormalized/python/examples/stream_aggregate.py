@@ -23,7 +23,7 @@ sample_event = {
     "reading": 0.0,
 }
 
-def sample_sink_func(rb):
+def print_batch(rb):
     print(rb)
 
 ctx = Context()
@@ -44,4 +44,4 @@ ds.window(
     None,
 ).filter(
     col("max") > (lit(113))
-).sink_python(sample_sink_func)
+).sink(print_batch)

@@ -30,7 +30,7 @@ def gt(lhs: pa.Array, rhs: pa.Scalar) -> pa.Array:
 
 greater_than_udf = udf(gt, [pa.float64(), pa.float64()], pa.bool_(), "stable")
 
-def sample_sink_func(rb: pa.RecordBatch):
+def print_batch(rb: pa.RecordBatch):
     if not len(rb):
         return
     print(rb)
@@ -55,6 +55,6 @@ ds.window(
         col("count"),
         lit(1400.0),
     ),
-).sink_python(
-    sample_sink_func
+).sink(
+    print_batch
 )
