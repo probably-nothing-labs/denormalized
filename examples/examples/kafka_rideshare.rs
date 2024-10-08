@@ -78,8 +78,6 @@ async fn main() -> Result<()> {
         Some(Duration::from_millis(1_000)), // 1 second slide
     )?;
 
-    // ds.clone().print_stream().await?;
-
     ds.sink_kafka(bootstrap_servers.clone(), String::from("out_topic"))
         .await?;
 

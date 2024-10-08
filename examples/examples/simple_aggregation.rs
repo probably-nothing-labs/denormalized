@@ -18,16 +18,13 @@ async fn main() -> Result<()> {
         .filter_level(log::LevelFilter::Info)
         .init();
 
-    let sample_event = get_sample_json();
-
-    let bootstrap_servers = String::from("localhost:9092");
-
     let ctx = Context::new()?;
-    let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers.clone());
+    let mut topic_builder = KafkaTopicBuilder::new("localhost:9092".to_string());
 
+    // Connect to source topic
     let source_topic = topic_builder
         .with_topic(String::from("temperature"))
-        .infer_schema_from_json(sample_event.as_str())?
+        .infer_schema_from_json(get_sample_json().as_str())?
         .with_encoding("json")?
         .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
         .build_reader(ConnectionOpts::from([
@@ -36,8 +33,7 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
-    let ds = ctx
-        .from_topic(source_topic)
+    ctx.from_topic(source_topic)
         .await?
         .window(
             vec![col("sensor_name")],
@@ -47,12 +43,12 @@ async fn main() -> Result<()> {
                 max(col("reading")).alias("max"),
                 avg(col("reading")).alias("average"),
             ],
-            Duration::from_millis(1_000),
-            None,
+            Duration::from_millis(1_000), // aggregate every 1 second
+            None,                         // None means tumbling window
         )?
-        .filter(col("max").gt(lit(113)))?;
-    ds.clone().print_physical_plan().await?;
-    ds.clone().print_stream().await?;
+        .filter(col("max").gt(lit(113)))?
+        .print_stream() // Print out the results
+        .await?;
 
     Ok(())
 }
