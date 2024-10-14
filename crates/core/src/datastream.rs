@@ -4,6 +4,7 @@ use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_plan::ExecutionPlanProperties;
 use denormalized_orchestrator::orchestrator;
 use futures::StreamExt;
+use log::debug;
 use std::{sync::Arc, time::Duration};
 
 use datafusion::common::DFSchema;
@@ -162,6 +163,8 @@ impl DataStream {
     pub async fn print_physical_plan(self) -> Result<Self> {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
         let physical_plan = self.df.as_ref().clone().create_physical_plan().await?;
+        let node_id = physical_plan.node_id();
+        debug!("topline node id = {:?}", node_id);
         let displayable_plan = DisplayableExecutionPlan::new(physical_plan.as_ref());
 
         println!("{}", displayable_plan.indent(true));
@@ -176,11 +179,15 @@ impl DataStream {
     /// Mainly used for development and debugging
     pub async fn print_stream(self) -> Result<()> {
         if orchestrator::SHOULD_CHECKPOINT {
-            let plan = self.df.as_ref().clone().create_physical_plan().await?;
-            let node_ids = extract_node_ids_and_partitions(&plan);
-            let max_buffer_size = node_ids.iter().map(|x| x.1).sum::<usize>();
+            //let plan = self.df.as_ref().clone().create_physical_plan().await?;
+            //let node_ids = extract_node_ids_and_partitions(&plan);
+            //let max_buffer_size = node_ids.iter().map(|x| x.1).sum::<usize>();
+            debug!("starting orchestrator >>>>>>");
             let mut orchestrator = Orchestrator::default();
-            SpawnedTask::spawn_blocking(move || orchestrator.run(max_buffer_size));
+            debug!("created orchestrator >>>>>>");
+
+            SpawnedTask::spawn_blocking(move || orchestrator.run(10));
+            debug!("orc started.");
         }
 
         let mut stream: SendableRecordBatchStream =

@@ -5,15 +5,18 @@ use std::time::Duration;
 use arrow::datatypes::TimestampMillisecondType;
 use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, StructArray};
 use arrow_schema::{DataType, Field, SchemaRef, TimeUnit};
-use denormalized_orchestrator::channel_manager::{create_channel, get_sender};
+use bytes::Bytes;
+use crossbeam::channel;
+use denormalized_orchestrator::channel_manager::{create_channel, get_sender, take_receiver};
 use denormalized_orchestrator::orchestrator::{self, OrchestrationMessage};
+use futures::executor::block_on;
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
 
 use crate::config_extensions::denormalized_config::DenormalizedConfig;
 use crate::physical_plan::stream_table::PartitionStreamExt;
 use crate::physical_plan::utils::time::array_to_timestamp_array;
-use crate::state_backend::rocksdb_backend::get_global_rocksdb;
+use crate::state_backend::slatedb::get_global_slatedb;
 
 use arrow::compute::{max, min};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
@@ -21,7 +24,7 @@ use datafusion::physical_plan::stream::RecordBatchReceiverStreamBuilder;
 use datafusion::physical_plan::streaming::PartitionStream;
 
 use rdkafka::consumer::{Consumer, StreamConsumer};
-use rdkafka::{ClientConfig, Message, TopicPartitionList};
+use rdkafka::{ClientConfig, Message, Offset, TopicPartitionList};
 
 use super::KafkaReadConfig;
 
@@ -44,7 +47,7 @@ impl KafkaStreamRead {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct BatchReadMetadata {
-    epoch: i32,
+    epoch: u128,
     min_timestamp: Option<i64>,
     max_timestamp: Option<i64>,
     offsets_read: HashMap<i32, i64>,
@@ -81,20 +84,15 @@ impl PartitionStream for KafkaStreamRead {
     }
 
     fn execute(&self, ctx: Arc<TaskContext>) -> SendableRecordBatchStream {
-        let mut assigned_partitions = TopicPartitionList::new();
-
         let config_options = ctx
             .session_config()
             .options()
             .extensions
             .get::<DenormalizedConfig>();
 
-        let should_checkpoint = config_options.map_or(false, |c| c.checkpoint);
+        let mut should_checkpoint = false; //config_options.map_or(false, |c| c.checkpoint);
 
-        let topic = self.config.topic.clone();
-        for partition in self.assigned_partitions.clone() {
-            assigned_partitions.add_partition(self.config.topic.as_str(), partition);
-        }
+        let node_id = self.exec_node_id.unwrap();
         let partition_tag = self
             .assigned_partitions
             .iter()
@@ -102,96 +100,95 @@ impl PartitionStream for KafkaStreamRead {
             .collect::<Vec<String>>()
             .join("_");
 
-        let state_backend = if should_checkpoint {
-            Some(get_global_rocksdb().unwrap())
-        } else {
-            None
-        };
+        let channel_tag = format!("{}_{}", node_id, partition_tag);
+        let mut serialized_state: Option<Bytes> = None;
+        let state_backend = get_global_slatedb().unwrap();
+
+        let mut starting_offsets: HashMap<i32, i64> = HashMap::new();
+        if orchestrator::SHOULD_CHECKPOINT {
+            create_channel(channel_tag.as_str(), 10);
+            debug!("checking for last checkpointed offsets");
+            //serialized_state = block_on(state_backend.clone().get(channel_tag.as_bytes())).unwrap();
+        }
+
+        if let Some(serialized_state) = serialized_state {
+            let last_batch_metadata = BatchReadMetadata::from_bytes(&serialized_state).unwrap();
+            debug!(
+                "recovering from checkpointed offsets. epoch was {} max timestamp {:?}",
+                last_batch_metadata.epoch, last_batch_metadata.max_timestamp
+            );
+            starting_offsets = last_batch_metadata.offsets_read.clone();
+        }
+
+        let mut assigned_partitions = TopicPartitionList::new();
+
+        for partition in self.assigned_partitions.clone() {
+            assigned_partitions.add_partition(self.config.topic.as_str(), partition);
+            if starting_offsets.contains_key(&partition) {
+                let offset = starting_offsets.get(&partition).unwrap();
+                debug!("setting partition {} to offset {}", partition, offset);
+                let _ = assigned_partitions.set_partition_offset(
+                    self.config.topic.as_str(),
+                    partition,
+                    Offset::from_raw(*offset),
+                );
+            }
+        }
+
         let consumer: StreamConsumer = create_consumer(self.config.clone());
 
         consumer
             .assign(&assigned_partitions)
             .expect("Partition assignment failed.");
 
-        let state_namespace = format!("kafka_source_{}", topic);
-
-        if let Some(backend) = &state_backend {
-            let _ = match backend.get_cf(&state_namespace) {
-                Ok(cf) => {
-                    debug!("cf for this already exists");
-                    Ok(cf)
-                }
-                Err(..) => {
-                    let _ = backend.create_cf(&state_namespace);
-                    backend.get_cf(&state_namespace)
-                }
-            };
-        }
-
         let mut builder = RecordBatchReceiverStreamBuilder::new(self.config.schema.clone(), 1);
         let tx = builder.tx();
         let canonical_schema = self.config.schema.clone();
         let timestamp_column: String = self.config.timestamp_column.clone();
         let timestamp_unit = self.config.timestamp_unit.clone();
-        let batch_timeout = Duration::from_millis(100);
-        let mut channel_tag: String = String::from("");
-        if orchestrator::SHOULD_CHECKPOINT {
-            let node_id = self.exec_node_id.unwrap();
-            channel_tag = format!("{}_{}", node_id, partition_tag);
-            create_channel(channel_tag.as_str(), 10);
-        }
+        let batch_timeout: Duration = Duration::from_millis(100);
         let mut decoder = self.config.build_decoder();
 
         builder.spawn(async move {
             let mut epoch = 0;
+            let mut receiver: Option<channel::Receiver<OrchestrationMessage>> = None;
             if orchestrator::SHOULD_CHECKPOINT {
                 let orchestrator_sender = get_sender("orchestrator");
-                let msg = OrchestrationMessage::RegisterStream(channel_tag.clone());
+                let msg: OrchestrationMessage =
+                    OrchestrationMessage::RegisterStream(channel_tag.clone());
                 orchestrator_sender.as_ref().unwrap().send(msg).unwrap();
+                receiver = take_receiver(channel_tag.as_str());
             }
-            loop {
-                let mut last_offsets = HashMap::new();
-                if let Some(backend) = &state_backend {
-                    if let Some(offsets) = backend
-                        .get_state(&state_namespace, partition_tag.clone().into_bytes())
-                        .unwrap()
-                    {
-                        let last_batch_metadata = BatchReadMetadata::from_bytes(&offsets).unwrap();
-                        last_offsets = last_batch_metadata.offsets_read;
-                        debug!(
-                            "epoch is {} and last read offsets are {:?}",
-                            epoch, last_offsets
-                        );
-                    } else {
-                        debug!("epoch is {} and no prior offsets were found.", epoch);
-                    }
-                }
 
-                for (partition, offset) in &last_offsets {
-                    consumer
-                        .seek(
-                            &topic,
-                            *partition,
-                            rdkafka::Offset::Offset(*offset + 1),
-                            Duration::from_secs(10),
-                        )
-                        .expect("Failed to seek to stored offset");
+            loop {
+                //let mut checkpoint_barrier: Option<String> = None;
+                let mut checkpoint_barrier: Option<i64> = None;
+
+                if orchestrator::SHOULD_CHECKPOINT {
+                    let r = receiver.as_ref().unwrap();
+                    for message in r.try_iter() {
+                        debug!("received checkpoint barrier for {:?}", message);
+                        if let OrchestrationMessage::CheckpointBarrier(epoch_ts) = message {
+                            epoch = epoch_ts;
+                            should_checkpoint = true;
+                        }
+                    }
                 }
 
                 let mut offsets_read: HashMap<i32, i64> = HashMap::new();
                 let start_time = datafusion::common::instant::Instant::now();
 
                 while start_time.elapsed() < batch_timeout {
-                    match tokio::time::timeout(
-                        batch_timeout - start_time.elapsed(),
-                        consumer.recv(),
-                    )
-                    .await
-                    {
+                    match tokio::time::timeout(batch_timeout, consumer.recv()).await {
                         Ok(Ok(m)) => {
                             let payload = m.payload().expect("Message payload is empty");
                             decoder.push_to_buffer(payload.to_owned());
-                            offsets_read.insert(m.partition(), m.offset());
+                            offsets_read
+                                .entry(m.partition())
+                                .and_modify(|existing_value| {
+                                    *existing_value = (*existing_value).max(m.offset())
+                                })
+                                .or_insert(m.offset());
                         }
                         Ok(Err(err)) => {
                             error!("Error reading from Kafka {:?}", err);
@@ -250,20 +247,19 @@ impl PartitionStream for KafkaStreamRead {
                     match tx_result {
                         Ok(_) => {
                             if should_checkpoint {
-                                let _ = state_backend.as_ref().map(|backend| {
-                                    backend.put_state(
-                                        &state_namespace,
-                                        partition_tag.clone().into_bytes(),
-                                        BatchReadMetadata {
-                                            epoch,
-                                            min_timestamp,
-                                            max_timestamp,
-                                            offsets_read,
-                                        }
-                                        .to_bytes()
-                                        .unwrap(),
-                                    )
-                                });
+                                debug!("about to checkpoint offsets");
+                                let off = BatchReadMetadata {
+                                    epoch,
+                                    min_timestamp,
+                                    max_timestamp,
+                                    offsets_read,
+                                };
+                                // let _ = state_backend
+                                //     .as_ref()
+                                //     .put(channel_tag.as_bytes(), &off.to_bytes().unwrap())
+                                //     .await;
+                                debug!("checkpointed offsets {:?}", off);
+                                should_checkpoint = false;
                             }
                         }
                         Err(err) => error!("result err {:?}", err),

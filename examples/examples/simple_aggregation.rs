@@ -8,18 +8,38 @@ use datafusion::logical_expr::{col, lit};
 use denormalized::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use denormalized::prelude::*;
 
+use denormalized::state_backend::slatedb::initialize_global_slatedb;
 use denormalized_examples::get_sample_json;
+use log::debug;
+use tracing::instrument::WithSubscriber;
+use tracing::Level;
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{filter, EnvFilter, FmtSubscriber};
 
 /// Demonstrates a simple stream aggregate job on data generated via the `emit_measurements.rs`
 /// example script.
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(log::LevelFilter::Debug)
         .init();
 
+    // let filter = "tokio=trace,runtime=trace"
+    //     .parse::<filter::Targets>()
+    //     .unwrap();
+
+    // //tracing::subscriber::set_global_default(subscriber);
+    // tracing_subscriber::registry().with(filter).init();
+
+    let sample_event = get_sample_json();
+
+    let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
+
     let ctx = Context::new()?;
-    let mut topic_builder = KafkaTopicBuilder::new("localhost:9092".to_string());
+    let mut topic_builder =
+        KafkaTopicBuilder::new("localhost:19092,localhost:29092,localhost:39092".to_string());
 
     // Connect to source topic
     let source_topic = topic_builder
@@ -33,6 +53,7 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
+    let _ = initialize_global_slatedb("/tmp/agg1234").await;
     ctx.from_topic(source_topic)
         .await?
         .window(
@@ -41,7 +62,7 @@ async fn main() -> Result<()> {
                 count(col("reading")).alias("count"),
                 min(col("reading")).alias("min"),
                 max(col("reading")).alias("max"),
-                avg(col("reading")).alias("average"),
+                //avg(col("reading")).alias("average"),
             ],
             Duration::from_millis(1_000), // aggregate every 1 second
             None,                         // None means tumbling window

@@ -1,5 +1,6 @@
 use std::{
     collections::BTreeMap,
+    future::Future,
     pin::Pin,
     sync::{Arc, Mutex},
     task::{Context, Poll},
@@ -15,6 +16,8 @@ use arrow::{
 use arrow_array::{ArrayRef, PrimitiveArray, RecordBatch, StructArray, TimestampMillisecondArray};
 use arrow_ord::cmp;
 use arrow_schema::{Schema, SchemaRef};
+use bytes::Bytes;
+use crossbeam::channel::Receiver;
 use datafusion::physical_expr::aggregate::AggregateFunctionExpr;
 use datafusion::{
     common::{utils::proxy::VecAllocExt, DataFusionError, Result},
@@ -35,9 +38,19 @@ use datafusion::{
     },
 };
 
-use futures::{Stream, StreamExt};
+use denormalized_orchestrator::{
+    channel_manager::take_receiver,
+    orchestrator::{self, OrchestrationMessage},
+};
+use futures::{executor::block_on, Stream, StreamExt};
+use log::debug;
+use serde::{Deserialize, Serialize};
+use slatedb::db::Db;
 
-use crate::physical_plan::utils::time::RecordBatchWatermark;
+use crate::{
+    physical_plan::utils::time::RecordBatchWatermark, state_backend::slatedb::get_global_slatedb,
+    utils::serialization::ArrayContainer,
+};
 
 use super::{
     add_window_columns_to_record_batch, add_window_columns_to_schema, create_group_accumulator,
@@ -62,6 +75,26 @@ pub struct GroupedWindowAggStream {
     group_by: PhysicalGroupBy,
     group_schema: Arc<Schema>,
     context: Arc<TaskContext>,
+    epoch: i64,
+    partition: usize,
+    channel_tag: String,
+    receiver: Option<Receiver<OrchestrationMessage>>,
+    state_backend: Arc<Db>,
+    checkpoint_future: Option<Pin<Box<dyn Future<Output = ()> + Send>>>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CheckpointedGroupedWindowAggStream {
+    partition: usize,
+    watermark: Option<SystemTime>,
+    frames: Vec<CheckpointedGroupedWindowFrame>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CheckpointedGroupedWindowFrame {
+    window_start_time: SystemTime,
+    window_end_time: SystemTime,
+    accumulator_states: Vec<ArrayContainer>,
 }
 
 fn group_schema(schema: &Schema, group_count: usize) -> SchemaRef {
@@ -78,6 +111,7 @@ impl GroupedWindowAggStream {
         watermark: Arc<Mutex<Option<SystemTime>>>,
         window_type: PhysicalStreamingWindowType,
         aggregation_mode: AggregateMode,
+        channel_tag: Option<String>,
     ) -> Result<Self> {
         let agg_schema = Arc::clone(&exec_operator.schema);
         let agg_filter_expr = exec_operator.filter_expressions.clone();
@@ -104,6 +138,26 @@ impl GroupedWindowAggStream {
 
         let group_by = exec_operator.group_by.clone();
         let group_schema = group_schema(&agg_schema, group_by.expr().len());
+
+        let receiver: Option<Receiver<OrchestrationMessage>> = channel_tag
+            .as_ref()
+            .and_then(|tag| take_receiver(tag.as_str()));
+
+        let channel_tag: String = channel_tag.unwrap_or(String::from(""));
+        let state_backend = get_global_slatedb().unwrap();
+
+        let serialized_state: Option<Bytes> = None; //block_on(state_backend.get(channel_tag.as_bytes())).unwrap();
+
+        if serialized_state.is_some() {
+            let bytes = serialized_state.unwrap();
+            let state: CheckpointedGroupedWindowAggStream =
+                bincode::deserialize(bytes.as_ref()).unwrap();
+            debug!(
+                "successfully read the last checkpoint. partition was {} and watermark was at {:?}",
+                state.partition, state.watermark
+            );
+        }
+
         Ok(Self {
             schema: agg_schema,
             input,
@@ -118,6 +172,12 @@ impl GroupedWindowAggStream {
             group_by,
             group_schema,
             context,
+            epoch: 0,
+            partition,
+            channel_tag: channel_tag,
+            receiver,
+            state_backend,
+            checkpoint_future: None,
         })
     }
 
@@ -246,6 +306,95 @@ impl GroupedWindowAggStream {
                 return Poll::Pending;
             }
         };
+        self.epoch += 1;
+        if orchestrator::SHOULD_CHECKPOINT {
+            let r = self.receiver.as_ref().unwrap();
+            let mut epoch: u128 = 0;
+            for message in r.try_iter() {
+                debug!("received checkpoint barrier for {:?}", message);
+                if let OrchestrationMessage::CheckpointBarrier(epoch_ts) = message {
+                    epoch = epoch_ts;
+                }
+            }
+
+            if let Some(fut) = self.checkpoint_future.as_mut() {
+                match fut.as_mut().poll(cx) {
+                    Poll::Ready(()) => {
+                        // Future completed
+                        self.checkpoint_future = None;
+                    }
+                    Poll::Pending => {
+                        // Future not yet complete
+                        return Poll::Pending;
+                    }
+                }
+            } else if epoch != 0 {
+                // Prepare data for checkpointing
+
+                // Clone or extract necessary data
+                let frames: Vec<CheckpointedGroupedWindowFrame> = self
+                    .window_frames
+                    .values_mut()
+                    .map(|frame| {
+                        let accumulator_states: Vec<ArrayContainer> = frame
+                            .accumulators
+                            .iter_mut()
+                            .map(|acc| {
+                                let states = acc.state(EmitTo::All).unwrap();
+                                ArrayContainer { arrays: states }
+                            })
+                            .collect();
+                        let window_start_time = frame.window_start_time;
+                        let window_end_time = frame.window_end_time;
+                        CheckpointedGroupedWindowFrame {
+                            window_start_time,
+                            window_end_time,
+                            accumulator_states,
+                        }
+                    })
+                    .collect();
+
+                let watermark = {
+                    let watermark_lock = self.latest_watermark.lock().unwrap();
+                    watermark_lock.clone()
+                };
+
+                let checkpointed_state = CheckpointedGroupedWindowAggStream {
+                    partition: self.partition,
+                    watermark,
+                    frames,
+                };
+
+                let serialized_checkpoint = bincode::serialize(&checkpointed_state).unwrap();
+                let key = self.channel_tag.as_bytes().to_vec();
+
+                // Clone or use `Arc` for `state_backend`
+                let state_backend = self.state_backend.clone();
+
+                // Create the future
+                let future = Box::pin(async move {
+                    debug!("about to initiate slatedb put for {:?}", key);
+                    state_backend.put(&key, &serialized_checkpoint).await;
+                    debug!("finished checkpoint for {:?}", key);
+                });
+
+                self.checkpoint_future = Some(future);
+
+                // Poll the future immediately
+                if let Some(fut) = self.checkpoint_future.as_mut() {
+                    match fut.as_mut().poll(cx) {
+                        Poll::Ready(()) => {
+                            // Future completed
+                            self.checkpoint_future = None;
+                        }
+                        Poll::Pending => {
+                            // Future not yet complete
+                            return Poll::Pending;
+                        }
+                    }
+                }
+            }
+        }
         Poll::Ready(Some(result))
     }
 }
