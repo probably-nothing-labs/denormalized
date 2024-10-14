@@ -182,12 +182,7 @@ impl PartitionStream for KafkaStreamRead {
                 let start_time = datafusion::common::instant::Instant::now();
 
                 while start_time.elapsed() < batch_timeout {
-                    match tokio::time::timeout(
-                        batch_timeout - start_time.elapsed(),
-                        consumer.recv(),
-                    )
-                    .await
-                    {
+                    match tokio::time::timeout(batch_timeout, consumer.recv()).await {
                         Ok(Ok(m)) => {
                             let payload = m.payload().expect("Message payload is empty");
                             decoder.push_to_buffer(payload.to_owned());
