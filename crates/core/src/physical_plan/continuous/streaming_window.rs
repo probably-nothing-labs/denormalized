@@ -38,6 +38,10 @@ use datafusion::{
     common::{internal_err, stats::Precision, DataFusionError, Statistics},
     physical_plan::Distribution,
 };
+use denormalized_orchestrator::{
+    channel_manager::{create_channel, get_sender},
+    orchestrator::{self, OrchestrationMessage},
+};
 use futures::{Stream, StreamExt};
 use tracing::debug;
 
@@ -418,6 +422,22 @@ impl ExecutionPlan for StreamingWindowExec {
         partition: usize,
         context: Arc<TaskContext>,
     ) -> Result<SendableRecordBatchStream> {
+        let node_id = self
+            .properties()
+            .node_id()
+            .expect("expected node id to be set.");
+
+        let channel_tag = if orchestrator::SHOULD_CHECKPOINT {
+            let tag = format!("{}_{}", node_id, partition);
+            create_channel(tag.as_str(), 10);
+            let orchestrator_sender = get_sender("orchestrator");
+            let msg: OrchestrationMessage = OrchestrationMessage::RegisterStream(tag.clone());
+            orchestrator_sender.as_ref().unwrap().send(msg).unwrap();
+            Some(tag)
+        } else {
+            None
+        };
+
         if self.group_by.is_empty() {
             debug!("GROUP BY expression is empty creating a SimpleWindowAggStream");
             if self.mode == AggregateMode::Partial {
@@ -428,6 +448,7 @@ impl ExecutionPlan for StreamingWindowExec {
                     self.watermark.clone(),
                     self.window_type,
                     self.mode,
+                    channel_tag,
                 )?))
             } else {
                 Ok(Box::pin(FullWindowAggStream::try_new(
@@ -446,6 +467,7 @@ impl ExecutionPlan for StreamingWindowExec {
                 self.watermark.clone(),
                 self.window_type,
                 self.mode,
+                channel_tag,
             )?))
         }
     }
@@ -617,6 +639,7 @@ pub struct WindowAggStream {
     window_frames: BTreeMap<SystemTime, PartialWindowAggFrame>,
     window_type: PhysicalStreamingWindowType,
     aggregation_mode: AggregateMode,
+    _channel_tag: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -628,6 +651,7 @@ impl WindowAggStream {
         watermark: Arc<Mutex<Option<SystemTime>>>,
         window_type: PhysicalStreamingWindowType,
         aggregation_mode: AggregateMode,
+        channel_tag: Option<String>,
     ) -> Result<Self> {
         let agg_schema = Arc::clone(&exec_operator.schema);
         let agg_filter_expr = exec_operator.filter_expressions.clone();
@@ -659,6 +683,7 @@ impl WindowAggStream {
             window_frames: BTreeMap::new(),
             window_type,
             aggregation_mode,
+            _channel_tag: channel_tag,
         })
     }
 

@@ -94,6 +94,18 @@ Details about developing the python bindings can be found in [py-denormalized/RE
 2. Start emitting some sample data: `cargo run --example emit_measurements`
 3. Run a [simple streaming aggregation](./examples/examples/simple_aggregation.rs) on the data using denormalized: `cargo run --example simple_aggregation`
 
+### Checkpointing
+
+We use SlateDB for state backend. Initialize your Job Context to a path to local directory -
+
+```
+    let ctx = Context::new()?
+        .with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg-checkpoint-1"))
+        .await;
+```
+
+The job with automatically recover from state if a previous checkpoint exists.
+
 ## More examples
 
 A more powerful example can be seen in our [Kafka ridesharing example](./docs/kafka_rideshare_example.md)

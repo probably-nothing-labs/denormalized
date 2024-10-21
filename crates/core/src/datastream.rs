@@ -1,10 +1,13 @@
 use datafusion::common::runtime::SpawnedTask;
 use datafusion::logical_expr::LogicalPlan;
-use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_plan::ExecutionPlanProperties;
 use denormalized_orchestrator::orchestrator;
 use futures::StreamExt;
+use log::debug;
+use log::info;
 use std::{sync::Arc, time::Duration};
+use tokio::signal;
+use tokio::sync::watch;
 
 use datafusion::common::DFSchema;
 use datafusion::dataframe::DataFrame;
@@ -19,6 +22,7 @@ use crate::context::Context;
 use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use crate::logical_plan::StreamingLogicalPlanBuilder;
 use crate::physical_plan::utils::time::TimestampUnit;
+use crate::state_backend::slatedb::get_global_slatedb;
 use denormalized_orchestrator::orchestrator::Orchestrator;
 
 use denormalized_common::error::Result;
@@ -31,10 +35,42 @@ use denormalized_common::error::Result;
 pub struct DataStream {
     pub df: Arc<DataFrame>,
     pub(crate) context: Arc<Context>,
+    shutdown_tx: watch::Sender<bool>,   // Sender to trigger shutdown
+    shutdown_rx: watch::Receiver<bool>, // Receiver to listen for shutdown signal
 }
 
 impl DataStream {
-    // Select columns in the output stream
+    pub fn new(df: Arc<DataFrame>, context: Arc<Context>) -> Self {
+        let (shutdown_tx, shutdown_rx) = watch::channel(false);
+        DataStream {
+            df,
+            context,
+            shutdown_tx,
+            shutdown_rx,
+        }
+    }
+
+    fn start_shutdown_listener(&self) {
+        let shutdown_tx = self.shutdown_tx.clone();
+
+        tokio::spawn(async move {
+            let mut terminate_signal = signal::unix::signal(signal::unix::SignalKind::terminate())
+                .expect("Failed to listen for SIGTERM");
+
+            loop {
+                tokio::select! {
+                    _ = signal::ctrl_c() => {
+                        println!("Received Ctrl+C, initiating shutdown...");
+                    },
+                    _ = terminate_signal.recv() => {
+                        println!("Received SIGTERM, initiating shutdown...");
+                    },
+                }
+                shutdown_tx.send(true).unwrap();
+            }
+        });
+    }
+
     pub fn select(self, expr_list: Vec<Expr>) -> Result<Self> {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
 
@@ -49,6 +85,8 @@ impl DataStream {
         Ok(Self {
             df: Arc::new(DataFrame::new(session_state, project_plan)),
             context: self.context.clone(),
+            shutdown_tx: self.shutdown_tx.clone(),
+            shutdown_rx: self.shutdown_rx.clone(),
         })
     }
 
@@ -61,6 +99,8 @@ impl DataStream {
         Ok(Self {
             df: Arc::new(DataFrame::new(session_state, plan)),
             context: self.context.clone(),
+            shutdown_tx: self.shutdown_tx.clone(),
+            shutdown_rx: self.shutdown_rx.clone(),
         })
     }
 
@@ -68,6 +108,8 @@ impl DataStream {
         Ok(Self {
             df: Arc::new(self.df.as_ref().clone().with_column(name, expr)?),
             context: self.context.clone(),
+            shutdown_tx: self.shutdown_tx.clone(),
+            shutdown_rx: self.shutdown_rx.clone(),
         })
     }
 
@@ -88,6 +130,8 @@ impl DataStream {
         Ok(Self {
             df: Arc::new(DataFrame::new(session_state, plan)),
             context: self.context.clone(),
+            shutdown_tx: self.shutdown_tx.clone(),
+            shutdown_rx: self.shutdown_rx.clone(),
         })
     }
 
@@ -116,6 +160,8 @@ impl DataStream {
         Ok(Self {
             df: Arc::new(DataFrame::new(session_state, plan)),
             context: self.context.clone(),
+            shutdown_tx: self.shutdown_tx.clone(),
+            shutdown_rx: self.shutdown_rx.clone(),
         })
     }
 
@@ -135,6 +181,8 @@ impl DataStream {
         Ok(Self {
             df: Arc::new(DataFrame::new(session_state, plan)),
             context: self.context.clone(),
+            shutdown_tx: self.shutdown_tx.clone(),
+            shutdown_rx: self.shutdown_rx.clone(),
         })
     }
 
@@ -162,6 +210,8 @@ impl DataStream {
     pub async fn print_physical_plan(self) -> Result<Self> {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
         let physical_plan = self.df.as_ref().clone().create_physical_plan().await?;
+        let node_id = physical_plan.node_id();
+        debug!("topline node id = {:?}", node_id);
         let displayable_plan = DisplayableExecutionPlan::new(physical_plan.as_ref());
 
         println!("{}", displayable_plan.indent(true));
@@ -169,40 +219,79 @@ impl DataStream {
         Ok(Self {
             df: Arc::new(DataFrame::new(session_state, plan)),
             context: self.context.clone(),
+            shutdown_tx: self.shutdown_tx.clone(),
+            shutdown_rx: self.shutdown_rx.clone(),
         })
     }
 
     /// execute the stream and print the results to stdout.
     /// Mainly used for development and debugging
-    pub async fn print_stream(self) -> Result<()> {
+    pub async fn print_stream(mut self) -> Result<()> {
+        self.start_shutdown_listener();
+
+        let mut maybe_orchestrator_handle = None;
+
         if orchestrator::SHOULD_CHECKPOINT {
-            let plan = self.df.as_ref().clone().create_physical_plan().await?;
-            let node_ids = extract_node_ids_and_partitions(&plan);
-            let max_buffer_size = node_ids.iter().map(|x| x.1).sum::<usize>();
             let mut orchestrator = Orchestrator::default();
-            SpawnedTask::spawn_blocking(move || orchestrator.run(max_buffer_size));
+            let cloned_shutdown_rx = self.shutdown_rx.clone();
+            let orchestrator_handle =
+                SpawnedTask::spawn_blocking(move || orchestrator.run(10, cloned_shutdown_rx));
+
+            maybe_orchestrator_handle = Some(orchestrator_handle)
         }
 
         let mut stream: SendableRecordBatchStream =
             self.df.as_ref().clone().execute_stream().await?;
+
+        // Stream loop with shutdown check
         loop {
-            match stream.next().await.transpose() {
-                Ok(Some(batch)) => {
-                    println!(
-                        "{}",
-                        datafusion::common::arrow::util::pretty::pretty_format_batches(&[batch])
-                            .unwrap()
-                    );
+            tokio::select! {
+                // Check if shutdown signal has changed
+                _ = self.shutdown_rx.changed() => {
+                    info!("Graceful shutdown initiated, exiting stream loop...");
+
+                    break;
                 }
-                Ok(None) => {
-                    log::warn!("No RecordBatch in stream");
-                }
-                Err(err) => {
-                    log::error!("Error reading stream: {:?}", err);
-                    return Err(err.into());
+                // Handle the next batch from the DataFusion stream
+                next_batch = stream.next() => {
+                    match next_batch.transpose() {
+                        Ok(Some(batch)) => {
+                            println!(
+                                "{}",
+                                datafusion::common::arrow::util::pretty::pretty_format_batches(&[batch])
+                                    .unwrap()
+                            );
+                        }
+                        Ok(None) => {
+                            info!("No more RecordBatch in stream");
+                            break;  // End of stream
+                        }
+                        Err(err) => {
+                            log::error!("Error reading stream: {:?}", err);
+                            return Err(err.into());
+                        }
+                    }
                 }
             }
         }
+
+        log::info!("Stream processing stopped. Cleaning up...");
+
+        let state_backend = get_global_slatedb();
+        if let Ok(db) = state_backend {
+            log::info!("Closing the state backend (slatedb)...");
+            db.close().await.unwrap();
+        }
+
+        // Join the orchestrator handle if it exists, ensuring it is joined and awaited
+        if let Some(orchestrator_handle) = maybe_orchestrator_handle {
+            log::info!("Waiting for orchestrator task to complete...");
+            match orchestrator_handle.join_unwind().await {
+                Ok(_) => log::info!("Orchestrator task completed successfully."),
+                Err(e) => log::error!("Error joining orchestrator task: {:?}", e),
+            }
+        }
+        Ok(())
     }
 
     /// execute the stream and write the results to a give kafka topic
@@ -251,17 +340,4 @@ impl Joinable for DataStream {
         let (_, plan) = self.df.as_ref().clone().into_parts();
         plan
     }
-}
-
-fn extract_node_ids_and_partitions(plan: &Arc<dyn ExecutionPlan>) -> Vec<(Option<usize>, usize)> {
-    let node_id = plan.node_id();
-    let partitions = plan.output_partitioning().partition_count();
-    let mut traversals: Vec<(Option<usize>, usize)> = vec![];
-
-    for child in plan.children() {
-        let mut traversal = extract_node_ids_and_partitions(child);
-        traversals.append(&mut traversal);
-    }
-    traversals.push((node_id, partitions));
-    traversals
 }

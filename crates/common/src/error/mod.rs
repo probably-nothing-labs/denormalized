@@ -27,6 +27,8 @@ pub enum DenormalizedError {
     AvroError(#[from] AvroError),
     #[error("Json Error")]
     Json(#[from] JsonError),
+    //#[error("SlateDB Error")]
+    //SlateDBError(#[from] SlateDBError),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
