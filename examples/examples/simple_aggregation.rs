@@ -18,10 +18,6 @@ async fn main() -> Result<()> {
         .init();
 
     let bootstrap_servers = String::from("localhost:9092");
-
-    let ctx = Context::new()?
-        .with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg-checkpoint-1"))
-        .await;
     let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers);
 
     // Connect to source topic
@@ -36,7 +32,10 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
-    ctx.from_topic(source_topic)
+    let _ctx = Context::new()?
+        .with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg-checkpoint-1"))
+        .await
+        .from_topic(source_topic)
         .await?
         .window(
             vec![col("sensor_name")],

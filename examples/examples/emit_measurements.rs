@@ -33,11 +33,11 @@ async fn main() -> Result<()> {
                 "sensor_2",
                 "sensor_3",
                 "sensor_4",
-                "sensor_10",
-                "sensor_11",
-                "sensor_12",
-                "sensor_13",
-                "sensor_14",
+                "sensor_5",
+                "sensor_6",
+                "sensor_7",
+                "sensor_8",
+                "sensor_9",
             ];
 
             loop {
