@@ -27,7 +27,18 @@ async fn main() -> Result<()> {
         let producer = producer.clone();
 
         tasks.spawn(async move {
-            let sensors = ["sensor_0", "sensor_1", "sensor_2", "sensor_3", "sensor_4"];
+            let sensors = [
+                "sensor_0",
+                "sensor_1",
+                "sensor_2",
+                "sensor_3",
+                "sensor_4",
+                "sensor_10",
+                "sensor_11",
+                "sensor_12",
+                "sensor_13",
+                "sensor_14",
+            ];
 
             loop {
                 let sensor_name = sensors.choose(&mut rand::thread_rng()).unwrap().to_string();

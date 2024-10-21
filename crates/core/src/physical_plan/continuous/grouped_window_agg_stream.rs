@@ -15,6 +15,7 @@ use arrow::{
 use arrow_array::{ArrayRef, PrimitiveArray, RecordBatch, StructArray, TimestampMillisecondArray};
 use arrow_ord::cmp;
 use arrow_schema::{Schema, SchemaRef};
+use crossbeam::channel::Receiver;
 use datafusion::physical_expr::aggregate::AggregateFunctionExpr;
 use datafusion::{
     common::{utils::proxy::VecAllocExt, DataFusionError, Result},
@@ -35,9 +36,19 @@ use datafusion::{
     },
 };
 
-use futures::{Stream, StreamExt};
+use denormalized_orchestrator::{
+    channel_manager::take_receiver,
+    orchestrator::{self, OrchestrationMessage},
+};
+use futures::{executor::block_on, Stream, StreamExt};
+use log::debug;
+use serde::{Deserialize, Serialize};
 
-use crate::physical_plan::utils::time::RecordBatchWatermark;
+use crate::{
+    physical_plan::utils::time::RecordBatchWatermark,
+    state_backend::slatedb::{get_global_slatedb, SlateDBWrapper},
+    utils::serialization::ArrayContainer,
+};
 
 use super::{
     add_window_columns_to_record_batch, add_window_columns_to_schema, create_group_accumulator,
@@ -62,6 +73,31 @@ pub struct GroupedWindowAggStream {
     group_by: PhysicalGroupBy,
     group_schema: Arc<Schema>,
     context: Arc<TaskContext>,
+    epoch: i64,
+    partition: usize,
+    channel_tag: String,
+    receiver: Option<Receiver<OrchestrationMessage>>,
+    state_backend: Arc<SlateDBWrapper>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CheckpointedGroupedWindowAggStream {
+    partition: usize,
+    watermark: Option<SystemTime>,
+    frames: Vec<CheckpointedGroupedWindowFrame>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SerializedAccumulator {
+    states: ArrayContainer,
+    num_groups: usize,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct CheckpointedGroupedWindowFrame {
+    window_start_time: SystemTime,
+    window_end_time: SystemTime,
+    accumulators: Vec<SerializedAccumulator>,
 }
 
 fn group_schema(schema: &Schema, group_count: usize) -> SchemaRef {
@@ -78,6 +114,7 @@ impl GroupedWindowAggStream {
         watermark: Arc<Mutex<Option<SystemTime>>>,
         window_type: PhysicalStreamingWindowType,
         aggregation_mode: AggregateMode,
+        channel_tag: Option<String>,
     ) -> Result<Self> {
         let agg_schema = Arc::clone(&exec_operator.schema);
         let agg_filter_expr = exec_operator.filter_expressions.clone();
@@ -104,7 +141,18 @@ impl GroupedWindowAggStream {
 
         let group_by = exec_operator.group_by.clone();
         let group_schema = group_schema(&agg_schema, group_by.expr().len());
-        Ok(Self {
+
+        let receiver: Option<Receiver<OrchestrationMessage>> = channel_tag
+            .as_ref()
+            .and_then(|tag| take_receiver(tag.as_str()));
+
+        let channel_tag: String = channel_tag.unwrap_or(String::from(""));
+        let state_backend = get_global_slatedb().unwrap();
+
+        let serialized_state = block_on(state_backend.get(channel_tag.as_bytes().to_vec()));
+
+        //let window_frames: BTreeMap<SystemTime, GroupedAggWindowFrame> = BTreeMap::new();
+        let mut stream = Self {
             schema: agg_schema,
             input,
             baseline_metrics,
@@ -118,7 +166,38 @@ impl GroupedWindowAggStream {
             group_by,
             group_schema,
             context,
-        })
+            epoch: 0,
+            partition,
+            channel_tag: channel_tag,
+            receiver,
+            state_backend,
+        };
+
+        if serialized_state.is_some() {
+            let bytes = serialized_state.unwrap();
+            let state: CheckpointedGroupedWindowAggStream =
+                bincode::deserialize(bytes.as_ref()).unwrap();
+            let ranges: Vec<(SystemTime, SystemTime)> = state
+                .frames
+                .iter()
+                .map(|f| (f.window_start_time, f.window_end_time))
+                .collect();
+            let _ = stream.ensure_window_frames_for_ranges(&ranges);
+            state.frames.iter().for_each(|f| {
+                let _ = stream.update_accumulators_for_frame(f.window_start_time, &f);
+            });
+            let state_watermark = state.watermark.unwrap();
+            stream.process_watermark(RecordBatchWatermark {
+                min_timestamp: state_watermark,
+                max_timestamp: state_watermark,
+            });
+            debug!(
+                "successfully read the last checkpoint. partition was {} and watermark was at {:?}",
+                state.partition, state.watermark
+            );
+        }
+
+        Ok(stream)
     }
 
     pub fn output_schema_with_window(&self) -> SchemaRef {
@@ -130,17 +209,23 @@ impl GroupedWindowAggStream {
         let watermark_lock: std::sync::MutexGuard<'_, Option<SystemTime>> =
             self.latest_watermark.lock().unwrap();
 
+        let output_schema_with_window = self.output_schema_with_window();
         if let Some(watermark) = *watermark_lock {
             let mut window_frames_to_remove: Vec<SystemTime> = Vec::new();
 
             for (timestamp, frame) in self.window_frames.iter_mut() {
                 if watermark >= frame.window_end_time {
                     let rb = frame.evaluate()?;
-                    let result = add_window_columns_to_record_batch(
-                        rb,
-                        frame.window_start_time,
-                        frame.window_end_time,
-                    );
+                    let result = if rb.num_rows() > 0 {
+                        add_window_columns_to_record_batch(
+                            rb,
+                            frame.window_start_time,
+                            frame.window_end_time,
+                        )
+                    } else {
+                        RecordBatch::new_empty(output_schema_with_window.clone())
+                    };
+
                     results.push(result);
                     window_frames_to_remove.push(*timestamp);
                 }
@@ -155,7 +240,6 @@ impl GroupedWindowAggStream {
     }
 
     fn process_watermark(&mut self, watermark: RecordBatchWatermark) {
-        // should this be within a mutex?
         let mut watermark_lock: std::sync::MutexGuard<Option<SystemTime>> =
             self.latest_watermark.lock().unwrap();
 
@@ -215,6 +299,16 @@ impl GroupedWindowAggStream {
         Ok(())
     }
 
+    fn update_accumulators_for_frame(
+        &mut self,
+        window_start_time: SystemTime,
+        state: &CheckpointedGroupedWindowFrame,
+    ) -> Result<(), DataFusionError> {
+        let frame = self.window_frames.get_mut(&window_start_time).unwrap();
+        let _ = frame.initialize_from_state(state);
+        Ok(())
+    }
+
     #[inline]
     fn poll_next_inner(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<RecordBatch>>> {
         let result: std::prelude::v1::Result<RecordBatch, DataFusionError> = match self
@@ -246,6 +340,71 @@ impl GroupedWindowAggStream {
                 return Poll::Pending;
             }
         };
+        self.epoch += 1;
+
+        if orchestrator::SHOULD_CHECKPOINT {
+            let r = self.receiver.as_ref().unwrap();
+            let mut epoch: u128 = 0;
+            for message in r.try_iter() {
+                debug!("received checkpoint barrier for {:?}", message);
+                if let OrchestrationMessage::CheckpointBarrier(epoch_ts) = message {
+                    epoch = epoch_ts;
+                }
+            }
+
+            if epoch != 0 {
+                // Prepare data for checkpointing
+
+                // Clone or extract necessary data
+                let frames: Vec<CheckpointedGroupedWindowFrame> = self
+                    .window_frames
+                    .values_mut()
+                    .map(|frame| {
+                        let num_groups = frame.group_values.len();
+                        let accumulators: Vec<SerializedAccumulator> = frame
+                            .accumulators
+                            .iter_mut()
+                            .map(|acc| {
+                                let states = acc.state(EmitTo::All).unwrap();
+                                SerializedAccumulator {
+                                    states: ArrayContainer { arrays: states },
+                                    num_groups,
+                                }
+                            })
+                            .collect();
+                        let window_start_time = frame.window_start_time;
+                        let window_end_time = frame.window_end_time;
+                        let checkpointed_frame = CheckpointedGroupedWindowFrame {
+                            window_start_time,
+                            window_end_time,
+                            accumulators,
+                        };
+                        // accumulators get reset on .state(), so reseed them with state
+                        let _ = frame.initialize_from_state(&checkpointed_frame);
+                        checkpointed_frame
+                    })
+                    .collect();
+
+                let watermark = {
+                    let watermark_lock = self.latest_watermark.lock().unwrap();
+                    watermark_lock.clone()
+                };
+
+                let checkpointed_state = CheckpointedGroupedWindowAggStream {
+                    partition: self.partition,
+                    watermark,
+                    frames,
+                };
+
+                let serialized_checkpoint = bincode::serialize(&checkpointed_state).unwrap();
+                let key = self.channel_tag.as_bytes().to_vec();
+
+                // Clone or use `Arc` for `state_backend`
+                let state_backend = self.state_backend.clone();
+
+                state_backend.put(key, serialized_checkpoint);
+            }
+        }
         Poll::Ready(Some(result))
     }
 }
@@ -458,6 +617,26 @@ impl GroupedAggWindowFrame {
         let _ = self.update_memory_reservation();
         let batch = RecordBatch::try_new(schema, output)?;
         Ok(batch)
+    }
+
+    fn initialize_from_state(
+        &mut self,
+        state: &CheckpointedGroupedWindowFrame,
+    ) -> Result<(), DataFusionError> {
+        let _ = self
+            .accumulators
+            .iter_mut()
+            .zip(state.accumulators.iter())
+            .map(|(acc, checkpointed_acc)| {
+                let group_indices = (0..checkpointed_acc.num_groups).collect::<Vec<usize>>();
+                acc.merge_batch(
+                    &checkpointed_acc.states.arrays,
+                    &group_indices,
+                    None,
+                    checkpointed_acc.num_groups,
+                )
+            });
+        Ok(())
     }
 }
 

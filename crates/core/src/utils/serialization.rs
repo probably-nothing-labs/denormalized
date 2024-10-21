@@ -197,14 +197,41 @@ fn deserialize_array_data(
     .map_err(|e| e.into())
 }
 
-#[derive(Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ArrayContainer {
+    #[serde(with = "array_ref_serialization")]
     pub arrays: Vec<ArrayRef>,
 }
-
 impl ArrayContainer {
     fn new(arrays: Vec<ArrayRef>) -> Self {
         Self { arrays }
+    }
+}
+
+mod array_ref_serialization {
+    use super::*;
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S>(arrays: &Vec<ArrayRef>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let serialized_arrays: Vec<Vec<u8>> = arrays
+            .iter()
+            .map(|arr| serialize_array(arr).expect("Failed to serialize array"))
+            .collect();
+        serialized_arrays.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<ArrayRef>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let serialized_arrays: Vec<Vec<u8>> = Vec::deserialize(deserializer)?;
+        serialized_arrays
+            .into_iter()
+            .map(|bytes| deserialize_array(&bytes).map_err(serde::de::Error::custom))
+            .collect()
     }
 }
 

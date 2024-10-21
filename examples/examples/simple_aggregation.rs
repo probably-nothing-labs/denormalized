@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use datafusion::functions_aggregate::average::avg;
 use datafusion::functions_aggregate::count::count;
 use datafusion::functions_aggregate::expr_fn::{max, min};
 use datafusion::logical_expr::{col, lit};
@@ -15,11 +14,15 @@ use denormalized_examples::get_sample_json;
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(log::LevelFilter::Debug)
         .init();
 
-    let ctx = Context::new()?;
-    let mut topic_builder = KafkaTopicBuilder::new("localhost:9092".to_string());
+    let bootstrap_servers = String::from("localhost:9092");
+
+    let ctx = Context::new()?
+        .with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg-checkpoint-1"))
+        .await;
+    let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers);
 
     // Connect to source topic
     let source_topic = topic_builder
@@ -41,7 +44,7 @@ async fn main() -> Result<()> {
                 count(col("reading")).alias("count"),
                 min(col("reading")).alias("min"),
                 max(col("reading")).alias("max"),
-                avg(col("reading")).alias("average"),
+                //avg(col("reading")).alias("average"),
             ],
             Duration::from_millis(1_000), // aggregate every 1 second
             None,                         // None means tumbling window
