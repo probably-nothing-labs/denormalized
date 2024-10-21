@@ -58,3 +58,4 @@ base64 = "0.22.1"
 chrono = { version = "0.4.38" }
 itertools = "0.13"
 pyo3 = { version = "0.22.2" }
+slatedb = "0.2.0"

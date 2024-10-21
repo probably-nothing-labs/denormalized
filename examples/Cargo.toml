@@ -4,9 +4,6 @@ version = { workspace = true }
 edition = { workspace = true }
 publish = false
 
-[build]
-rustflags = ["--cfg", "tokio_unstable"]
-
 [dependencies]
 denormalized = { workspace = true }
 

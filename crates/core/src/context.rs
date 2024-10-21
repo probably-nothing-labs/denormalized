@@ -10,6 +10,7 @@ use crate::datasource::kafka::TopicReader;
 use crate::datastream::DataStream;
 use crate::physical_optimizer::EnsureHashPartititionOnGroupByForStreamingAggregates;
 use crate::query_planner::StreamingQueryPlanner;
+use crate::state_backend::slatedb::initialize_global_slatedb;
 use crate::utils::get_default_optimizer_rules;
 
 use denormalized_common::error::{DenormalizedError, Result};
@@ -53,16 +54,10 @@ impl Context {
 
     pub async fn from_topic(&self, topic: TopicReader) -> Result<DataStream, DenormalizedError> {
         let topic_name = topic.0.topic.clone();
-
         self.register_table(topic_name.clone(), Arc::new(topic))
             .await?;
-
         let df = self.session_conext.table(topic_name.as_str()).await?;
-
-        let ds = DataStream {
-            df: Arc::new(df),
-            context: Arc::new(self.clone()),
-        };
+        let ds = DataStream::new(Arc::new(df), Arc::new(self.clone()));
         Ok(ds)
     }
 
@@ -75,5 +70,10 @@ impl Context {
             .register_table(name.as_str(), table.clone())?;
 
         Ok(())
+    }
+
+    pub async fn with_slatedb_backend(self, path: String) -> Self {
+        let _ = initialize_global_slatedb(path.as_str()).await;
+        self
     }
 }

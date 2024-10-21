@@ -5,7 +5,6 @@ use std::time::Duration;
 use arrow::datatypes::TimestampMillisecondType;
 use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, StructArray};
 use arrow_schema::{DataType, Field, SchemaRef, TimeUnit};
-use bytes::Bytes;
 use crossbeam::channel;
 use denormalized_orchestrator::channel_manager::{create_channel, get_sender, take_receiver};
 use denormalized_orchestrator::orchestrator::{self, OrchestrationMessage};
@@ -84,7 +83,7 @@ impl PartitionStream for KafkaStreamRead {
     }
 
     fn execute(&self, ctx: Arc<TaskContext>) -> SendableRecordBatchStream {
-        let config_options = ctx
+        let _config_options = ctx
             .session_config()
             .options()
             .extensions
@@ -101,14 +100,14 @@ impl PartitionStream for KafkaStreamRead {
             .join("_");
 
         let channel_tag = format!("{}_{}", node_id, partition_tag);
-        let mut serialized_state: Option<Bytes> = None;
+        let mut serialized_state: Option<Vec<u8>> = None;
         let state_backend = get_global_slatedb().unwrap();
 
         let mut starting_offsets: HashMap<i32, i64> = HashMap::new();
         if orchestrator::SHOULD_CHECKPOINT {
             create_channel(channel_tag.as_str(), 10);
             debug!("checking for last checkpointed offsets");
-            //serialized_state = block_on(state_backend.clone().get(channel_tag.as_bytes())).unwrap();
+            serialized_state = block_on(state_backend.clone().get(channel_tag.as_bytes().to_vec()));
         }
 
         if let Some(serialized_state) = serialized_state {
@@ -162,7 +161,7 @@ impl PartitionStream for KafkaStreamRead {
 
             loop {
                 //let mut checkpoint_barrier: Option<String> = None;
-                let mut checkpoint_barrier: Option<i64> = None;
+                let mut _checkpoint_barrier: Option<i64> = None;
 
                 if orchestrator::SHOULD_CHECKPOINT {
                     let r = receiver.as_ref().unwrap();
@@ -176,9 +175,8 @@ impl PartitionStream for KafkaStreamRead {
                 }
 
                 let mut offsets_read: HashMap<i32, i64> = HashMap::new();
-                let start_time = datafusion::common::instant::Instant::now();
 
-                while start_time.elapsed() < batch_timeout {
+                loop {
                     match tokio::time::timeout(batch_timeout, consumer.recv()).await {
                         Ok(Ok(m)) => {
                             let payload = m.payload().expect("Message payload is empty");
@@ -189,6 +187,7 @@ impl PartitionStream for KafkaStreamRead {
                                     *existing_value = (*existing_value).max(m.offset())
                                 })
                                 .or_insert(m.offset());
+                            break;
                         }
                         Ok(Err(err)) => {
                             error!("Error reading from Kafka {:?}", err);
@@ -196,7 +195,8 @@ impl PartitionStream for KafkaStreamRead {
                         }
                         Err(_) => {
                             // Timeout reached
-                            break;
+                            error!("timeout reached.");
+                            //break;
                         }
                     }
                 }
@@ -222,7 +222,6 @@ impl PartitionStream for KafkaStreamRead {
 
                     let max_timestamp: Option<_> = max::<TimestampMillisecondType>(ts_array);
                     let min_timestamp: Option<_> = min::<TimestampMillisecondType>(ts_array);
-                    debug!("min: {:?}, max: {:?}", min_timestamp, max_timestamp);
                     let mut columns: Vec<Arc<dyn Array>> = record_batch.columns().to_vec();
 
                     let metadata_column = StructArray::from(vec![
@@ -254,15 +253,14 @@ impl PartitionStream for KafkaStreamRead {
                                     max_timestamp,
                                     offsets_read,
                                 };
-                                // let _ = state_backend
-                                //     .as_ref()
-                                //     .put(channel_tag.as_bytes(), &off.to_bytes().unwrap())
-                                //     .await;
+                                let _ = state_backend
+                                    .as_ref()
+                                    .put(channel_tag.as_bytes().to_vec(), off.to_bytes().unwrap());
                                 debug!("checkpointed offsets {:?}", off);
                                 should_checkpoint = false;
                             }
                         }
-                        Err(err) => error!("result err {:?}", err),
+                        Err(err) => error!("result err {:?}. shutdown signal detected.", err),
                     }
                     epoch += 1;
                 }

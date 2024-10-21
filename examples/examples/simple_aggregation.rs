@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use datafusion::functions_aggregate::average::avg;
 use datafusion::functions_aggregate::count::count;
 use datafusion::functions_aggregate::expr_fn::{max, min};
 use datafusion::logical_expr::{col, lit};
@@ -8,15 +7,7 @@ use datafusion::logical_expr::{col, lit};
 use denormalized::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use denormalized::prelude::*;
 
-use denormalized::state_backend::slatedb::initialize_global_slatedb;
 use denormalized_examples::get_sample_json;
-use log::debug;
-use tracing::instrument::WithSubscriber;
-use tracing::Level;
-use tracing_subscriber::fmt::format::FmtSpan;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{filter, EnvFilter, FmtSubscriber};
 
 /// Demonstrates a simple stream aggregate job on data generated via the `emit_measurements.rs`
 /// example script.
@@ -26,20 +17,12 @@ async fn main() -> Result<()> {
         .filter_level(log::LevelFilter::Debug)
         .init();
 
-    // let filter = "tokio=trace,runtime=trace"
-    //     .parse::<filter::Targets>()
-    //     .unwrap();
+    let bootstrap_servers = String::from("localhost:9092");
 
-    // //tracing::subscriber::set_global_default(subscriber);
-    // tracing_subscriber::registry().with(filter).init();
-
-    let sample_event = get_sample_json();
-
-    let bootstrap_servers = String::from("localhost:19092,localhost:29092,localhost:39092");
-
-    let ctx = Context::new()?;
-    let mut topic_builder =
-        KafkaTopicBuilder::new("localhost:19092,localhost:29092,localhost:39092".to_string());
+    let ctx = Context::new()?
+        .with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg-checkpoint-1"))
+        .await;
+    let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers);
 
     // Connect to source topic
     let source_topic = topic_builder
@@ -53,7 +36,6 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
-    let _ = initialize_global_slatedb("/tmp/agg1234").await;
     ctx.from_topic(source_topic)
         .await?
         .window(

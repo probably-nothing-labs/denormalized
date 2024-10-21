@@ -46,7 +46,6 @@ use futures::{Stream, StreamExt};
 use tracing::debug;
 
 use crate::physical_plan::{
-    checkpointing_plan::CheckpointingPlan,
     continuous::grouped_window_agg_stream::GroupedWindowAggStream,
     utils::{
         accumulators::{create_accumulators, AccumulatorItem},
@@ -555,16 +554,6 @@ impl ExecutionPlan for StreamingWindowExec {
     }
 }
 
-impl CheckpointingPlan for StreamingWindowExec {
-    fn upstream_sources(&self, input: Arc<dyn ExecutionPlan>) -> Vec<Option<usize>> {
-        todo!()
-    }
-
-    fn register_checkpoint_epoch(&self, source: usize, epoch: String) {
-        todo!()
-    }
-}
-
 impl DisplayAs for StreamingWindowExec {
     fn fmt_as(&self, t: DisplayFormatType, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match t {
@@ -650,7 +639,7 @@ pub struct WindowAggStream {
     window_frames: BTreeMap<SystemTime, PartialWindowAggFrame>,
     window_type: PhysicalStreamingWindowType,
     aggregation_mode: AggregateMode,
-    channel_tag: Option<String>,
+    _channel_tag: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -694,7 +683,7 @@ impl WindowAggStream {
             window_frames: BTreeMap::new(),
             window_type,
             aggregation_mode,
-            channel_tag,
+            _channel_tag: channel_tag,
         })
     }
 
