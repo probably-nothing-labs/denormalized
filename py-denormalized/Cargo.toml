@@ -1,6 +1,6 @@
 [package]
 name = "denormalized-python"
-version = "0.0.6"
+version = "0.0.7"
 edition = "2021"
 homepage = "https://github.com/probably-nothing-labs/denormalized.git"
 repository = "https://github.com/probably-nothing-labs/denormalized.git"

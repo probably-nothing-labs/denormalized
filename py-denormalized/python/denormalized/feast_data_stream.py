@@ -37,6 +37,12 @@ class FeastDataStreamMeta(type):
                         )(*args, **kwargs)
                         return self.__class__(result)
 
+                    # Copy original method's signature but change return type
+                    hints = get_type_hints(getattr(DataStream, method_name))
+                    hints["return"] = (
+                        "FeastDataStream"  # Use string to handle forward reference
+                    )
+                    wrapper.__annotations__ = hints
                     return wrapper
 
                 attrs[method_name] = create_wrapper(method_name)
