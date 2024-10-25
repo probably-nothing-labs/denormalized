@@ -51,23 +51,27 @@ impl From<PyContext> for Arc<Context> {
 impl PyContext {
     /// creates a new PyDataFrame
     #[new]
-    pub fn new() -> PyResult<Self> {
+    pub fn new(py: Python) -> PyResult<Self> {
+        let rt = &get_tokio_runtime(py).0;
+        let fut: JoinHandle<denormalized::common::error::Result<Context>> = rt.spawn(async move {
+            Ok(Context::new()?
+                .with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg-checkpoint-1"))
+                .await)
+        });
+
+        let context = wait_for_future(py, fut).map_err(py_denormalized_err)??;
+
         Ok(Self {
-            context: Arc::new(Context::new()?),
+            context: Arc::new(context),
         })
     }
 
-    fn foo(&self, _py: Python) -> PyResult<String> {
-        println!("Fooooo");
-        Ok("foo wtf".to_string())
-    }
-
     fn __repr__(&self, _py: Python) -> PyResult<String> {
-        Ok("__repr__ PyContext".to_string())
+        Ok("PyContext".to_string())
     }
 
     fn __str__(&self, _py: Python) -> PyResult<String> {
-        Ok("__str__ PyContext".to_string())
+        Ok("PyContext".to_string())
     }
 
     pub fn from_topic(
