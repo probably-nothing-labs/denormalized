@@ -20,8 +20,6 @@ pub struct Orchestrator {
     senders: HashMap<String, channel::Sender<OrchestrationMessage>>,
 }
 
-pub const SHOULD_CHECKPOINT: bool = true; // THIS WILL BE MOVED INTO CONFIG
-
 /**
  * 1. Keep track of checkpoint per source.
  * 2. Tell each downstream which checkpoints it needs to know.

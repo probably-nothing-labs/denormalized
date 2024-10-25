@@ -7,7 +7,7 @@ use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, Str
 use arrow_schema::{DataType, Field, SchemaRef, TimeUnit};
 use crossbeam::channel;
 use denormalized_orchestrator::channel_manager::{create_channel, get_sender, take_receiver};
-use denormalized_orchestrator::orchestrator::{self, OrchestrationMessage};
+use denormalized_orchestrator::orchestrator::{OrchestrationMessage};
 use futures::executor::block_on;
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
@@ -83,13 +83,13 @@ impl PartitionStream for KafkaStreamRead {
     }
 
     fn execute(&self, ctx: Arc<TaskContext>) -> SendableRecordBatchStream {
-        let _config_options = ctx
+        let config_options = ctx
             .session_config()
             .options()
             .extensions
             .get::<DenormalizedConfig>();
 
-        let mut should_checkpoint = false; //config_options.map_or(false, |c| c.checkpoint);
+        let should_checkpoint = config_options.map_or(false, |c| c.checkpoint);
 
         let node_id = self.exec_node_id.unwrap();
         let partition_tag = self
@@ -101,13 +101,16 @@ impl PartitionStream for KafkaStreamRead {
 
         let channel_tag = format!("{}_{}", node_id, partition_tag);
         let mut serialized_state: Option<Vec<u8>> = None;
-        let state_backend = get_global_slatedb().unwrap();
+        let mut state_backend = None;
 
         let mut starting_offsets: HashMap<i32, i64> = HashMap::new();
-        if orchestrator::SHOULD_CHECKPOINT {
+
+        if should_checkpoint {
             create_channel(channel_tag.as_str(), 10);
+            let backend = get_global_slatedb().unwrap();
             debug!("checking for last checkpointed offsets");
-            serialized_state = block_on(state_backend.clone().get(channel_tag.as_bytes().to_vec()));
+            serialized_state = block_on(backend.get(channel_tag.as_bytes().to_vec()));
+            state_backend = Some(backend);
         }
 
         if let Some(serialized_state) = serialized_state {
@@ -151,25 +154,26 @@ impl PartitionStream for KafkaStreamRead {
         builder.spawn(async move {
             let mut epoch = 0;
             let mut receiver: Option<channel::Receiver<OrchestrationMessage>> = None;
-            if orchestrator::SHOULD_CHECKPOINT {
+            if should_checkpoint {
                 let orchestrator_sender = get_sender("orchestrator");
                 let msg: OrchestrationMessage =
                     OrchestrationMessage::RegisterStream(channel_tag.clone());
                 orchestrator_sender.as_ref().unwrap().send(msg).unwrap();
                 receiver = take_receiver(channel_tag.as_str());
             }
+            let mut checkpoint_batch = false;
 
             loop {
                 //let mut checkpoint_barrier: Option<String> = None;
                 let mut _checkpoint_barrier: Option<i64> = None;
 
-                if orchestrator::SHOULD_CHECKPOINT {
+                if should_checkpoint {
                     let r = receiver.as_ref().unwrap();
                     for message in r.try_iter() {
                         debug!("received checkpoint barrier for {:?}", message);
                         if let OrchestrationMessage::CheckpointBarrier(epoch_ts) = message {
                             epoch = epoch_ts;
-                            should_checkpoint = true;
+                            checkpoint_batch = true;
                         }
                     }
                 }
@@ -245,7 +249,7 @@ impl PartitionStream for KafkaStreamRead {
                     let tx_result = tx.send(Ok(timestamped_record_batch)).await;
                     match tx_result {
                         Ok(_) => {
-                            if should_checkpoint {
+                            if checkpoint_batch {
                                 debug!("about to checkpoint offsets");
                                 let off = BatchReadMetadata {
                                     epoch,
@@ -255,9 +259,10 @@ impl PartitionStream for KafkaStreamRead {
                                 };
                                 let _ = state_backend
                                     .as_ref()
+                                    .unwrap()
                                     .put(channel_tag.as_bytes().to_vec(), off.to_bytes().unwrap());
                                 debug!("checkpointed offsets {:?}", off);
-                                should_checkpoint = false;
+                                checkpoint_batch = false;
                             }
                         }
                         Err(err) => error!("result err {:?}. shutdown signal detected.", err),

@@ -6,6 +6,7 @@ use datafusion::execution::{
     session_state::SessionStateBuilder,
 };
 
+use crate::config_extensions::denormalized_config::DenormalizedConfig;
 use crate::datasource::kafka::TopicReader;
 use crate::datastream::DataStream;
 use crate::physical_optimizer::EnsureHashPartititionOnGroupByForStreamingAggregates;
@@ -17,12 +18,13 @@ use denormalized_common::error::{DenormalizedError, Result};
 
 #[derive(Clone)]
 pub struct Context {
-    pub session_conext: Arc<SessionContext>,
+    pub session_context: Arc<SessionContext>,
 }
 
 impl Context {
-    pub fn new() -> Result<Self, DenormalizedError> {
-        let config = SessionConfig::new()
+    pub fn default_config() -> SessionConfig {
+        let ext_config = DenormalizedConfig::default();
+        let mut config = SessionConfig::new()
             .set(
                 "datafusion.execution.batch_size",
                 &datafusion::common::ScalarValue::UInt64(Some(32)),
@@ -34,8 +36,16 @@ impl Context {
                 &datafusion::common::ScalarValue::Boolean(Some(false)),
             );
 
-        let runtime = Arc::new(RuntimeEnv::default());
+        let _ = config.options_mut().extensions.insert(ext_config);
+        config
+    }
 
+    pub fn new() -> Result<Self, DenormalizedError> {
+        Context::with_config(Context::default_config())
+    }
+
+    pub fn with_config(config: SessionConfig) -> Result<Self, DenormalizedError> {
+        let runtime = Arc::new(RuntimeEnv::default());
         let state = SessionStateBuilder::new()
             .with_default_features()
             .with_config(config)
@@ -48,7 +58,7 @@ impl Context {
             .build();
 
         Ok(Self {
-            session_conext: Arc::new(SessionContext::new_with_state(state)),
+            session_context: Arc::new(SessionContext::new_with_state(state)),
         })
     }
 
@@ -56,7 +66,7 @@ impl Context {
         let topic_name = topic.0.topic.clone();
         self.register_table(topic_name.clone(), Arc::new(topic))
             .await?;
-        let df = self.session_conext.table(topic_name.as_str()).await?;
+        let df = self.session_context.table(topic_name.as_str()).await?;
         let ds = DataStream::new(Arc::new(df), Arc::new(self.clone()));
         Ok(ds)
     }
@@ -66,7 +76,7 @@ impl Context {
         name: String,
         table: Arc<impl TableProvider + 'static>,
     ) -> Result<(), DenormalizedError> {
-        self.session_conext
+        self.session_context
             .register_table(name.as_str(), table.clone())?;
 
         Ok(())

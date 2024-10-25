@@ -1,7 +1,6 @@
 use datafusion::common::runtime::SpawnedTask;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::physical_plan::ExecutionPlanProperties;
-use denormalized_orchestrator::orchestrator;
 use futures::StreamExt;
 use log::debug;
 use log::info;
@@ -18,6 +17,7 @@ use datafusion::logical_expr::{
 };
 use datafusion::physical_plan::display::DisplayableExecutionPlan;
 
+use crate::config_extensions::denormalized_config::DenormalizedConfig;
 use crate::context::Context;
 use crate::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use crate::logical_plan::StreamingLogicalPlanBuilder;
@@ -231,7 +231,12 @@ impl DataStream {
 
         let mut maybe_orchestrator_handle = None;
 
-        if orchestrator::SHOULD_CHECKPOINT {
+        let config = self.context.session_context.copied_config();
+        let config_options = config.options().extensions.get::<DenormalizedConfig>();
+
+        let should_checkpoint = config_options.map_or(false, |c| c.checkpoint);
+
+        if should_checkpoint {
             let mut orchestrator = Orchestrator::default();
             let cloned_shutdown_rx = self.shutdown_rx.clone();
             let orchestrator_handle =
@@ -277,10 +282,12 @@ impl DataStream {
 
         log::info!("Stream processing stopped. Cleaning up...");
 
-        let state_backend = get_global_slatedb();
-        if let Ok(db) = state_backend {
-            log::info!("Closing the state backend (slatedb)...");
-            db.close().await.unwrap();
+        if should_checkpoint {
+            let state_backend = get_global_slatedb();
+            if let Ok(db) = state_backend {
+                log::info!("Closing the state backend (slatedb)...");
+                db.close().await.unwrap();
+            }
         }
 
         // Join the orchestrator handle if it exists, ensuring it is joined and awaited

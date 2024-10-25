@@ -40,16 +40,19 @@ use datafusion::{
 };
 use denormalized_orchestrator::{
     channel_manager::{create_channel, get_sender},
-    orchestrator::{self, OrchestrationMessage},
+    orchestrator::{OrchestrationMessage},
 };
 use futures::{Stream, StreamExt};
 use tracing::debug;
 
-use crate::physical_plan::{
-    continuous::grouped_window_agg_stream::GroupedWindowAggStream,
-    utils::{
-        accumulators::{create_accumulators, AccumulatorItem},
-        time::{system_time_from_epoch, RecordBatchWatermark},
+use crate::{
+    config_extensions::denormalized_config::DenormalizedConfig,
+    physical_plan::{
+        continuous::grouped_window_agg_stream::GroupedWindowAggStream,
+        utils::{
+            accumulators::{create_accumulators, AccumulatorItem},
+            time::{system_time_from_epoch, RecordBatchWatermark},
+        },
     },
 };
 
@@ -427,7 +430,15 @@ impl ExecutionPlan for StreamingWindowExec {
             .node_id()
             .expect("expected node id to be set.");
 
-        let channel_tag = if orchestrator::SHOULD_CHECKPOINT {
+        let config_options = context
+            .session_config()
+            .options()
+            .extensions
+            .get::<DenormalizedConfig>();
+
+        let checkpoint = config_options.map_or(false, |c| c.checkpoint);
+
+        let channel_tag = if checkpoint {
             let tag = format!("{}_{}", node_id, partition);
             create_channel(tag.as_str(), 10);
             let orchestrator_sender = get_sender("orchestrator");
