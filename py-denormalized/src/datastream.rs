@@ -9,13 +9,14 @@ use tokio::task::JoinHandle;
 use datafusion::arrow::datatypes::Schema;
 use datafusion::arrow::pyarrow::PyArrowType;
 use datafusion::arrow::pyarrow::ToPyArrow;
+use datafusion::common::JoinType;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::display::DisplayableExecutionPlan;
 use datafusion_python::expr::{join::PyJoinType, PyExpr};
 
 use denormalized::datastream::DataStream;
 
-use crate::errors::{py_denormalized_err, Result};
+use crate::errors::{py_denormalized_err, Result, DenormalizedError};
 use crate::utils::{get_tokio_runtime, python_print, wait_for_future};
 
 #[pyclass(name = "PyDataStream", module = "denormalized", subclass)]
@@ -95,29 +96,42 @@ impl PyDataStream {
         todo!()
     }
 
-    #[pyo3(signature = (right, join_type, left_cols, right_cols, filter=None))]
+    #[pyo3(signature = (right, how, left_cols, right_cols, filter=None))]
     pub fn join(
         &self,
         right: PyDataStream,
-        join_type: PyJoinType,
+        how: &str,
         left_cols: Vec<String>,
         right_cols: Vec<String>,
         filter: Option<PyExpr>,
     ) -> PyResult<Self> {
         let right_ds = right.ds.as_ref().clone();
 
+        let join_type = match how {
+            "inner" => JoinType::Inner,
+            "left" => JoinType::Left,
+            "right" => JoinType::Right,
+            "full" => JoinType::Full,
+            "semi" => JoinType::LeftSemi,
+            "anti" => JoinType::LeftAnti,
+            how => {
+                return Err(DenormalizedError::Common(format!(
+                    "The join type {how} does not exist or is not implemented"
+                ))
+                .into());
+            }
+        };
+
         let filter = filter.map(|f| f.into());
 
         let left_cols = left_cols.iter().map(|s| s.as_ref()).collect::<Vec<&str>>();
         let right_cols = right_cols.iter().map(|s| s.as_ref()).collect::<Vec<&str>>();
 
-        let ds = self.ds.as_ref().clone().join(
-            right_ds,
-            join_type.into(),
-            &left_cols,
-            &right_cols,
-            filter,
-        )?;
+        let ds =
+            self.ds
+                .as_ref()
+                .clone()
+                .join(right_ds, join_type, &left_cols, &right_cols, filter)?;
         Ok(Self::new(ds))
     }
 

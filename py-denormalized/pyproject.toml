@@ -16,6 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 tests = ["pytest"]
 feast = ["feast"]
+dev = []
 
 [tool.maturin]
 python-source = "python"
