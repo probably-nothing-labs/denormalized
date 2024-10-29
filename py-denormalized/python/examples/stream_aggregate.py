@@ -3,6 +3,7 @@
 import json
 import signal
 import sys
+import pprint as pp
 
 from denormalized import Context
 from denormalized.datafusion import col
@@ -27,7 +28,7 @@ sample_event = {
 
 
 def print_batch(rb):
-    print(rb)
+    pp.pprint(rb.to_pydict())
 
 
 ctx = Context()
@@ -41,6 +42,8 @@ ds.window(
         f.min(col("reading")).alias("min"),
         f.max(col("reading")).alias("max"),
         f.avg(col("reading")).alias("average"),
+        f.median(col("reading")).alias("median"),
+        f.stddev(col("reading")).alias("stddev"),
     ],
     1000,
     None,
