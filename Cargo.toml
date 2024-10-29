@@ -1,6 +1,10 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "py-denormalized", "examples"]
+members = [
+  "crates/*", 
+  "examples",
+  "py-denormalized",
+]
 
 [workspace.package]
 authors = [
