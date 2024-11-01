@@ -23,7 +23,13 @@ features = ["pyo3/extension-module"]
 module-name = "denormalized._internal"
 
 [tool.rye]
-dev-dependencies = ["pip>=24.2", "ipython>=8.26.0", "pytest>=8.3.2"]
+dev-dependencies = [
+    "pip>=24.2",
+    "ipython>=8.26.0",
+    "pytest>=8.3.2",
+    "pandas>=2.2.3",
+    "jupyterlab>=4.3.0",
+]
 
 # Enable docstring linting using the google style guide
 [tool.ruff.lint]
