@@ -11,7 +11,7 @@ pub mod utils;
 pub(crate) struct TokioRuntime(tokio::runtime::Runtime);
 
 /// A Python module implemented in Rust.
-#[pymodule(name="_internal")]
+#[pymodule(name = "_internal")]
 fn _py_denormalized_internal(py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<datastream::PyDataStream>()?;
     m.add_class::<context::PyContext>()?;
