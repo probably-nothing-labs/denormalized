@@ -33,22 +33,40 @@ def print_batch(rb):
 ctx = Context()
 temperature_ds = ctx.from_topic(
     "temperature", json.dumps(sample_event), bootstrap_server
-)
-
-humidity_ds = ctx.from_topic("humidity", json.dumps(sample_event), bootstrap_server)
-
-temperature_ds = temperature_ds.join(humidity_ds, "inner", ["sensor_name"], ["sensor_name"])
-
-temperature_ds = temperature_ds.window(
+).window(
     [],
     [
-        f.count(col("temperature.reading"), distinct=False, filter=None).alias(
-            "temperature_count"
-        ),
-        f.count(col("humidity.reading"), distinct=False, filter=None).alias(
-            "humidity_count"
-        ),
+        f.count(col("reading"), distinct=False, filter=None).alias("temp_count"),
     ],
     4000,
     None,
+)
+
+humidity_ds = ctx.from_topic(
+    "humidity", json.dumps(sample_event), bootstrap_server
+).window(
+    [],
+    [
+        f.count(col("reading"), distinct=False, filter=None).alias("temp_count"),
+    ],
+    4000,
+    None,
+)
+
+temperature_ds = temperature_ds.join(
+    humidity_ds, "left", ["sensor_name"], ["sensor_name"]
 ).sink(print_batch)
+
+# temperature_ds = temperature_ds.window(
+#     [],
+#     [
+#         f.count(col("temperature.reading"), distinct=False, filter=None).alias(
+#             "temperature_count"
+#         ),
+#         f.count(col("humidity.reading"), distinct=False, filter=None).alias(
+#             "humidity_count"
+#         ),
+#     ],
+#     4000,
+#     None,
+# ).sink(print_batch)
