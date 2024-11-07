@@ -37,8 +37,7 @@ use datafusion::{
 };
 
 use denormalized_orchestrator::{
-    channel_manager::take_receiver,
-    orchestrator::{OrchestrationMessage},
+    channel_manager::take_receiver, orchestrator::OrchestrationMessage,
 };
 use futures::{executor::block_on, Stream, StreamExt};
 use log::debug;

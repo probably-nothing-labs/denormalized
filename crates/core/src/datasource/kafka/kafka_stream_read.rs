@@ -7,7 +7,7 @@ use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, Str
 use arrow_schema::{DataType, Field, SchemaRef, TimeUnit};
 use crossbeam::channel;
 use denormalized_orchestrator::channel_manager::{create_channel, get_sender, take_receiver};
-use denormalized_orchestrator::orchestrator::{OrchestrationMessage};
+use denormalized_orchestrator::orchestrator::OrchestrationMessage;
 use futures::executor::block_on;
 use log::{debug, error};
 use serde::{Deserialize, Serialize};

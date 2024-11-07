@@ -40,7 +40,7 @@ use datafusion::{
 };
 use denormalized_orchestrator::{
     channel_manager::{create_channel, get_sender},
-    orchestrator::{OrchestrationMessage},
+    orchestrator::OrchestrationMessage,
 };
 use futures::{Stream, StreamExt};
 use tracing::debug;
