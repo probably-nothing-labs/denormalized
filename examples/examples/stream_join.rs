@@ -48,25 +48,33 @@ async fn main() -> Result<()> {
                 ]))
                 .await?,
         )
-        .await?;
+        .await?
+        .with_column("humidity_sensor", col("sensor_name"))?
+        .drop_columns(&["sensor_name"])?
+        .window(
+            vec![col("humidity_sensor")],
+            vec![avg(col("reading")).alias("avg_humidity")],
+            Duration::from_millis(1_000),
+            None,
+        )?
+        .with_column("humidity_window_start_time", col("window_start_time"))?
+        .with_column("humidity_window_end_time", col("window_end_time"))?
+        .drop_columns(&["window_start_time", "window_end_time"])?;
 
     let joined_ds = ctx
         .from_topic(temperature_topic)
         .await?
+        .window(
+            vec![col("sensor_name")],
+            vec![avg(col("reading")).alias("avg_temperature")],
+            Duration::from_millis(1_000),
+            None,
+        )?
         .join(
             humidity_ds,
             JoinType::Inner,
-            &["sensor_name"],
-            &["sensor_name"],
-            None,
-        )?
-        .window(
-            vec![],
-            vec![
-                avg(col("temperature.reading")).alias("avg_temperature"),
-                avg(col("humidity.reading")).alias("avg_humidity"),
-            ],
-            Duration::from_millis(15_000),
+            &["sensor_name", "window_start_time"],
+            &["humidity_sensor", "humidity_window_start_time"],
             None,
         )?;
 

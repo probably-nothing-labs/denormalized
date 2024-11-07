@@ -1,4 +1,4 @@
-from denormalized._internal import expr as internal_exprs
+from denormalized._d_internal import expr as internal_exprs
 from denormalized.datafusion import Expr
 
 

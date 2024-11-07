@@ -16,7 +16,7 @@
 # under the License.
 """Object store functionality."""
 
-from denormalized._internal import object_store
+from denormalized._d_internal import object_store
 
 AmazonS3 = object_store.AmazonS3
 GoogleCloud = object_store.GoogleCloud
