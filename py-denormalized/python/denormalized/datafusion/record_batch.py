@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pyarrow
-    import denormalized._internal as df_internal
+    import denormalized._d_internal as df_internal
     import typing_extensions
 
 

@@ -16,7 +16,7 @@
 # under the License.
 """Common data types used throughout the DataFusion project."""
 
-from denormalized._internal import common as common_internal
+from denormalized._d_internal import common as common_internal
 from enum import Enum
 
 # TODO these should all have proper wrapper classes

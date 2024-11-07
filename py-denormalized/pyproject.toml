@@ -20,7 +20,7 @@ feast = ["feast"]
 [tool.maturin]
 python-source = "python"
 features = ["pyo3/extension-module"]
-module-name = "denormalized._internal"
+module-name = "denormalized._d_internal"
 
 [tool.rye]
 dev-dependencies = ["pip>=24.2", "ipython>=8.26.0", "pytest>=8.3.2"]

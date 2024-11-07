@@ -113,6 +113,15 @@ impl DataStream {
         })
     }
 
+    pub fn drop_columns(self, columns: &[&str]) -> Result<Self> {
+        Ok(Self {
+            df: Arc::new(self.df.as_ref().clone().drop_columns(columns)?),
+            context: self.context.clone(),
+            shutdown_tx: self.shutdown_tx.clone(),
+            shutdown_rx: self.shutdown_rx.clone(),
+        })
+    }
+
     // Join two streams using the specified expression
     pub fn join_on(
         self,
