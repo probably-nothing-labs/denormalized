@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
-    let _ctx = Context::new()?
+    Context::new()?
         .with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg-checkpoint-1"))
         .await
         .from_topic(source_topic)
