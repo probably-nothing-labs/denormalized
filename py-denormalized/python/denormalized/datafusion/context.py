@@ -19,13 +19,13 @@
 
 from __future__ import annotations
 
-from denormalized._internal import SessionConfig as SessionConfigInternal
-from denormalized._internal import RuntimeConfig as RuntimeConfigInternal
-from denormalized._internal import SQLOptions as SQLOptionsInternal
-from denormalized._internal import SessionContext as SessionContextInternal
-from denormalized._internal import LogicalPlan, ExecutionPlan
+from denormalized._d_internal import SessionConfig as SessionConfigInternal
+from denormalized._d_internal import RuntimeConfig as RuntimeConfigInternal
+from denormalized._d_internal import SQLOptions as SQLOptionsInternal
+from denormalized._d_internal import SessionContext as SessionContextInternal
+from denormalized._d_internal import LogicalPlan, ExecutionPlan
 
-from denormalized._internal import AggregateUDF
+from denormalized._d_internal import AggregateUDF
 from denormalized.datafusion.catalog import Catalog, Table
 from denormalized.datafusion.dataframe import DataFrame
 from denormalized.datafusion.expr import Expr, SortExpr, sort_list_to_raw_sort_list

@@ -1,5 +1,5 @@
 import pyarrow as pa
-from denormalized._internal import PyDataStream
+from denormalized._d_internal import PyDataStream
 from denormalized.datafusion import Expr
 from denormalized.utils import to_internal_expr, to_internal_exprs
 

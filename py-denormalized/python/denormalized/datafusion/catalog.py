@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-import denormalized._internal as df_internal
+import denormalized._d_internal as df_internal
 
 from typing import TYPE_CHECKING
 
