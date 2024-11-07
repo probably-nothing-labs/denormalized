@@ -96,11 +96,12 @@ Details about developing the python bindings can be found in [py-denormalized/RE
 
 ### Checkpointing
 
-We use SlateDB for state backend. Initialize your Job Context to a path to local directory -
+We use SlateDB for state backend. Initialize your Job Context with a custom config and a path for SlateDB backend to store state -
 
 ```
-    let ctx = Context::new()?
-        .with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg-checkpoint-1"))
+    let config = Context::default_config().set_bool("denormalized_config.checkpoint", true);
+    let ctx = Context::with_config(config)?
+        .with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg/job1"))
         .await;
 ```
 
