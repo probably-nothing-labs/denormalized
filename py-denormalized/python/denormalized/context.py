@@ -1,4 +1,4 @@
-from denormalized._internal import PyContext
+from denormalized._d_internal import PyContext
 from .data_stream import DataStream
 
 class Context:
@@ -20,4 +20,3 @@ class Context:
         ds = DataStream(py_ds)
 
         return ds
-
