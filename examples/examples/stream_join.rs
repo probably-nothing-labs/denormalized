@@ -17,10 +17,7 @@ async fn main() -> Result<()> {
 
     let bootstrap_servers = String::from("localhost:9092");
 
-    let ctx = Context::new()?
-        .with_slatedb_backend(String::from("/tmp/checkpoints/stream-join-checkpoint-1"))
-        .await;
-
+    let ctx = Context::new()?;
     let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers.clone());
 
     let source_topic_builder = topic_builder
