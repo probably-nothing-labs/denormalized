@@ -3,6 +3,7 @@
 import json
 import signal
 import sys
+import pprint as pp
 
 from denormalized import Context
 from denormalized.datafusion import col, expr
@@ -27,46 +28,45 @@ sample_event = {
 
 
 def print_batch(rb):
-    print(rb.to_pydict())
+    pp.pprint(rb.to_pydict())
 
 
 ctx = Context()
 temperature_ds = ctx.from_topic(
     "temperature", json.dumps(sample_event), bootstrap_server
-).window(
-    [],
-    [
-        f.count(col("reading"), distinct=False, filter=None).alias("temp_count"),
-    ],
-    4000,
-    None,
 )
 
-humidity_ds = ctx.from_topic(
-    "humidity", json.dumps(sample_event), bootstrap_server
-).window(
-    [],
-    [
-        f.count(col("reading"), distinct=False, filter=None).alias("temp_count"),
-    ],
-    4000,
-    None,
+humidity_ds = (
+    ctx.from_topic("humidity", json.dumps(sample_event), bootstrap_server)
+    .with_column("humidity_sensor", col("sensor_name"))
+    .drop_columns(["sensor_name"])
+    .window(
+        [col("humidity_sensor")],
+        [
+            f.count(col("reading")).alias("avg_humidity"),
+        ],
+        4000,
+        None,
+    )
+    .with_column("humidity_window_start_time", col("window_start_time"))
+    .with_column("humidity_window_end_time", col("window_end_time"))
+    .drop_columns(["window_start_time", "window_end_time"])
 )
 
-temperature_ds = temperature_ds.join(
-    humidity_ds, "left", ["sensor_name"], ["sensor_name"]
-).sink(print_batch)
-
-# temperature_ds = temperature_ds.window(
-#     [],
-#     [
-#         f.count(col("temperature.reading"), distinct=False, filter=None).alias(
-#             "temperature_count"
-#         ),
-#         f.count(col("humidity.reading"), distinct=False, filter=None).alias(
-#             "humidity_count"
-#         ),
-#     ],
-#     4000,
-#     None,
-# ).sink(print_batch)
+joined_ds = (
+    temperature_ds.window(
+        [col("sensor_name")],
+        [
+            f.avg(col("reading")).alias("avg_temperature"),
+        ],
+        4000,
+        None,
+    )
+    .join(
+        humidity_ds,
+        "inner",
+        ["sensor_name", "window_start_time"],
+        ["humidity_sensor", "humidity_window_start_time"],
+    )
+    .sink(print_batch)
+)

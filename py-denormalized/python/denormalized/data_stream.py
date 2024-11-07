@@ -73,6 +73,11 @@ class DataStream:
             DataStream: A new DataStream with the additional column.
         """
         return DataStream(self.ds.with_column(name, to_internal_expr(predicate)))
+    
+    def drop_columns(self, columns: list[str]) -> "DataStream":
+        """Drops columns from the DataStream.
+        """
+        return DataStream(self.ds.drop_columns(columns))
 
     def join_on(
         self, right: "DataStream", join_type: str, on_exprs: list[Expr]
