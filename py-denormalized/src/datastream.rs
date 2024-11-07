@@ -16,7 +16,7 @@ use datafusion_python::expr::{join::PyJoinType, PyExpr};
 
 use denormalized::datastream::DataStream;
 
-use crate::errors::{py_denormalized_err, Result, DenormalizedError};
+use crate::errors::{py_denormalized_err, DenormalizedError, Result};
 use crate::utils::{get_tokio_runtime, python_print, wait_for_future};
 
 #[pyclass(name = "PyDataStream", module = "denormalized", subclass)]
