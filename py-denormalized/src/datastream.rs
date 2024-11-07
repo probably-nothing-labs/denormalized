@@ -86,7 +86,7 @@ impl PyDataStream {
         let ds = self.ds.as_ref().clone().with_column(name, expr.into())?;
         Ok(Self::new(ds))
     }
-    
+
     pub fn drop_columns(&self, columns: Vec<String>) -> Result<Self> {
         let columns_ref: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
 
