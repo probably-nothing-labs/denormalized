@@ -17,10 +17,7 @@ async fn main() -> Result<()> {
 
     let bootstrap_servers = String::from("localhost:9092");
 
-    let ctx = Context::new()?
-        .with_slatedb_backend(String::from("/tmp/checkpoints/stream-join-checkpoint-1"))
-        .await;
-
+    let ctx = Context::new()?;
     let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers.clone());
 
     let source_topic_builder = topic_builder
@@ -73,8 +70,12 @@ async fn main() -> Result<()> {
         .join(
             humidity_ds,
             JoinType::Inner,
-            &["sensor_name", "window_start_time"],
-            &["humidity_sensor", "humidity_window_start_time"],
+            &["sensor_name", "window_start_time", "window_end_time"],
+            &[
+                "humidity_sensor",
+                "humidity_window_start_time",
+                "humidity_window_end_time",
+            ],
             None,
         )?;
 

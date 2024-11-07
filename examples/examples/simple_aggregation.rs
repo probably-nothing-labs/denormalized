@@ -18,11 +18,9 @@ async fn main() -> Result<()> {
         .init();
 
     let bootstrap_servers = String::from("localhost:9092");
-    let config = Context::default_config().set_bool("denormalized_config.checkpoint", true);
-    let ctx = Context::with_config(config)?
-        .with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg/job1"))
-        .await;
-  
+
+    let config = Context::default_config().set_bool("denormalized_config.checkpoint", false);
+
     let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers);
 
     // Connect to source topic
@@ -37,9 +35,9 @@ async fn main() -> Result<()> {
         ]))
         .await?;
 
-    let _ctx = Context::new()?
-        .with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg-checkpoint-1"))
-        .await
+    let _ctx = Context::with_config(config)?
+        //.with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg-checkpoint-1"))
+        //.await
         .from_topic(source_topic)
         .await?
         .window(
