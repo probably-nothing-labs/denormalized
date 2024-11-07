@@ -253,7 +253,7 @@ impl PartitionStream for KafkaStreamRead {
                                     max_timestamp,
                                     offsets_read,
                                 };
-                                let _ = state_backend
+                                state_backend
                                     .as_ref()
                                     .put(channel_tag.as_bytes().to_vec(), off.to_bytes().unwrap());
                                 debug!("checkpointed offsets {:?}", off);
