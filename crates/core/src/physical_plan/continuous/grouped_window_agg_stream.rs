@@ -37,14 +37,14 @@ use datafusion::{
 };
 
 use denormalized_orchestrator::{
-    channel_manager::take_receiver,
-    orchestrator::{self, OrchestrationMessage},
+    channel_manager::take_receiver, orchestrator::OrchestrationMessage,
 };
 use futures::{executor::block_on, Stream, StreamExt};
 use log::debug;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    config_extensions::denormalized_config::DenormalizedConfig,
     physical_plan::utils::time::RecordBatchWatermark,
     state_backend::slatedb::{get_global_slatedb, SlateDBWrapper},
     utils::serialization::ArrayContainer,
@@ -73,11 +73,11 @@ pub struct GroupedWindowAggStream {
     group_by: PhysicalGroupBy,
     group_schema: Arc<Schema>,
     context: Arc<TaskContext>,
-    epoch: i64,
+    checkpoint: bool,
     partition: usize,
     channel_tag: String,
     receiver: Option<Receiver<OrchestrationMessage>>,
-    state_backend: Arc<SlateDBWrapper>,
+    state_backend: Option<Arc<SlateDBWrapper>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -147,11 +147,23 @@ impl GroupedWindowAggStream {
             .and_then(|tag| take_receiver(tag.as_str()));
 
         let channel_tag: String = channel_tag.unwrap_or(String::from(""));
-        let state_backend = get_global_slatedb().unwrap();
 
-        let serialized_state = block_on(state_backend.get(channel_tag.as_bytes().to_vec()));
+        let config_options = context
+            .session_config()
+            .options()
+            .extensions
+            .get::<DenormalizedConfig>();
 
-        //let window_frames: BTreeMap<SystemTime, GroupedAggWindowFrame> = BTreeMap::new();
+        let checkpoint = config_options.map_or(false, |c| c.checkpoint);
+
+        let mut serialized_state: Option<Vec<u8>> = None;
+        let mut state_backend = None;
+        if checkpoint {
+            let backend = get_global_slatedb().unwrap();
+            serialized_state = block_on(backend.get(channel_tag.as_bytes().to_vec()));
+            state_backend = Some(backend);
+        }
+
         let mut stream = Self {
             schema: agg_schema,
             input,
@@ -166,7 +178,7 @@ impl GroupedWindowAggStream {
             group_by,
             group_schema,
             context,
-            epoch: 0,
+            checkpoint,
             partition,
             channel_tag,
             receiver,
@@ -340,19 +352,19 @@ impl GroupedWindowAggStream {
                 return Poll::Pending;
             }
         };
-        self.epoch += 1;
 
-        if orchestrator::SHOULD_CHECKPOINT {
+        let mut checkpoint_batch = false;
+
+        if self.checkpoint {
             let r = self.receiver.as_ref().unwrap();
-            let mut epoch: u128 = 0;
             for message in r.try_iter() {
                 debug!("received checkpoint barrier for {:?}", message);
-                if let OrchestrationMessage::CheckpointBarrier(epoch_ts) = message {
-                    epoch = epoch_ts;
+                if let OrchestrationMessage::CheckpointBarrier(_epoch_ts) = message {
+                    checkpoint_batch = true;
                 }
             }
 
-            if epoch != 0 {
+            if checkpoint_batch {
                 // Prepare data for checkpointing
 
                 // Clone or extract necessary data
@@ -400,7 +412,7 @@ impl GroupedWindowAggStream {
                 let key = self.channel_tag.as_bytes().to_vec();
 
                 // Clone or use `Arc` for `state_backend`
-                let state_backend = self.state_backend.clone();
+                let state_backend = self.state_backend.clone().unwrap();
 
                 state_backend.put(key, serialized_checkpoint);
             }
