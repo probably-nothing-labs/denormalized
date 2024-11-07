@@ -181,7 +181,7 @@ impl GroupedWindowAggStream {
             context,
             checkpoint,
             partition,
-            channel_tag: channel_tag,
+            channel_tag,
             receiver,
             state_backend,
         };
@@ -197,7 +197,7 @@ impl GroupedWindowAggStream {
                 .collect();
             let _ = stream.ensure_window_frames_for_ranges(&ranges);
             state.frames.iter().for_each(|f| {
-                let _ = stream.update_accumulators_for_frame(f.window_start_time, &f);
+                let _ = stream.update_accumulators_for_frame(f.window_start_time, f);
             });
             let state_watermark = state.watermark.unwrap();
             stream.process_watermark(RecordBatchWatermark {
@@ -400,7 +400,7 @@ impl GroupedWindowAggStream {
 
                 let watermark = {
                     let watermark_lock = self.latest_watermark.lock().unwrap();
-                    watermark_lock.clone()
+                    *watermark_lock
                 };
 
                 let checkpointed_state = CheckpointedGroupedWindowAggStream {

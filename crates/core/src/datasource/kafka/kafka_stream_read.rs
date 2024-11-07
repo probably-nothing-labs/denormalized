@@ -257,7 +257,7 @@ impl PartitionStream for KafkaStreamRead {
                                     max_timestamp,
                                     offsets_read,
                                 };
-                                let _ = state_backend
+                                state_backend
                                     .as_ref()
                                     .unwrap()
                                     .put(channel_tag.as_bytes().to_vec(), off.to_bytes().unwrap());
