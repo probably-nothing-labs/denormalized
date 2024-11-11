@@ -6,7 +6,7 @@ use tokio::runtime::Runtime;
 
 /// Utility to get the Tokio Runtime from Python
 pub(crate) fn get_tokio_runtime(py: Python) -> PyRef<TokioRuntime> {
-    let datafusion = py.import_bound("denormalized._internal").unwrap();
+    let datafusion = py.import_bound("denormalized._d_internal").unwrap();
     let tmp = datafusion.getattr("runtime").unwrap();
     match tmp.extract::<PyRef<TokioRuntime>>() {
         Ok(runtime) => runtime,
