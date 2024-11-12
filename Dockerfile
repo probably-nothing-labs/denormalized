@@ -1,4 +1,8 @@
-# docker build -t kafka-measurements:latest .
+# This file builds an image that runs Kakfa and the emit_measurments.rs scripts for generating fake data
+# 
+# docker build -t emgeee/kafka_emit_measurements:latest .
+#
+
 # Stage 1: Build the Rust application
 FROM rust:1.81.0-slim-bookworm AS builder
 WORKDIR /usr/src/app

@@ -1,9 +1,12 @@
-"""stream_aggregate example."""
+"""stream_aggregate example.
+
+docker build -t emgeee/kafka_emit_measurements:latest .
+"""
 
 import json
+import pprint as pp
 import signal
 import sys
-import pprint as pp
 
 from denormalized import Context
 from denormalized.datafusion import col
@@ -12,7 +15,6 @@ from denormalized.datafusion import lit
 
 
 def signal_handler(sig, frame):
-    print("You pressed Ctrl+C!")
     sys.exit(0)
 
 
