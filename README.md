@@ -61,8 +61,12 @@ sample_event = {
 def print_batch(rb):
     print(rb)
 
-ctx = Context()
-ds = ctx.from_topic("temperature", json.dumps(sample_event), "localhost:9092")
+ds = Context().from_topic(
+    "temperature",
+    json.dumps(sample_event),
+    "localhost:9092",
+    "occurred_at_ms",
+)
 
 ds.window(
     [col("sensor_name")],
@@ -90,7 +94,7 @@ Details about developing the python bindings can be found in [py-denormalized/RE
 
 ### Running an example
 
-1. Start the custom docker image that contains an instance of kafka along with with a script that emits some sample data to kafka `docker build -t emgeee/kafka_emit_measurements:latest .`
+1. Start the custom docker image that contains an instance of kafka along with with a script that emits some sample data to kafka `docker run --rm -p 9092:9092 --name emit_measuremetns emgeee/kafka_emit_measurements:latest`
 2. Run a [simple streaming aggregation](./examples/examples/simple_aggregation.rs) on the data using denormalized: `cargo run --example simple_aggregation`
 
 ### Checkpointing

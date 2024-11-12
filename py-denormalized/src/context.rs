@@ -73,10 +73,12 @@ impl PyContext {
 
     pub fn from_topic(
         &self,
+        py: Python,
         topic: String,
         sample_json: String,
         bootstrap_servers: String,
-        py: Python,
+        timestamp_column: String,
+        group_id: String,
     ) -> PyResult<PyDataStream> {
         let context = self.context.clone();
         let rt = &get_tokio_runtime(py).0;
@@ -85,13 +87,13 @@ impl PyContext {
                 let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers.clone());
 
                 let source_topic = topic_builder
-                    .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
+                    .with_timestamp(timestamp_column, TimestampUnit::Int64Millis)
                     .with_encoding("json")?
                     .with_topic(topic)
                     .infer_schema_from_json(sample_json.as_str())?
                     .build_reader(ConnectionOpts::from([
                         ("auto.offset.reset".to_string(), "latest".to_string()),
-                        ("group.id".to_string(), "sample_pipeline".to_string()),
+                        ("group.id".to_string(), group_id.to_string()),
                     ]))
                     .await?;
 
