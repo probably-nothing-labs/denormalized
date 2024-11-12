@@ -1,11 +1,11 @@
 use rand::seq::SliceRandom;
-use rdkafka::producer::FutureProducer;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::result::Result;
 
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureRecord;
+use rdkafka::producer::FutureProducer;
 
-use denormalized::prelude::*;
 use denormalized_examples::Measurment;
 
 /// This script emits test data to a kafka cluster
@@ -14,7 +14,7 @@ use denormalized_examples::Measurment;
 /// Sample sensor data will then be emitted to two topics: `temperature` and `humidity`
 /// This data is read processed by other exmpales
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), anyhow::Error> {
     let mut tasks = tokio::task::JoinSet::new();
 
     let producer: FutureProducer = ClientConfig::new()

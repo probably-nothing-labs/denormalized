@@ -12,6 +12,7 @@ datafusion = { workspace = true }
 arrow = { workspace = true, features = ["prettyprint"] }
 arrow-schema = { workspace = true }
 arrow-array = { workspace = true }
+anyhow = "1.0.86"
 tracing = { workspace = true }
 futures = { workspace = true }
 tracing-log = { workspace = true }
