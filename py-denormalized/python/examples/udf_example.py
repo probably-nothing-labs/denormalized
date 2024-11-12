@@ -15,9 +15,11 @@ from denormalized.datafusion import lit, udf
 def signal_handler(sig, frame):
     sys.exit(0)
 
+
 signal.signal(signal.SIGINT, signal_handler)
 
 bootstrap_server = "localhost:9092"
+timestamp_column = "occurred_at_ms"
 
 sample_event = {
     "occurred_at_ms": 100,
@@ -25,10 +27,13 @@ sample_event = {
     "reading": 0.0,
 }
 
+
 def gt(lhs: pa.Array, rhs: pa.Scalar) -> pa.Array:
     return pc.greater(lhs, rhs)
 
+
 greater_than_udf = udf(gt, [pa.float64(), pa.float64()], pa.bool_(), "stable")
+
 
 def print_batch(rb: pa.RecordBatch):
     if not len(rb):
@@ -36,8 +41,12 @@ def print_batch(rb: pa.RecordBatch):
     print(rb)
 
 
-ctx = Context()
-ds = ctx.from_topic("temperature", json.dumps(sample_event), bootstrap_server)
+ds = Context().from_topic(
+    "temperature",
+    json.dumps(sample_event),
+    bootstrap_server,
+    timestamp_column,
+)
 
 ds.window(
     [col("sensor_name")],

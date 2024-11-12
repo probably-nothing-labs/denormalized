@@ -3,7 +3,7 @@
 #
 # last locked with the following flags:
 #   pre: false
-#   features: []
+#   features: ["dev"]
 #   all-features: false
 #   with-sources: false
 #   generate-hashes: false

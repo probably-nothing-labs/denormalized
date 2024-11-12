@@ -21,6 +21,7 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 bootstrap_server = "localhost:9092"
+timestamp_column = "occurred_at_ms"
 
 sample_event = {
     "occurred_at_ms": 100,
@@ -33,8 +34,12 @@ def print_batch(rb):
     pp.pprint(rb.to_pydict())
 
 
-ctx = Context()
-ds = ctx.from_topic("temperature", json.dumps(sample_event), bootstrap_server)
+ds = Context().from_topic(
+    "temperature",
+    json.dumps(sample_event),
+    bootstrap_server,
+    timestamp_column,
+)
 
 
 ds.window(

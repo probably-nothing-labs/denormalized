@@ -3,7 +3,7 @@
 #
 # last locked with the following flags:
 #   pre: false
-#   features: []
+#   features: ["dev"]
 #   all-features: false
 #   with-sources: false
 #   generate-hashes: false
@@ -181,6 +181,8 @@ pure-eval==0.2.3
 pyarrow==17.0.0
     # via datafusion
     # via denormalized
+    # via pyarrow-stubs
+pyarrow-stubs==17.11
 pycparser==2.22
     # via cffi
 pygments==2.18.0
