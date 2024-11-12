@@ -1,10 +1,10 @@
 use rand::seq::SliceRandom;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::result::Result;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use rdkafka::config::ClientConfig;
-use rdkafka::producer::FutureRecord;
 use rdkafka::producer::FutureProducer;
+use rdkafka::producer::FutureRecord;
 
 use denormalized_examples::Measurment;
 
