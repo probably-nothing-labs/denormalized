@@ -17,6 +17,7 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/probably-nothing-labs/denormalized.git"
 version = "0.0.1"
+rust-version = "1.81.0"
 description = "Embeddable stream processing engine"
 
 [workspace.dependencies]

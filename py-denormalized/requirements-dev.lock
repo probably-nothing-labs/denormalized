@@ -25,6 +25,7 @@ jedi==0.19.1
     # via ipython
 matplotlib-inline==0.1.7
     # via ipython
+maturin==1.7.4
 numpy==2.1.0
     # via pyarrow
 packaging==24.1
