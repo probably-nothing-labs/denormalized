@@ -1,6 +1,6 @@
 """stream_aggregate example.
 
-docker build -t emgeee/kafka_emit_measurements:latest .
+docker run --rm -p 9092:9092 emgeee/kafka_emit_measurements:latest
 """
 
 import json
@@ -13,13 +13,14 @@ from denormalized.datafusion import col
 from denormalized.datafusion import functions as f
 
 
-def signal_handler(sig, frame):
+def signal_handler(_sig, _frame):
     sys.exit(0)
 
 
 signal.signal(signal.SIGINT, signal_handler)
 
 bootstrap_server = "localhost:9092"
+timestamp_column = "occurred_at_ms"
 
 sample_event = {
     "occurred_at_ms": 100,
@@ -34,11 +35,16 @@ def print_batch(rb):
 
 ctx = Context()
 temperature_ds = ctx.from_topic(
-    "temperature", json.dumps(sample_event), bootstrap_server
+    "temperature", json.dumps(sample_event), bootstrap_server, timestamp_column
 )
 
 humidity_ds = (
-    ctx.from_topic("humidity", json.dumps(sample_event), bootstrap_server)
+    ctx.from_topic(
+        "humidity",
+        json.dumps(sample_event),
+        bootstrap_server,
+        timestamp_column,
+    )
     .with_column("humidity_sensor", col("sensor_name"))
     .drop_columns(["sensor_name"])
     .window(

@@ -1,9 +1,10 @@
+from typing import Callable
+
 import pyarrow as pa
 from denormalized._d_internal import PyDataStream
 from denormalized.datafusion import Expr
 from denormalized.utils import to_internal_expr, to_internal_exprs
 
-from typing import Callable
 
 class DataStream:
     """Represents a stream of data that can be manipulated using various operations."""
@@ -73,10 +74,9 @@ class DataStream:
             DataStream: A new DataStream with the additional column.
         """
         return DataStream(self.ds.with_column(name, to_internal_expr(predicate)))
-    
+
     def drop_columns(self, columns: list[str]) -> "DataStream":
-        """Drops columns from the DataStream.
-        """
+        """Drops columns from the DataStream."""
         return DataStream(self.ds.drop_columns(columns))
 
     def join_on(
