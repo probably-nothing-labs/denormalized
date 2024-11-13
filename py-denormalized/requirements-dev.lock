@@ -181,13 +181,10 @@ pure-eval==0.2.3
 pyarrow==17.0.0
     # via datafusion
     # via denormalized
-<<<<<<< HEAD
     # via pyarrow-stubs
 pyarrow-stubs==17.11
 pycparser==2.22
     # via cffi
-=======
->>>>>>> a684603 (Add example python udaf)
 pygments==2.18.0
     # via ipython
     # via nbconvert
