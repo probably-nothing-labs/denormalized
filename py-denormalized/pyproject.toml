@@ -29,6 +29,7 @@ dev-dependencies = [
     "pyarrow-stubs>=17.11",
     "pandas>=2.2.3",
     "jupyterlab>=4.3.0",
+    "pdoc>=15.0.0",
 ]
 
 # Enable docstring linting using the google style guide
@@ -46,3 +47,4 @@ max-doc-length = 88
 include = ["python"]
 exclude = ["src"]
 typeCheckingMode = "standard"
+reportMissingImports = false

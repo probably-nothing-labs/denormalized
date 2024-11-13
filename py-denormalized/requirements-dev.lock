@@ -84,6 +84,7 @@ jinja2==3.1.4
     # via jupyterlab
     # via jupyterlab-server
     # via nbconvert
+    # via pdoc
 json5==0.9.25
     # via jupyterlab-server
 jsonpointer==3.0.0
@@ -125,9 +126,11 @@ jupyterlab-server==2.27.3
 markupsafe==3.0.2
     # via jinja2
     # via nbconvert
+    # via pdoc
 matplotlib-inline==0.1.7
     # via ipykernel
     # via ipython
+maturin==1.7.4
 mistune==3.0.2
     # via nbconvert
 nbclient==0.10.0
@@ -142,7 +145,6 @@ nest-asyncio==1.6.0
     # via ipykernel
 notebook-shim==0.2.4
     # via jupyterlab
-maturin==1.7.4
 numpy==2.1.0
     # via pandas
     # via pyarrow
@@ -160,6 +162,7 @@ pandocfilters==1.5.1
     # via nbconvert
 parso==0.8.4
     # via jedi
+pdoc==15.0.0
 pexpect==4.9.0
     # via ipython
 pip==24.2
@@ -188,6 +191,7 @@ pycparser==2.22
 pygments==2.18.0
     # via ipython
     # via nbconvert
+    # via pdoc
 pytest==8.3.2
 python-dateutil==2.9.0.post0
     # via arrow
