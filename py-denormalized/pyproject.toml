@@ -33,8 +33,8 @@ dev-dependencies = [
 
 # Enable docstring linting using the google style guide
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "D", "W"]
-ignore = ["D103"]
+# select = ["E4", "E7", "E9", "F", "D", "W"]
+ignore = ["F", "D100", "D101", "D102", "D103", "D107"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

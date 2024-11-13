@@ -3,7 +3,6 @@ from typing import Any, TypeVar, Union, cast, get_type_hints
 
 import pyarrow as pa
 from denormalized._d_internal import PyDataStream
-from denormalized.datafusion import Expr
 from feast import FeatureStore, Field
 from feast.data_source import PushMode
 from feast.type_map import pa_to_feast_value_type
