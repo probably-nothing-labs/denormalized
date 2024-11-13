@@ -83,7 +83,7 @@ pub struct StreamingWindowSchema {
 impl StreamingWindowSchema {
     pub fn try_new(aggr_expr: Aggregate) -> Result<Self> {
         let inner_schema = aggr_expr.schema.inner().clone();
-        let fields = inner_schema.flattened_fields().to_owned();
+        let fields = inner_schema.fields();
 
         let mut builder = SchemaBuilder::new();
 

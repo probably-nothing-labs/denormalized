@@ -5,13 +5,10 @@ build-backend = "maturin"
 [project]
 name = "denormalized"
 requires-python = ">=3.12"
-classifiers = [ ]
-dynamic = ["version"] # Version specified in py-denormalized/Cargo.toml
+classifiers = []
+dynamic = ["version"]                                    # Version specified in py-denormalized/Cargo.toml
 description = ""
-dependencies = [
-    "pyarrow>=17.0.0",
-    "datafusion>=40.1.0",
-]
+dependencies = ["pyarrow>=17.0.0", "datafusion>=40.1.0"]
 
 [project.optional-dependencies]
 tests = ["pytest"]
@@ -30,6 +27,8 @@ dev-dependencies = [
     "pytest>=8.3.2",
     "maturin>=1.7.4",
     "pyarrow-stubs>=17.11",
+    "pandas>=2.2.3",
+    "jupyterlab>=4.3.0",
 ]
 
 # Enable docstring linting using the google style guide
