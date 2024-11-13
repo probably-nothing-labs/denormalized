@@ -1,0 +1,39 @@
+name: Python Linting
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'py-denormalized/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'py-denormalized/**'
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: py-denormalized  # Set the working directory for all run steps
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          cache: 'pip'
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff
+        # Ruff will look for pyproject.toml in the py-denormalized directory
+        run: |
+          # Run Ruff linter
+          ruff check .
+          # Run Ruff formatter
+          ruff format . --check

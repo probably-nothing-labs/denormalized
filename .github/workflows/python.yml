@@ -9,10 +9,12 @@ on:
   push:
     branches:
       - main
-      - master
     tags:
       - "*"
   pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'py-denormalized/**'  # Only trigger on changes in this directory
   workflow_dispatch:
 
 permissions:

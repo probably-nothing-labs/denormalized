@@ -9,7 +9,6 @@ import pyarrow as pa
 
 from denormalized import Context
 from denormalized.datafusion import Accumulator, col
-from denormalized.datafusion import functions as f
 from denormalized.datafusion import udaf
 
 
@@ -26,6 +25,7 @@ sample_event = {
     "sensor_name": "foo",
     "reading": 0.0,
 }
+
 
 class TotalValuesRead(Accumulator):
     # Define the state type as a struct containing a map
@@ -45,14 +45,18 @@ class TotalValuesRead(Accumulator):
             return
         for state in states:
             if state is not None:
-                counts_map = state.to_pylist()[0] # will always be one element struct
+                counts_map = state.to_pylist()[0]  # will always be one element struct
                 for k, v in counts_map["counts"]:
                     self.counts[k] += v
 
     def state(self) -> List[pa.Scalar]:
         # Convert current state to Arrow array format
         result = {"counts": dict(self.counts.items())}
-        return [pa.scalar(result, type=pa.struct([("counts", pa.map_(pa.string(), pa.int64()))]))]
+        return [
+            pa.scalar(
+                result, type=pa.struct([("counts", pa.map_(pa.string(), pa.int64()))])
+            )
+        ]
 
     def evaluate(self) -> pa.Scalar:
         return self.state()[0]
@@ -69,8 +73,11 @@ def print_batch(rb: pa.RecordBatch):
         return
     print(rb)
 
+
 ctx = Context()
-ds = ctx.from_topic("temperature", json.dumps(sample_event), bootstrap_server, "occurred_at_ms")
+ds = ctx.from_topic(
+    "temperature", json.dumps(sample_event), bootstrap_server, "occurred_at_ms"
+)
 
 ds = ds.window(
     [],

@@ -64,6 +64,4 @@ ds.window(
         col("count"),
         lit(1400.0),
     ),
-).sink(
-    print_batch
-)
+).sink(print_batch)
