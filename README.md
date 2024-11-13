@@ -90,9 +90,8 @@ Details about developing the python bindings can be found in [py-denormalized/RE
 
 ### Running an example
 
-1. Start kafka in docker `docker run -p 9092:9092 --name kafka apache/kafka`
-2. Start emitting some sample data: `cargo run --example emit_measurements`
-3. Run a [simple streaming aggregation](./examples/examples/simple_aggregation.rs) on the data using denormalized: `cargo run --example simple_aggregation`
+1. Start the custom docker image that contains an instance of kafka along with with a script that emits some sample data to kafka `docker build -t emgeee/kafka_emit_measurements:latest .`
+2. Run a [simple streaming aggregation](./examples/examples/simple_aggregation.rs) on the data using denormalized: `cargo run --example simple_aggregation`
 
 ### Checkpointing
 

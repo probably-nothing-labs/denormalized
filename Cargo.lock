@@ -1599,6 +1599,7 @@ dependencies = [
 name = "denormalized-examples"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
  "arrow",
  "arrow-array",
  "arrow-schema",

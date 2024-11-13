@@ -25,9 +25,14 @@ module-name = "denormalized._d_internal"
 
 [tool.rye]
 dev-dependencies = [
+    
     "pip>=24.2",
+   
     "ipython>=8.26.0",
+   
     "pytest>=8.3.2",
+    "maturin>=1.7.4",
+,
     "pandas>=2.2.3",
     "jupyterlab>=4.3.0",
 ]
