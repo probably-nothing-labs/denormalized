@@ -4,12 +4,13 @@ import json
 import signal
 import sys
 from collections import Counter
-
+from typing import List
 import pyarrow as pa
+
 from denormalized import Context
 from denormalized.datafusion import Accumulator, col
 from denormalized.datafusion import functions as f
-from denormalized.datafusion import lit, udaf
+from denormalized.datafusion import udaf
 
 
 def signal_handler(sig, frame):
@@ -26,7 +27,6 @@ sample_event = {
     "reading": 0.0,
 }
 
-
 class TotalValuesRead(Accumulator):
     # Define the state type as a struct containing a map
     acc_state_type = pa.struct([("counts", pa.map_(pa.string(), pa.int64()))])
@@ -41,48 +41,25 @@ class TotalValuesRead(Accumulator):
 
     def merge(self, states: pa.Array) -> None:
         # Merge multiple states into this accumulator
+        if states is None or len(states) == 0:
+            return
         for state in states:
             if state is not None:
-                count_map = state["counts"]
-                # Iterate through the map's keys and values
-                for k, v in zip(count_map.keys(), count_map.values()):
-                    self.counts[k.as_py()] += v.as_py()
+                counts_map = state.to_pylist()[0] # will always be one element struct
+                for k, v in counts_map["counts"]:
+                    self.counts[k] += v
 
-    def state(self) -> pa.Array:
+    def state(self) -> List[pa.Scalar]:
         # Convert current state to Arrow array format
-        if not self.counts:
-            # Handle empty state
-            return pa.array(
-                [{"counts": pa.array([], type=pa.map_(pa.string(), pa.int64()))}],
-                type=self.acc_state_type,
-            )
+        result = {"counts": dict(self.counts.items())}
+        return [pa.scalar(result, type=pa.struct([("counts", pa.map_(pa.string(), pa.int64()))]))]
 
-        # Convert counter to key-value pairs
-        keys, values = zip(*self.counts.items())
-
-        # Create a single-element array containing our state struct
-        return pa.array(
-            [
-                {
-                    "counts": pa.array(
-                        list(zip(keys, values)), type=pa.map_(pa.string(), pa.int64())
-                    )
-                }
-            ],
-            type=self.acc_state_type,
-        )
-
-    def evaluate(self) -> pa.Array:
-        # Convert final state to output format
-        if not self.counts:
-            return pa.array([], type=pa.map_(pa.string(), pa.int64()))
-
-        keys, values = zip(*self.counts.items())
-        return pa.array(list(zip(keys, values)), type=pa.map_(pa.string(), pa.int64()))
+    def evaluate(self) -> pa.Scalar:
+        return self.state()[0]
 
 
 input_type = [pa.string()]
-return_type = pa.string()
+return_type = TotalValuesRead.acc_state_type
 state_type = [TotalValuesRead.acc_state_type]
 sample_udaf = udaf(TotalValuesRead, input_type, return_type, state_type, "stable")
 
@@ -92,15 +69,14 @@ def print_batch(rb: pa.RecordBatch):
         return
     print(rb)
 
-
 ctx = Context()
-ds = ctx.from_topic("temperature", json.dumps(sample_event), bootstrap_server)
+ds = ctx.from_topic("temperature", json.dumps(sample_event), bootstrap_server, "occurred_at_ms")
 
-ds.window(
+ds = ds.window(
     [],
     [
         sample_udaf(col("sensor_name")).alias("count"),
     ],
-    1000,
+    2000,
     None,
 ).sink(print_batch)

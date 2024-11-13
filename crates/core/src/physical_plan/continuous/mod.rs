@@ -40,7 +40,7 @@ pub(crate) fn create_group_accumulator(
 }
 
 fn add_window_columns_to_schema(schema: SchemaRef) -> Schema {
-    let fields = schema.flattened_fields().to_owned();
+    let fields = schema.fields();
 
     let mut builder = SchemaBuilder::new();
 
