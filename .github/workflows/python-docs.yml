@@ -5,10 +5,10 @@ on:
     branches: ["main"]
     paths:
       - "py-denormalized/**"
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "py-denormalized/**"
+  # pull_request:
+  #   branches: ["main"]
+  #   paths:
+  #     - "py-denormalized/**"
 
 # security: restrict permissions for CI jobs.
 permissions:
