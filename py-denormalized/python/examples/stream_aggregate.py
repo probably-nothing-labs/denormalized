@@ -1,6 +1,6 @@
 """stream_aggregate example.
 
-docker build -t emgeee/kafka_emit_measurements:latest .
+docker run --rm -p 9092:9092 emgeee/kafka_emit_measurements:latest
 """
 
 import json

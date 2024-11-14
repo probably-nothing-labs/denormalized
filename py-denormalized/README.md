@@ -1,5 +1,4 @@
-denormalized-python
-===
+## Denormalized Python 
 
 Python bindings for [denormalized](https://github.com/probably-nothing-labs/denormalized)
 
@@ -13,15 +12,15 @@ Denormalized is a single node stream processing engine written in Rust. This dir
 
 This script will connect to the kafka instance running in docker and aggregate the metrics in realtime.
 
-There are several other examples in the [examples/ folder](python/examples/) that demonstrate other capabilities including stream joins and UDAFs.
+There are several other examples in the [examples folder](python/examples/) that demonstrate other capabilities including stream joins and UDAFs.
 
 
 ## Development
 
 Make sure you're in the `py-denormalized/` directory.
 
-We currently use [rye](https://rye.astral.sh/) to manage python dependencies.
-`rye sync` to create/update the virtual environment
+We use [uv](https://docs.astral.sh/uv/) to manage python dependencies.
+`uv sync` to create/update the virtual environment
 
 We use [maturin](https://www.maturin.rs/) for developing and building:
 - `maturin develop` - build and install the python bindings into the current venv
