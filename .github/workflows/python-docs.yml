@@ -37,7 +37,7 @@ jobs:
         working-directory: ./py-denormalized
         run: uv sync --no-dev --group docs --extra feast
 
-      - name: Configure Virtual Environment
+      - name: Build the docs
         working-directory: ./py-denormalized
         run: |
           source .venv/bin/activate
