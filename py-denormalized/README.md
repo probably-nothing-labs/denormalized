@@ -1,5 +1,4 @@
-denormalized-python
-===
+## Denormalized Python 
 
 Python bindings for [denormalized](https://github.com/probably-nothing-labs/denormalized)
 
@@ -13,7 +12,7 @@ Denormalized is a single node stream processing engine written in Rust. This dir
 
 This script will connect to the kafka instance running in docker and aggregate the metrics in realtime.
 
-There are several other examples in the [examples/ folder](python/examples/) that demonstrate other capabilities including stream joins and UDAFs.
+There are several other examples in the [examples folder](python/examples/) that demonstrate other capabilities including stream joins and UDAFs.
 
 
 ## Development

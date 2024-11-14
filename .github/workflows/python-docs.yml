@@ -1,0 +1,55 @@
+name: python-docs
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'py-denormalized/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'py-denormalized/**'
+
+# security: restrict permissions for CI jobs.
+permissions:
+  contents: read
+
+jobs:
+  # Build the documentation and upload the static HTML files as an artifact.
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: py-denormalized
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      # ADJUST THIS: install all dependencies (including pdoc)
+      - run: pip install -e .
+      - run: pdoc -t pdocs/ python/denormalized/ -o pdocs/_build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: pdocs/_build
+
+  # Deploy the artifact to GitHub pages.
+  # This is a separate job so that only actions/deploy-pages has the necessary permissions.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: py-denormalized
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
