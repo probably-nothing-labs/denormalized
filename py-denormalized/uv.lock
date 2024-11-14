@@ -377,6 +377,11 @@ dependencies = [
     { name = "pyarrow" },
 ]
 
+[package.optional-dependencies]
+feast = [
+    { name = "feast" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "ipython" },
@@ -388,13 +393,14 @@ dev = [
     { name = "pyarrow-stubs" },
     { name = "pytest" },
 ]
-feast = [
-    { name = "feast" },
+docs = [
+    { name = "pdoc" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "datafusion", specifier = ">=40.1.0" },
+    { name = "feast", marker = "extra == 'feast'" },
     { name = "pyarrow", specifier = ">=17.0.0" },
 ]
 
@@ -409,7 +415,7 @@ dev = [
     { name = "pyarrow-stubs", specifier = ">=17.11" },
     { name = "pytest", specifier = ">=8.3.2" },
 ]
-feast = [{ name = "feast" }]
+docs = [{ name = "pdoc", specifier = ">=15.0.0" }]
 
 [[package]]
 name = "dill"

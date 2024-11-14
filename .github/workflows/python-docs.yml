@@ -2,13 +2,13 @@ name: python-docs
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
-      - 'py-denormalized/**'
+      - "py-denormalized/**"
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
-      - 'py-denormalized/**'
+      - "py-denormalized/**"
 
 # security: restrict permissions for CI jobs.
 permissions:
@@ -18,9 +18,6 @@ jobs:
   # Build the documentation and upload the static HTML files as an artifact.
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: py-denormalized
     steps:
       - uses: actions/checkout@v4
 
@@ -29,26 +26,32 @@ jobs:
         with:
           version: "0.5.1"
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
+          cache-dependency-glob: "py-denormalized/uv.lock"
 
-      - name: Set up Python
-        run: uv python install
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "py-denormalized/pyproject.toml"
+
       - name: Install the project
-        run: uv sync --all-extras --dev
-      - run: pdoc -t pdocs/ python/denormalized/ -o pdocs/_build
+        working-directory: ./py-denormalized
+        run: uv sync --no-dev --group docs --extra feast
+
+      - name: Configure Virtual Environment
+        working-directory: ./py-denormalized
+        run: |
+          source .venv/bin/activate
+          pdoc -t pdocs/ python/denormalized/ -o pdocs/_build
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: pdocs/_build
+          path: py-denormalized/pdocs/_build
 
   # Deploy the artifact to GitHub pages.
   # This is a separate job so that only actions/deploy-pages has the necessary permissions.
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: py-denormalized
     permissions:
       pages: write
       id-token: write

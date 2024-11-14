@@ -66,6 +66,8 @@ class FeastDataStream(DataStream, metaclass=FeastDataStreamMeta):
 
     This class extends DataStream to provide integration with Feast feature stores
     and related functionality.
+
+    You must install with the extra 'feast': `pip install denormalized[feast]`
     """
 
     def __init__(self, stream: Union[PyDataStream, DataStream]) -> None:
