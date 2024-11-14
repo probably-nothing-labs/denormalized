@@ -19,8 +19,8 @@ There are several other examples in the [examples folder](python/examples/) that
 
 Make sure you're in the `py-denormalized/` directory.
 
-We currently use [rye](https://rye.astral.sh/) to manage python dependencies.
-`rye sync` to create/update the virtual environment
+We use [uv](https://docs.astral.sh/uv/) to manage python dependencies.
+`uv sync` to create/update the virtual environment
 
 We use [maturin](https://www.maturin.rs/) for developing and building:
 - `maturin develop` - build and install the python bindings into the current venv
