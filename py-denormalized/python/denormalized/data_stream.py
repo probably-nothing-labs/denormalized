@@ -157,11 +157,13 @@ class DataStream:
     ) -> "DataStream":
         """Apply a windowing operation to the DataStream.
 
+        If `slide_millis` is `None` a tumbling window will be created otherwise a sliding window will be created.
+
         Args:
             group_exprs: List of expressions to group by
             aggr_exprs: List of aggregation expressions to apply
             window_length_millis: Length of the window in milliseconds
-            slide_millis: Optional slide interval in milliseconds (defaults to window_length)
+            slide_millis: Optional slide interval in milliseconds (defaults to None)
 
         Returns:
             DataStream: A new DataStream with the windowing operation applied
