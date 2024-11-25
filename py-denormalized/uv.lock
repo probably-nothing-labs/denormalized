@@ -374,6 +374,7 @@ version = "0.0.9"
 source = { editable = "." }
 dependencies = [
     { name = "datafusion" },
+    { name = "pip" },
     { name = "pyarrow" },
 ]
 
@@ -401,6 +402,7 @@ docs = [
 requires-dist = [
     { name = "datafusion", specifier = ">=40.1.0" },
     { name = "feast", marker = "extra == 'feast'" },
+    { name = "pip", specifier = ">=24.3.1" },
     { name = "pyarrow", specifier = ">=17.0.0" },
 ]
 
