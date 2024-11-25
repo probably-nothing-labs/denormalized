@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+rm ../target/wheels/*.whl
+rm ../target/wheels/*.tar.gz
+
 echo "🔨 Building macOS universal2 wheel..."
 maturin build --zig --release --target universal2-apple-darwin
 
@@ -19,7 +22,7 @@ if [ -z "${MATURIN_PYPI_TOKEN}" ]; then
 fi
 echo "⬆️  Uploading all distributions to PyPI..."
 # make sure to set MATURIN_PYPI_TOKEN
-maturin upload target/wheels/*.whl
-maturin upload target/wheels/*.tar.gz
+maturin upload ../target/wheels/*.whl
+maturin upload ../target/wheels/*.tar.gz
 
 echo "✅ Done! Wheels and sdist have been uploaded to PyPI"
