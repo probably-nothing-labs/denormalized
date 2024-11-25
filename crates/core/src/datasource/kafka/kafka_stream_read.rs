@@ -3,7 +3,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use arrow::datatypes::TimestampMillisecondType;
-use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch, StringArray, StructArray};
+use arrow_array::{
+    Array, ArrayRef, Int64Array, PrimitiveArray, RecordBatch, StringArray, StructArray,
+};
 use arrow_schema::{DataType, Field, SchemaRef, TimeUnit};
 use crossbeam::channel;
 use denormalized_orchestrator::channel_manager::{create_channel, get_sender, take_receiver};
@@ -146,8 +148,17 @@ impl PartitionStream for KafkaStreamRead {
         let mut builder = RecordBatchReceiverStreamBuilder::new(self.config.schema.clone(), 1);
         let tx = builder.tx();
         let canonical_schema = self.config.schema.clone();
-        let timestamp_column: String = self.config.timestamp_column.clone();
-        let timestamp_unit = self.config.timestamp_unit.clone();
+        let use_kafka_timestamps = self.config.timestamp_column.is_none();
+        let timestamp_column = self
+            .config
+            .timestamp_column
+            .clone()
+            .unwrap_or(String::from(""));
+        let timestamp_unit = self
+            .config
+            .timestamp_unit
+            .clone()
+            .unwrap_or(crate::prelude::TimestampUnit::Int64Millis);
         let batch_timeout: Duration = Duration::from_millis(100);
         let mut decoder = self.config.build_decoder();
 
@@ -180,10 +191,13 @@ impl PartitionStream for KafkaStreamRead {
 
                 let mut offsets_read: HashMap<i32, i64> = HashMap::new();
 
+                let mut timestamps: Vec<i64> = Vec::new();
                 loop {
                     match tokio::time::timeout(batch_timeout, consumer.recv()).await {
                         Ok(Ok(m)) => {
                             let payload = m.payload().expect("Message payload is empty");
+                            let ts = m.timestamp().to_millis().unwrap_or(-1);
+                            timestamps.push(ts);
                             decoder.push_to_buffer(payload.to_owned());
                             offsets_read
                                 .entry(m.partition())
@@ -207,12 +221,21 @@ impl PartitionStream for KafkaStreamRead {
 
                 if !offsets_read.is_empty() {
                     let record_batch = decoder.to_record_batch().unwrap();
-                    let ts_column = record_batch
-                        .column_by_name(timestamp_column.as_str())
-                        .map(|ts_col| {
-                            Arc::new(array_to_timestamp_array(ts_col, timestamp_unit.clone()))
-                        })
-                        .unwrap();
+
+                    let kafka_ts_array = Int64Array::from_iter_values(timestamps);
+                    let ts_column_array: Arc<dyn Array> = Arc::new(kafka_ts_array);
+                    let mut ts_column = Arc::new(array_to_timestamp_array(
+                        ts_column_array.as_ref(),
+                        timestamp_unit.clone(),
+                    ));
+
+                    // Timestamp column was provided. TODO: This code is a hack for now we need a little cleanup here.
+                    if !use_kafka_timestamps {
+                        let arr = record_batch
+                            .column_by_name(timestamp_column.as_str())
+                            .unwrap();
+                        ts_column = Arc::new(array_to_timestamp_array(arr, timestamp_unit.clone()));
+                    };
 
                     let binary_vec = Vec::from_iter(
                         std::iter::repeat(String::from("no_barrier")).take(ts_column.len()),

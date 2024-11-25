@@ -37,8 +37,8 @@ pub struct KafkaReadConfig {
     pub encoding: StreamEncoding,
     pub order: Vec<Vec<SortExpr>>,
     pub partition_count: i32,
-    pub timestamp_column: String,
-    pub timestamp_unit: TimestampUnit,
+    pub timestamp_column: Option<String>,
+    pub timestamp_unit: Option<TimestampUnit>,
 
     pub kafka_connection_opts: ConnectionOpts,
 }
@@ -232,17 +232,9 @@ impl KafkaTopicBuilder {
             .as_ref()
             .ok_or_else(|| DenormalizedError::KafkaConfig("encoding required".to_string()))?;
 
-        let timestamp_column = self
-            .timestamp_column
-            .as_ref()
-            .ok_or_else(|| DenormalizedError::KafkaConfig("timestamp_column required".to_string()))?
-            .clone();
+        let timestamp_column = self.timestamp_column.clone();
 
-        let timestamp_unit = self
-            .timestamp_unit
-            .as_ref()
-            .ok_or_else(|| DenormalizedError::KafkaConfig("timestamp_unit required".to_string()))?
-            .clone();
+        let timestamp_unit = self.timestamp_unit.clone();
 
         let mut kafka_connection_opts = ConnectionOpts::new();
         for (key, value) in opts.into_iter() {
