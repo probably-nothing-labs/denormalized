@@ -1,11 +1,9 @@
 from denormalized._d_internal import PyContext
-
 from .data_stream import DataStream
-
 
 class Context:
     """A context manager for handling data stream operations.
-
+    
     This class provides functionality to create and manage data streams
     from various sources like Kafka topics.
     """
@@ -16,7 +14,7 @@ class Context:
 
     def __repr__(self):
         """Returns the string representation of the PyContext object.
-
+        
         Returns:
             str: String representation of the underlying PyContext.
         """
@@ -24,7 +22,7 @@ class Context:
 
     def __str__(self):
         """Returns the string representation of the PyContext object.
-
+        
         Returns:
             str: String representation of the underlying PyContext.
         """
@@ -44,7 +42,7 @@ class Context:
             topic: The name of the Kafka topic to consume from.
             sample_json: A sample JSON string representing the expected message format.
             bootstrap_servers: Comma-separated list of Kafka broker addresses.
-            timestamp_column: Optional column name containing message timestamps. If this is not specified it will default to using the kafka timestamp the message was received at.
+            timestamp_column: Optional column name containing message timestamps.
             group_id: Kafka consumer group ID, defaults to "default_group".
 
         Returns:

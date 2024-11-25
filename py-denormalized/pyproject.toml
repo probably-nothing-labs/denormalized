@@ -15,25 +15,28 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-tests = ["pytest"]
 feast = ["feast"]
-dev = []
 
-[tool.maturin]
-python-source = "python"
-features = ["pyo3/extension-module"]
-module-name = "denormalized._d_internal"
-
-[tool.rye]
-dev-dependencies = [
-    "pip>=24.2",
+[dependency-groups]
+dev = [
+    "pdoc>=15.0.0",
     "ipython>=8.26.0",
     "pytest>=8.3.2",
     "maturin>=1.7.4",
     "pyarrow-stubs>=17.11",
     "pandas>=2.2.3",
     "jupyterlab>=4.3.0",
+    "pdoc>=15.0.0",
+    "pip>=24.3.1",
 ]
+docs = [
+    "pdoc>=15.0.0",
+]
+
+[tool.maturin]
+python-source = "python"
+features = ["pyo3/extension-module"]
+module-name = "denormalized._d_internal"
 
 # Enable docstring linting using the google style guide
 [tool.ruff.lint]
@@ -50,3 +53,4 @@ max-doc-length = 88
 include = ["python"]
 exclude = ["src"]
 typeCheckingMode = "standard"
+reportMissingImports = false

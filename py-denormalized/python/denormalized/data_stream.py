@@ -7,13 +7,21 @@ from denormalized.utils import to_internal_expr, to_internal_exprs
 
 
 class DataStream:
-    """Represents a stream of data that can be manipulated using various operations."""
+    """Represents a stream of data that can be manipulated using various operations.
+
+    This class provides a high-level interface for stream processing operations, including
+    filtering, joining, windowing, and sinking data to various destinations. It wraps
+    a Rust-implemented PyDataStream object.
+
+    Attributes:
+        ds (PyDataStream): The underlying Rust-side DataStream implementation
+    """
 
     def __init__(self, ds: PyDataStream) -> None:
         """Initialize a new DataStream object.
 
         Args:
-            ds (PyDataStream): The underlying PyDataStream object.
+            ds: The underlying PyDataStream object from the Rust implementation
         """
         self.ds = ds
 
@@ -21,7 +29,7 @@ class DataStream:
         """Return a string representation of the DataStream object.
 
         Returns:
-            str: A string representation of the DataStream.
+            str: A string representation of the DataStream
         """
         return self.ds.__repr__()
 
@@ -29,7 +37,7 @@ class DataStream:
         """Return a string description of the DataStream object.
 
         Returns:
-            str: A string description of the DataStream.
+            str: A human-readable description of the DataStream
         """
         return self.ds.__str__()
 
@@ -37,7 +45,7 @@ class DataStream:
         """Get the schema of the DataStream.
 
         Returns:
-            pa.Schema: The PyArrow schema of the DataStream.
+            pa.Schema: The PyArrow schema describing the structure of the data
         """
         return self.ds.schema()
 
@@ -45,10 +53,13 @@ class DataStream:
         """Select specific columns or expressions from the DataStream.
 
         Args:
-            expr_list (list[Expr]): A list of expressions to select.
+            expr_list: List of expressions defining the columns or computations to select
 
         Returns:
-            DataStream: A new DataStream with the selected columns/expressions.
+            DataStream: A new DataStream containing only the selected expressions
+
+        Example:
+            >>> ds.select([col("name"), col("age") + 1])
         """
         return DataStream(self.ds.select(to_internal_exprs(expr_list)))
 
@@ -56,10 +67,13 @@ class DataStream:
         """Filter the DataStream based on a predicate.
 
         Args:
-            predicate (Expr): The filter predicate.
+            predicate: Boolean expression used to filter rows
 
         Returns:
-            DataStream: A new DataStream with the filter applied.
+            DataStream: A new DataStream containing only rows that satisfy the predicate
+
+        Example:
+            >>> ds.filter(col("age") > 18)
         """
         return DataStream(self.ds.filter(to_internal_expr(predicate)))
 
@@ -67,16 +81,26 @@ class DataStream:
         """Add a new column to the DataStream.
 
         Args:
-            name (str): The name of the new column.
-            predicate (Expr): The expression that defines the column's values.
+            name: Name of the new column
+            predicate: Expression defining the values for the new column
 
         Returns:
-            DataStream: A new DataStream with the additional column.
+            DataStream: A new DataStream with the additional column
+
+        Example:
+            >>> ds.with_column("adult", col("age") >= 18)
         """
         return DataStream(self.ds.with_column(name, to_internal_expr(predicate)))
 
     def drop_columns(self, columns: list[str]) -> "DataStream":
-        """Drops columns from the DataStream."""
+        """Drops specified columns from the DataStream.
+
+        Args:
+            columns: List of column names to remove
+
+        Returns:
+            DataStream: A new DataStream without the specified columns
+        """
         return DataStream(self.ds.drop_columns(columns))
 
     def join_on(
@@ -85,12 +109,15 @@ class DataStream:
         """Join this DataStream with another one based on join expressions.
 
         Args:
-            right (DataStream): The right DataStream to join with.
-            join_type (str): The type of join to perform.
-            on_exprs (list[Expr]): The expressions to join on.
+            right: The right DataStream to join with
+            join_type: Type of join ('inner', 'left', 'right', 'full')
+            on_exprs: List of expressions defining the join conditions
 
         Returns:
-            DataStream: A new DataStream resulting from the join operation.
+            DataStream: A new DataStream resulting from the join operation
+
+        Example:
+            >>> left.join_on(right, "inner", [col("id") == col("right.id")])
         """
         return DataStream(self.ds.join_on(right.ds, join_type, on_exprs))
 
@@ -105,14 +132,17 @@ class DataStream:
         """Join this DataStream with another one based on column names.
 
         Args:
-            right (DataStream): The right DataStream to join with.
-            join_type (str): The type of join to perform.
-            left_cols (list[str]): The columns from the left DataStream to join on.
-            right_cols (list[str]): The columns from the right DataStream to join on.
-            filter (Expr, optional): An additional filter to apply to the join.
+            right: The right DataStream to join with
+            join_type: Type of join ('inner', 'left', 'right', 'full')
+            left_cols: Column names from the left DataStream to join on
+            right_cols: Column names from the right DataStream to join on
+            filter: Optional additional join filter expression
 
         Returns:
-            DataStream: A new DataStream resulting from the join operation.
+            DataStream: A new DataStream resulting from the join operation
+
+        Example:
+            >>> left.join(right, "inner", ["id"], ["right_id"])
         """
         return DataStream(
             self.ds.join(right.ds, join_type, left_cols, right_cols, filter)
@@ -127,15 +157,19 @@ class DataStream:
     ) -> "DataStream":
         """Apply a windowing operation to the DataStream.
 
+        If `slide_millis` is `None` a tumbling window will be created otherwise a sliding window will be created.
+
         Args:
-            group_exprs (list[Expr]): The expressions to group by.
-            aggr_exprs (list[Expr]): The aggregation expressions to apply.
-            window_length_millis (int): The length of the window in milliseconds.
-            slide_millis (int, optional): The slide interval of the window in
-                milliseconds.
+            group_exprs: List of expressions to group by
+            aggr_exprs: List of aggregation expressions to apply
+            window_length_millis: Length of the window in milliseconds
+            slide_millis: Optional slide interval in milliseconds (defaults to None)
 
         Returns:
-            DataStream: A new DataStream with the windowing operation applied.
+            DataStream: A new DataStream with the windowing operation applied
+
+        Example:
+            >>> ds.window([col("user_id")], [sum(col("value"))], 60000)  # 1-minute window
         """
         return DataStream(
             self.ds.window(
@@ -147,30 +181,30 @@ class DataStream:
         )
 
     def print_stream(self) -> None:
-        """Print the contents of the DataStream."""
+        """Print the contents of the DataStream to stdout."""
         self.ds.print_stream()
 
     def print_schema(self) -> "DataStream":
-        """Print the schema of the DataStream.
+        """Print the schema of the DataStream to stdout.
 
         Returns:
-            DataStream: This DataStream object for method chaining.
+            DataStream: Self for method chaining
         """
         return DataStream(self.ds.print_schema())
 
     def print_plan(self) -> "DataStream":
-        """Print the execution plan of the DataStream.
+        """Print the logical execution plan of the DataStream to stdout.
 
         Returns:
-            DataStream: This DataStream object for method chaining.
+            DataStream: Self for method chaining
         """
         return DataStream(self.ds.print_plan())
 
     def print_physical_plan(self) -> "DataStream":
-        """Print the physical execution plan of the DataStream.
+        """Print the physical execution plan of the DataStream to stdout.
 
         Returns:
-            DataStream: This DataStream object for method chaining.
+            DataStream: Self for method chaining
         """
         return DataStream(self.ds.print_physical_plan())
 
@@ -178,11 +212,21 @@ class DataStream:
         """Sink the DataStream to a Kafka topic.
 
         Args:
-            bootstrap_servers (str): The Kafka bootstrap servers.
-            topic (str): The Kafka topic to sink the data to.
+            bootstrap_servers: Comma-separated list of Kafka broker addresses
+            topic: Name of the Kafka topic to write to
+
+        Raises:
+            ConnectionError: If unable to connect to Kafka brokers
         """
         self.ds.sink_kafka(bootstrap_servers, topic)
 
     def sink(self, func: Callable[[pa.RecordBatch], None]) -> None:
-        """Sink the DataStream to a Python function."""
+        """Sink the DataStream to a Python callback function.
+
+        Args:
+            func: Callback function that receives PyArrow RecordBatches
+
+        Example:
+            >>> ds.sink(lambda batch: print(f"Received batch with {len(batch)} rows"))
+        """
         self.ds.sink_python(func)
