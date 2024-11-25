@@ -11,6 +11,7 @@ description = "Embeddable stream processing engine"
 dependencies = [
     "pyarrow>=17.0.0",
     "datafusion>=40.1.0",
+    "pip>=24.3.1",
 ]
 
 [project.optional-dependencies]

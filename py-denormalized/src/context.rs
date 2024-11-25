@@ -71,14 +71,21 @@ impl PyContext {
         Ok("PyContext".to_string())
     }
 
+    #[pyo3(signature = (
+        topic,
+        sample_json,
+        bootstrap_servers,
+        group_id,
+        timestamp_column = None
+    ))]
     pub fn from_topic(
         &self,
         py: Python,
         topic: String,
         sample_json: String,
         bootstrap_servers: String,
-        timestamp_column: String,
         group_id: String,
+        timestamp_column: Option<String>,
     ) -> PyResult<PyDataStream> {
         let context = self.context.clone();
         let rt = &get_tokio_runtime(py).0;
@@ -86,8 +93,11 @@ impl PyContext {
             rt.spawn(async move {
                 let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers.clone());
 
+                if let Some(ts_col) = timestamp_column {
+                    topic_builder.with_timestamp(ts_col, TimestampUnit::Int64Millis);
+                }
+
                 let source_topic = topic_builder
-                    .with_timestamp(timestamp_column, TimestampUnit::Int64Millis)
                     .with_encoding("json")?
                     .with_topic(topic)
                     .infer_schema_from_json(sample_json.as_str())?

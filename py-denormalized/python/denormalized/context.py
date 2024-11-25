@@ -5,30 +5,27 @@ from .data_stream import DataStream
 class Context:
     """A context manager for handling data stream operations.
 
-    This class provides an interface for creating and managing data streams,
-    particularly for working with Kafka topics and stream processing.
-
-    Attributes:
-        ctx: Internal PyContext instance managing Rust-side operations
+    This class provides functionality to create and manage data streams
+    from various sources like Kafka topics.
     """
 
     def __init__(self) -> None:
-        """Initialize a new Context instance."""
+        """Initializes a new Context instance with PyContext."""
         self.ctx = PyContext()
 
     def __repr__(self):
-        """Return a string representation of the Context object.
+        """Returns the string representation of the PyContext object.
 
         Returns:
-            str: A detailed string representation of the context
+            str: String representation of the underlying PyContext.
         """
         return self.ctx.__repr__()
 
     def __str__(self):
-        """Return a readable string description of the Context object.
+        """Returns the string representation of the PyContext object.
 
         Returns:
-            str: A human-readable string description
+            str: String representation of the underlying PyContext.
         """
         return self.ctx.__str__()
 
@@ -37,31 +34,27 @@ class Context:
         topic: str,
         sample_json: str,
         bootstrap_servers: str,
-        timestamp_column: str,
+        timestamp_column: str | None = None,
         group_id: str = "default_group",
     ) -> DataStream:
-        """Create a new DataStream from a Kafka topic.
+        """Creates a new DataStream from a Kafka topic.
 
         Args:
-            topic: Name of the Kafka topic to consume from
-            sample_json: Sample JSON string representing the expected message format
-            bootstrap_servers: Comma-separated list of Kafka broker addresses
-            timestamp_column: Column name containing event timestamps
-            group_id: Kafka consumer group ID (defaults to "default_group")
+            topic: The name of the Kafka topic to consume from.
+            sample_json: A sample JSON string representing the expected message format.
+            bootstrap_servers: Comma-separated list of Kafka broker addresses.
+            timestamp_column: Optional column name containing message timestamps.
+            group_id: Kafka consumer group ID, defaults to "default_group".
 
         Returns:
-            DataStream: A new DataStream instance configured for the specified topic
-
-        Raises:
-            ValueError: If the topic name is empty or invalid
-            ConnectionError: If unable to connect to Kafka brokers
+            DataStream: A new DataStream instance connected to the specified topic.
         """
         py_ds = self.ctx.from_topic(
             topic,
             sample_json,
             bootstrap_servers,
-            timestamp_column,
             group_id,
+            timestamp_column,
         )
         ds = DataStream(py_ds)
         return ds

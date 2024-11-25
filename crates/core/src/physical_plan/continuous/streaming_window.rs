@@ -736,7 +736,6 @@ impl WindowAggStream {
         let mut watermark_lock: std::sync::MutexGuard<Option<SystemTime>> =
             self.latest_watermark.lock().unwrap();
 
-        debug!("latest watermark currently is {:?}", *watermark_lock);
         if let Some(current_watermark) = *watermark_lock {
             if current_watermark <= watermark.min_timestamp {
                 *watermark_lock = Some(watermark.min_timestamp)
@@ -987,34 +986,41 @@ impl FullWindowAggStream {
                         if self.seen_windows.contains(&start_time)
                             && !self.cached_frames.contains_key(&start_time)
                         {
-                            panic!("we are reopening a window already seen.")
+                            debug!(
+                                "received late data for window with start time {:?}. dropping it.",
+                                start_time
+                            );
+                            Ok(RecordBatch::new_empty(Arc::new(
+                                add_window_columns_to_schema(self.schema.clone()),
+                            )))
+                        } else {
+                            let frame = self.cached_frames.entry(start_time).or_insert({
+                                FullWindowAggFrame::new(
+                                    start_time,
+                                    batch_end_time.unwrap(),
+                                    &self.exec_aggregate_expressions,
+                                    self.aggregate_expressions.clone(),
+                                    self.filter_expressions.clone(),
+                                    self.schema.clone(),
+                                    self.baseline_metrics.clone(),
+                                )
+                            });
+
+                            self.seen_windows.insert(start_time);
+
+                            //last two columns are timestamp columns, so remove them before pushing them onto a frame.
+                            let col_size = rb.num_columns();
+                            rb.remove_column(col_size - 1);
+                            rb.remove_column(col_size - 2);
+
+                            frame.aggregate_batch(rb);
+
+                            self.watermark = self
+                                .watermark
+                                .map_or(Some(start_time), |w| Some(w.max(start_time)));
+
+                            self.finalize_windows()
                         }
-                        let frame = self.cached_frames.entry(start_time).or_insert({
-                            FullWindowAggFrame::new(
-                                start_time,
-                                batch_end_time.unwrap(),
-                                &self.exec_aggregate_expressions,
-                                self.aggregate_expressions.clone(),
-                                self.filter_expressions.clone(),
-                                self.schema.clone(),
-                                self.baseline_metrics.clone(),
-                            )
-                        });
-
-                        self.seen_windows.insert(start_time);
-
-                        //last two columns are timestamp columns, so remove them before pushing them onto a frame.
-                        let col_size = rb.num_columns();
-                        rb.remove_column(col_size - 1);
-                        rb.remove_column(col_size - 2);
-
-                        frame.aggregate_batch(rb);
-
-                        self.watermark = self
-                            .watermark
-                            .map_or(Some(start_time), |w| Some(w.max(start_time)));
-
-                        self.finalize_windows()
                     } else {
                         Ok(RecordBatch::new_empty(Arc::new(
                             add_window_columns_to_schema(self.schema.clone()),
