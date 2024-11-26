@@ -26,6 +26,7 @@ use crate::state_backend::slatedb::get_global_slatedb;
 use denormalized_orchestrator::orchestrator::Orchestrator;
 
 use denormalized_common::error::Result;
+use denormalized_common::INTERNAL_METADATA_COLUMN;
 
 /// The primary interface for building a streaming job
 ///
@@ -203,7 +204,7 @@ impl DataStream {
         let qualified_fields = schema
             .iter()
             .map(|(qualifier, field)| (qualifier.cloned(), field.clone()))
-            .filter(|(_qualifier, field)| *field.name() != "_streaming_internal_metadata")
+            .filter(|(_qualifier, field)| *field.name() != INTERNAL_METADATA_COLUMN)
             .collect::<Vec<_>>();
 
         DFSchema::new_with_metadata(qualified_fields, schema.metadata().clone()).unwrap()

@@ -13,6 +13,7 @@ use datafusion::physical_plan::display::DisplayableExecutionPlan;
 use datafusion_python::expr::{join::PyJoinType, PyExpr};
 use tokio::task::JoinHandle;
 
+use denormalized::common::INTERNAL_METADATA_COLUMN;
 use denormalized::datastream::DataStream;
 
 use crate::errors::{py_denormalized_err, DenormalizedError, Result};
@@ -242,7 +243,7 @@ impl PyDataStream {
                             Ok(Some(batch)) => {
                                 Python::with_gil(|py| -> PyResult<()> {
                                     let mut batch = batch.clone();
-                                    if let Ok(col_idx) = batch.schema_ref().index_of("_streaming_internal_metadata") {
+                                    if let Ok(col_idx) = batch.schema_ref().index_of(INTERNAL_METADATA_COLUMN) {
                                         batch.remove_column(col_idx);
                                     }
 

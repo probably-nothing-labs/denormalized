@@ -1,3 +1,10 @@
+use arrow::{
+    compute::{concat_batches, filter_record_batch, max},
+    datatypes::TimestampMillisecondType,
+};
+use arrow_array::{Array, PrimitiveArray, RecordBatch, StructArray, TimestampMillisecondArray};
+use arrow_ord::cmp;
+use arrow_schema::{Field, Schema, SchemaRef};
 use std::{
     any::Any,
     borrow::Cow,
@@ -7,14 +14,6 @@ use std::{
     task::{Context, Poll},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-
-use arrow::{
-    compute::{concat_batches, filter_record_batch, max},
-    datatypes::TimestampMillisecondType,
-};
-use arrow_array::{Array, PrimitiveArray, RecordBatch, StructArray, TimestampMillisecondArray};
-use arrow_ord::cmp;
-use arrow_schema::{Field, Schema, SchemaRef};
 
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::aggregate::AggregateFunctionExpr;
@@ -38,6 +37,7 @@ use datafusion::{
     common::{internal_err, stats::Precision, DataFusionError, Statistics},
     physical_plan::Distribution,
 };
+use denormalized_common::INTERNAL_METADATA_COLUMN;
 use denormalized_orchestrator::{
     channel_manager::{create_channel, get_sender},
     orchestrator::OrchestrationMessage,
@@ -116,9 +116,7 @@ impl PartialWindowAggFrame {
     }
 
     pub fn push(&mut self, batch: &RecordBatch) -> Result<(), DataFusionError> {
-        let metadata = batch
-            .column_by_name("_streaming_internal_metadata")
-            .unwrap();
+        let metadata = batch.column_by_name(INTERNAL_METADATA_COLUMN).unwrap();
         let metadata_struct = metadata.as_any().downcast_ref::<StructArray>().unwrap();
 
         let ts_column = metadata_struct
@@ -151,7 +149,7 @@ impl PartialWindowAggFrame {
             .as_millis() as i64;
 
         let metadata = filtered_batch
-            .column_by_name("_streaming_internal_metadata")
+            .column_by_name(INTERNAL_METADATA_COLUMN)
             .unwrap();
         let metadata_struct = metadata.as_any().downcast_ref::<StructArray>().unwrap();
 
@@ -778,35 +776,33 @@ impl WindowAggStream {
 
     #[inline]
     fn poll_next_inner(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<RecordBatch>>> {
-        let result: std::prelude::v1::Result<RecordBatch, DataFusionError> = match self
-            .input
-            .poll_next_unpin(cx)
-        {
-            Poll::Ready(rdy) => match rdy {
-                Some(Ok(batch)) => {
-                    if batch.num_rows() > 0 {
-                        let watermark: RecordBatchWatermark =
-                            RecordBatchWatermark::try_from(&batch, "_streaming_internal_metadata")?;
-                        let ranges = get_windows_for_watermark(&watermark, self.window_type);
-                        let _ = self.ensure_window_frames_for_ranges(&ranges);
-                        for range in ranges {
-                            let frame = self.window_frames.get_mut(&range.0).unwrap();
-                            let _ = frame.push(&batch);
-                        }
-                        self.process_watermark(watermark);
+        let result: std::prelude::v1::Result<RecordBatch, DataFusionError> =
+            match self.input.poll_next_unpin(cx) {
+                Poll::Ready(rdy) => match rdy {
+                    Some(Ok(batch)) => {
+                        if batch.num_rows() > 0 {
+                            let watermark: RecordBatchWatermark =
+                                RecordBatchWatermark::try_from(&batch, INTERNAL_METADATA_COLUMN)?;
+                            let ranges = get_windows_for_watermark(&watermark, self.window_type);
+                            let _ = self.ensure_window_frames_for_ranges(&ranges);
+                            for range in ranges {
+                                let frame = self.window_frames.get_mut(&range.0).unwrap();
+                                let _ = frame.push(&batch);
+                            }
+                            self.process_watermark(watermark);
 
-                        self.trigger_windows()
-                    } else {
-                        Ok(RecordBatch::new_empty(self.output_schema_with_window()))
+                            self.trigger_windows()
+                        } else {
+                            Ok(RecordBatch::new_empty(self.output_schema_with_window()))
+                        }
                     }
+                    Some(Err(e)) => Err(e),
+                    None => Ok(RecordBatch::new_empty(self.output_schema_with_window())),
+                },
+                Poll::Pending => {
+                    return Poll::Pending;
                 }
-                Some(Err(e)) => Err(e),
-                None => Ok(RecordBatch::new_empty(self.output_schema_with_window())),
-            },
-            Poll::Pending => {
-                return Poll::Pending;
-            }
-        };
+            };
         Poll::Ready(Some(result))
     }
 }
