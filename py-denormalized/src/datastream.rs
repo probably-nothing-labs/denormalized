@@ -4,7 +4,6 @@ use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
 
-use core::ops::Index;
 use datafusion::arrow::datatypes::Schema;
 use datafusion::arrow::pyarrow::PyArrowType;
 use datafusion::arrow::pyarrow::ToPyArrow;
