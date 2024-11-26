@@ -196,8 +196,17 @@ impl DataStream {
     }
 
     /// Return the schema of DataFrame that backs the DataStream
-    pub fn schema(&self) -> &DFSchema {
-        self.df.schema()
+    pub fn schema(&self) -> DFSchema {
+        let schema = self.df.schema().clone();
+
+        // Strip out internal metadata fields from the schema
+        let qualified_fields = schema
+            .iter()
+            .map(|(qualifier, field)| (qualifier.cloned(), field.clone()))
+            .filter(|(_qualifier, field)| *field.name() != "_streaming_internal_metadata")
+            .collect::<Vec<_>>();
+
+        DFSchema::new_with_metadata(qualified_fields, schema.metadata().clone()).unwrap()
     }
 
     /// Prints the schema of the underlying dataframe

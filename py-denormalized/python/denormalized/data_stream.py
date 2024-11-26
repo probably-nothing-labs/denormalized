@@ -47,8 +47,7 @@ class DataStream:
         Returns:
             pa.Schema: The PyArrow schema describing the structure of the data
         """
-        schema = self.ds.schema()
-        return schema.remove(schema.get_field_index("_streaming_internal_metadata"))
+        return self.ds.schema()
 
     def select(self, expr_list: list[Expr]) -> "DataStream":
         """Select specific columns or expressions from the DataStream.

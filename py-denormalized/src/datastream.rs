@@ -4,8 +4,7 @@ use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::task::JoinHandle;
-
+use core::ops::Index;
 use datafusion::arrow::datatypes::Schema;
 use datafusion::arrow::pyarrow::PyArrowType;
 use datafusion::arrow::pyarrow::ToPyArrow;
@@ -13,6 +12,7 @@ use datafusion::common::JoinType;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::display::DisplayableExecutionPlan;
 use datafusion_python::expr::{join::PyJoinType, PyExpr};
+use tokio::task::JoinHandle;
 
 use denormalized::datastream::DataStream;
 
@@ -242,8 +242,12 @@ impl PyDataStream {
                         match message.transpose() {
                             Ok(Some(batch)) => {
                                 Python::with_gil(|py| -> PyResult<()> {
-                                    let batch = batch.clone().to_pyarrow(py)?;
-                                    func.call1(py, (batch,))?;
+                                    let mut batch = batch.clone();
+                                    if let Ok(col_idx) = batch.schema_ref().index_of("_streaming_internal_metadata") {
+                                        batch.remove_column(col_idx);
+                                    }
+
+                                    func.call1(py, (batch.to_pyarrow(py)?,))?;
                                     Ok(())
                                 })?;
                             },
