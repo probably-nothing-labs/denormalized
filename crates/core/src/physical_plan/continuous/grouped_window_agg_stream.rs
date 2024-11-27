@@ -36,6 +36,7 @@ use datafusion::{
     },
 };
 
+use denormalized_common::INTERNAL_METADATA_COLUMN;
 use denormalized_orchestrator::{
     channel_manager::take_receiver, orchestrator::OrchestrationMessage,
 };
@@ -323,35 +324,33 @@ impl GroupedWindowAggStream {
 
     #[inline]
     fn poll_next_inner(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<RecordBatch>>> {
-        let result: std::prelude::v1::Result<RecordBatch, DataFusionError> = match self
-            .input
-            .poll_next_unpin(cx)
-        {
-            Poll::Ready(rdy) => match rdy {
-                Some(Ok(batch)) => {
-                    if batch.num_rows() > 0 {
-                        let watermark: RecordBatchWatermark =
-                            RecordBatchWatermark::try_from(&batch, "_streaming_internal_metadata")?;
-                        let ranges = get_windows_for_watermark(&watermark, self.window_type);
-                        let _ = self.ensure_window_frames_for_ranges(&ranges);
-                        for range in ranges {
-                            let frame = self.window_frames.get_mut(&range.0).unwrap();
-                            let _ = frame.push(&batch);
-                        }
-                        self.process_watermark(watermark);
+        let result: std::prelude::v1::Result<RecordBatch, DataFusionError> =
+            match self.input.poll_next_unpin(cx) {
+                Poll::Ready(rdy) => match rdy {
+                    Some(Ok(batch)) => {
+                        if batch.num_rows() > 0 {
+                            let watermark: RecordBatchWatermark =
+                                RecordBatchWatermark::try_from(&batch, INTERNAL_METADATA_COLUMN)?;
+                            let ranges = get_windows_for_watermark(&watermark, self.window_type);
+                            let _ = self.ensure_window_frames_for_ranges(&ranges);
+                            for range in ranges {
+                                let frame = self.window_frames.get_mut(&range.0).unwrap();
+                                let _ = frame.push(&batch);
+                            }
+                            self.process_watermark(watermark);
 
-                        self.trigger_windows()
-                    } else {
-                        Ok(RecordBatch::new_empty(self.output_schema_with_window()))
+                            self.trigger_windows()
+                        } else {
+                            Ok(RecordBatch::new_empty(self.output_schema_with_window()))
+                        }
                     }
+                    Some(Err(e)) => Err(e),
+                    None => Ok(RecordBatch::new_empty(self.output_schema_with_window())),
+                },
+                Poll::Pending => {
+                    return Poll::Pending;
                 }
-                Some(Err(e)) => Err(e),
-                None => Ok(RecordBatch::new_empty(self.output_schema_with_window())),
-            },
-            Poll::Pending => {
-                return Poll::Pending;
-            }
-        };
+            };
 
         let mut checkpoint_batch = false;
 
@@ -547,9 +546,7 @@ impl GroupedAggWindowFrame {
     }
 
     pub fn push(&mut self, batch: &RecordBatch) -> Result<(), DataFusionError> {
-        let metadata = batch
-            .column_by_name("_streaming_internal_metadata")
-            .unwrap();
+        let metadata = batch.column_by_name(INTERNAL_METADATA_COLUMN).unwrap();
         let metadata_struct = metadata.as_any().downcast_ref::<StructArray>().unwrap();
 
         let ts_column = metadata_struct
@@ -582,7 +579,7 @@ impl GroupedAggWindowFrame {
             .as_millis() as i64;
 
         let metadata = filtered_batch
-            .column_by_name("_streaming_internal_metadata")
+            .column_by_name(INTERNAL_METADATA_COLUMN)
             .unwrap();
         let metadata_struct = metadata.as_any().downcast_ref::<StructArray>().unwrap();
 

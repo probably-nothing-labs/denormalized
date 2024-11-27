@@ -6,6 +6,7 @@ use apache_avro::Schema as AvroSchema;
 use arrow_schema::{DataType, Field, Fields, Schema, SchemaRef, TimeUnit};
 
 use datafusion::logical_expr::SortExpr;
+use denormalized_common::INTERNAL_METADATA_COLUMN;
 
 use crate::formats::decoders::avro::AvroDecoder;
 use crate::formats::decoders::json::JsonDecoder;
@@ -203,7 +204,7 @@ impl KafkaTopicBuilder {
         fields.insert(
             fields.len(),
             Arc::new(Field::new(
-                String::from("_streaming_internal_metadata"),
+                String::from(INTERNAL_METADATA_COLUMN),
                 DataType::Struct(Fields::from(struct_fields)),
                 true,
             )),
