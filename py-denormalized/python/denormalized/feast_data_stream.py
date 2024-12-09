@@ -116,6 +116,8 @@ class FeastDataStream(DataStream, metaclass=FeastDataStreamMeta):
                 try:
                     feature_store.push(source_name, df, to=PushMode.ONLINE)
                 except Exception as e:
-                    logger.error(f"Failed to push to Feast feature store: {e}", exc_info=True)
+                    logger.error(
+                        f"Failed to push to Feast feature store: {e}", exc_info=True
+                    )
 
         self.ds.sink_python(_sink_to_feast)
