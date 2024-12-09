@@ -108,10 +108,11 @@ class FeastDataStream(DataStream, metaclass=FeastDataStreamMeta):
         """
 
         def _sink_to_feast(rb: pa.RecordBatch):
-            df = rb.to_pandas()
-            try:
-                feature_store.push(source_name, df, to=PushMode.ONLINE)
-            except Exception as e:
-                print(e)
+            if len(rb):
+                df = rb.to_pandas()
+                try:
+                    feature_store.push(source_name, df, to=PushMode.ONLINE)
+                except Exception as e:
+                    print(e)
 
         self.ds.sink_python(_sink_to_feast)
