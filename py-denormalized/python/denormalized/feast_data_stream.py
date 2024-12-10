@@ -1,4 +1,5 @@
 import inspect
+import logging
 from typing import Any, TypeVar, Union, cast, get_type_hints
 
 import pyarrow as pa
@@ -9,6 +10,8 @@ from feast.type_map import pa_to_feast_value_type
 from feast.types import from_value_type
 
 from .data_stream import DataStream
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -108,10 +111,13 @@ class FeastDataStream(DataStream, metaclass=FeastDataStreamMeta):
         """
 
         def _sink_to_feast(rb: pa.RecordBatch):
-            df = rb.to_pandas()
-            try:
-                feature_store.push(source_name, df, to=PushMode.ONLINE)
-            except Exception as e:
-                print(e)
+            if len(rb):
+                df = rb.to_pandas()
+                try:
+                    feature_store.push(source_name, df, to=PushMode.ONLINE)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to push to Feast feature store: {e}", exc_info=True
+                    )
 
         self.ds.sink_python(_sink_to_feast)
