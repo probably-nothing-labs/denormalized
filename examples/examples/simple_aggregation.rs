@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use datafusion::functions_aggregate::count::count;
-use datafusion::functions_aggregate::expr_fn::{max, min};
-use datafusion::logical_expr::{col, lit};
+use datafusion::functions_aggregate::expr_fn::{avg, max, min};
+use datafusion::logical_expr::col;
 
 use denormalized::datasource::kafka::{ConnectionOpts, KafkaTopicBuilder};
 use denormalized::prelude::*;
@@ -17,27 +17,29 @@ async fn main() -> Result<()> {
         .filter_level(log::LevelFilter::Debug)
         .init();
 
-    let bootstrap_servers = String::from("localhost:9092");
+    let bootstrap_servers = String::from("localhost:19092");
 
     let config = Context::default_config().set_bool("denormalized_config.checkpoint", false);
 
-    let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers);
+    let mut topic_builder = KafkaTopicBuilder::new(bootstrap_servers.clone());
 
     // Connect to source topic
     let source_topic = topic_builder
         .with_topic(String::from("temperature"))
         .infer_schema_from_json(get_sample_json().as_str())?
         .with_encoding("json")?
-        .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
+        //.with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
         .build_reader(ConnectionOpts::from([
             ("auto.offset.reset".to_string(), "latest".to_string()),
             ("group.id".to_string(), "sample_pipeline".to_string()),
         ]))
         .await?;
 
-    let _ctx = Context::with_config(config)?
-        //.with_slatedb_backend(String::from("/tmp/checkpoints/simple-agg-checkpoint-1"))
-        //.await
+    let ds = Context::with_config(config)?
+        // .with_slatedb_backend(String::from(
+        //     "/tmp/checkpoints/simple-aggregation-example",
+        // ))
+        // .await
         .from_topic(source_topic)
         .await?
         .window(
@@ -46,14 +48,13 @@ async fn main() -> Result<()> {
                 count(col("reading")).alias("count"),
                 min(col("reading")).alias("min"),
                 max(col("reading")).alias("max"),
-                //avg(col("reading")).alias("average"),
+                avg(col("reading")).alias("average"),
             ],
-            Duration::from_millis(1_000), // aggregate every 1 second
-            None,                         // None means tumbling window
-        )?
-        .filter(col("max").gt(lit(113)))?
-        .print_stream() // Print out the results
-        .await?;
-
+            Duration::from_millis(5_000), // Window length
+            None,                         // Slide duration. None defaults to a tumbling window.
+        )?;
+    ds.print_stream().await?;
+    //ds.sink_kafka(bootstrap_servers, String::from("checkpointed-output"))
+    //    .await?;
     Ok(())
 }

@@ -632,11 +632,10 @@ impl GroupedAggWindowFrame {
         &mut self,
         state: &CheckpointedGroupedWindowFrame,
     ) -> Result<(), DataFusionError> {
-        let _ = self
-            .accumulators
+        self.accumulators
             .iter_mut()
             .zip(state.accumulators.iter())
-            .map(|(acc, checkpointed_acc)| {
+            .for_each(|(acc, checkpointed_acc)| {
                 let group_indices = (0..checkpointed_acc.num_groups).collect::<Vec<usize>>();
                 acc.merge_batch(
                     &checkpointed_acc.states.arrays,
@@ -644,6 +643,7 @@ impl GroupedAggWindowFrame {
                     None,
                     checkpointed_acc.num_groups,
                 )
+                .unwrap();
             });
         Ok(())
     }
