@@ -230,7 +230,6 @@ impl DataStream {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
         let physical_plan = self.df.as_ref().clone().create_physical_plan().await?;
         let node_id = physical_plan.node_id();
-        debug!("topline node id = {:?}", node_id);
         let displayable_plan = DisplayableExecutionPlan::new(physical_plan.as_ref());
 
         println!("{}", displayable_plan.indent(true));
@@ -243,62 +242,49 @@ impl DataStream {
         })
     }
 
-    /// execute the stream and print the results to stdout.
-    /// Mainly used for development and debugging
-    pub async fn print_stream(mut self) -> Result<()> {
+    async fn with_orchestrator<F, Fut, T>(&mut self, stream_fn: F) -> Result<T>
+    where
+        F: FnOnce(watch::Receiver<bool>) -> Fut,
+        Fut: std::future::Future<Output = Result<T>>,
+    {
         self.start_shutdown_listener();
-
-        let mut maybe_orchestrator_handle = None;
 
         let config = self.context.session_context.copied_config();
         let config_options = config.options().extensions.get::<DenormalizedConfig>();
-
         let should_checkpoint = config_options.map_or(false, |c| c.checkpoint);
 
+        let mut maybe_orchestrator_handle = None;
+
+        // Start orchestrator if checkpointing is enabled
         if should_checkpoint {
             let mut orchestrator = Orchestrator::default();
             let cloned_shutdown_rx = self.shutdown_rx.clone();
             let orchestrator_handle =
                 SpawnedTask::spawn_blocking(move || orchestrator.run(10, cloned_shutdown_rx));
-
-            maybe_orchestrator_handle = Some(orchestrator_handle)
+            maybe_orchestrator_handle = Some(orchestrator_handle);
         }
 
-        let mut stream: SendableRecordBatchStream =
-            self.df.as_ref().clone().execute_stream().await?;
+        // Run the stream processing function
 
-        // Stream loop with shutdown check
-        loop {
-            tokio::select! {
-                // Check if shutdown signal has changed
-                _ = self.shutdown_rx.changed() => {
-                    info!("Graceful shutdown initiated, exiting stream loop...");
+        let mut shutdown_rx = self.shutdown_rx.clone();
 
-                    break;
-                }
-                // Handle the next batch from the DataFusion stream
-                next_batch = stream.next() => {
-                    match next_batch.transpose() {
-                        Ok(Some(batch)) => {
-                            println!(
-                                "{}",
-                                datafusion::common::arrow::util::pretty::pretty_format_batches(&[batch])
-                                    .unwrap()
-                            );
-                        }
-                        Ok(None) => {
-                            info!("No more RecordBatch in stream");
-                            break;  // End of stream
-                        }
-                        Err(err) => {
-                            log::error!("Error reading stream: {:?}", err);
-                            return Err(err.into());
-                        }
-                    }
-                }
+        let result = tokio::select! {
+            res = stream_fn(shutdown_rx.clone()) => {
+                // `stream_fn` completed first
+                res
+            },
+            _ = shutdown_rx.changed() => {
+                // Shutdown signal received first
+                log::info!("Shutdown signal received while the pipeline was running, cancelling...");
+                // return early or handle cancellation gracefully
+                // For example, you might return Ok(()) or some cancellation error:
+                return Err(denormalized_common::DenormalizedError::Shutdown());
             }
-        }
+        };
 
+        //let result = stream_fn(self.shutdown_rx.clone()).await;
+
+        // Cleanup
         log::info!("Stream processing stopped. Cleaning up...");
 
         if should_checkpoint {
@@ -309,7 +295,7 @@ impl DataStream {
             }
         }
 
-        // Join the orchestrator handle if it exists, ensuring it is joined and awaited
+        // Join orchestrator if it was started
         if let Some(orchestrator_handle) = maybe_orchestrator_handle {
             log::info!("Waiting for orchestrator task to complete...");
             match orchestrator_handle.join_unwind().await {
@@ -317,34 +303,75 @@ impl DataStream {
                 Err(e) => log::error!("Error joining orchestrator task: {:?}", e),
             }
         }
+
+        result
+    }
+
+    /// execute the stream and print the results to stdout.
+    /// Mainly used for development and debugging
+    pub async fn print_stream(self) -> Result<()> {
+        self.clone()
+            .with_orchestrator(|_shutdown_rx| async move {
+                let mut stream: SendableRecordBatchStream =
+                    self.df.as_ref().clone().execute_stream().await?;
+
+                loop {
+                    match stream.next().await.transpose() {
+                        Ok(Some(batch)) => {
+                            if batch.num_rows() > 0 {
+                                println!(
+                                    "{}",
+                                    datafusion::common::arrow::util::pretty::pretty_format_batches(
+                                        &[batch]
+                                    )
+                                    .unwrap()
+                                );
+                            }
+                        }
+                        Ok(None) => {
+                            info!("No more RecordBatches in stream");
+                            break; // End of stream
+                        }
+                        Err(err) => {
+                            log::error!("Error reading stream: {:?}", err);
+                            return Err(err.into());
+                        }
+                    }
+                }
+                Ok(())
+            })
+            .await?;
         Ok(())
     }
 
-    /// execute the stream and write the results to a give kafka topic
     pub async fn sink_kafka(self, bootstrap_servers: String, topic: String) -> Result<()> {
-        let processed_schema = Arc::new(datafusion::common::arrow::datatypes::Schema::from(
-            self.df.schema(),
-        ));
+        self.clone()
+            .with_orchestrator(|_shutdown_rx| async move {
+                let processed_schema = Arc::new(
+                    datafusion::common::arrow::datatypes::Schema::from(self.df.schema()),
+                );
 
-        let sink_topic = KafkaTopicBuilder::new(bootstrap_servers.clone())
-            .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
-            .with_encoding("json")?
-            .with_topic(topic.clone())
-            .with_schema(processed_schema)
-            .build_writer(ConnectionOpts::new())
-            .await?;
+                let sink_topic = KafkaTopicBuilder::new(bootstrap_servers.clone())
+                    .with_timestamp(String::from("occurred_at_ms"), TimestampUnit::Int64Millis)
+                    .with_encoding("json")?
+                    .with_topic(topic.clone())
+                    .with_schema(processed_schema)
+                    .build_writer(ConnectionOpts::new())
+                    .await?;
 
-        self.context
-            .register_table(topic.clone(), Arc::new(sink_topic))
-            .await?;
+                self.context
+                    .register_table(topic.clone(), Arc::new(sink_topic))
+                    .await?;
 
-        self.df
-            .as_ref()
-            .clone()
-            .write_table(topic.as_str(), DataFrameWriteOptions::default())
-            .await?;
+                self.df
+                    .as_ref()
+                    .clone()
+                    .write_table(topic.as_str(), DataFrameWriteOptions::default())
+                    .await?;
 
-        Ok(())
+                Ok(())
+            })
+            .await
     }
 }
 

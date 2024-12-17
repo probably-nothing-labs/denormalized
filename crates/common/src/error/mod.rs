@@ -17,6 +17,8 @@ pub enum DenormalizedError {
     // #[allow(clippy::disallowed_types)]
     #[error("DataFusion error")]
     DataFusion(#[from] DataFusionError),
+    #[error("Shutdown")]
+    Shutdown(),
     #[error("RocksDB error: {0}")]
     RocksDB(String),
     #[error("Kafka error")]
