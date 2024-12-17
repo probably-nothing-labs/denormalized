@@ -2,7 +2,6 @@ use datafusion::common::runtime::SpawnedTask;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::physical_plan::ExecutionPlanProperties;
 use futures::StreamExt;
-use log::debug;
 use log::info;
 use std::{sync::Arc, time::Duration};
 use tokio::signal;
@@ -229,7 +228,7 @@ impl DataStream {
     pub async fn print_physical_plan(self) -> Result<Self> {
         let (session_state, plan) = self.df.as_ref().clone().into_parts();
         let physical_plan = self.df.as_ref().clone().create_physical_plan().await?;
-        let node_id = physical_plan.node_id();
+        // let node_id = physical_plan.node_id();
         let displayable_plan = DisplayableExecutionPlan::new(physical_plan.as_ref());
 
         println!("{}", displayable_plan.indent(true));

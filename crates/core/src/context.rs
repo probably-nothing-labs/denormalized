@@ -36,7 +36,7 @@ impl Context {
                 &datafusion::common::ScalarValue::Boolean(Some(false)),
             );
 
-        let _ = config.options_mut().extensions.insert(ext_config);
+        config.options_mut().extensions.insert(ext_config);
         config
     }
 
