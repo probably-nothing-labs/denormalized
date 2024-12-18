@@ -297,7 +297,7 @@ mod tests {
     use arrow_schema::{Field, Fields};
     use datafusion::{
         functions_aggregate::average::AvgAccumulator, logical_expr::Accumulator,
-        physical_expr::GroupsAccumulatorAdapter, scalar::ScalarValue,
+        scalar::ScalarValue,
     };
     use std::sync::Arc;
 
